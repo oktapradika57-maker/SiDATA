@@ -1,125 +1,227 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-from wordcloud import WordCloud
-import matplotlib.pyplot as plt
-import re
-from collections import Counter
+import numpy as np
+import io
 
-# Konfigurasi Halaman Streamlit
-st.set_page_config(
-    page_title="Dashboard Laporan & Analisis Teks",
-    page_icon="📊",
-    layout="wide"
-)
+# Konfigurasi Halaman
+st.set_page_config(page_title="Analisa Pergerakan Tim & Backup MBP", layout="wide")
+st.title("⚡ Analisa Pergerakan PIC, Status Backup & Jarak MBP (Kalteng)")
+st.write("Unggah file Excel tiket Anda untuk memantau aktivitas PIC, kalkulasi jarak tempuh ke site, serta posibilitas backup site.")
 
-st.title("📊 Dashboard Laporan & Analisis Teks (MBP1)")
-st.markdown("Aplikasi ini membaca data laporan Excel dan melakukan analisis data visual serta analisis teks otomatis.")
-
-# Sidebar untuk Pengaturan File
-st.sidebar.header("📁 Pengaturan Data")
-uploaded_file = st.sidebar.file_uploader("Unggah File Excel (mbp1.xlsx)", type=["xlsx", "xls"])
-
-# Fungsi Pembaca Data
-@st.cache_data
-def load_data(file):
-    if file is not None:
-        return pd.read_excel(file, sheet_name=None)
+# Fungsi Kalkulasi Jarak Haversine (km)
+def calculate_haversine(lat1, lon1, lat2, lon2):
     try:
-        return pd.read_excel("mbp1.xlsx", sheet_name=None)
-    except FileNotFoundError:
-        return None
+        R = 6371.0 # Radius bumi dalam km
+        lat1, lon1, lat2, lon2 = map(np.radians, [float(lat1), float(lon1), float(lat2), float(lon2)])
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = np.sin(dlat / 2.0)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2.0)**2
+        c = 2 * np.arcsin(np.sqrt(a))
+        return round(R * c, 2)
+    except (ValueError, TypeError):
+        return np.nan
 
-dict_df = load_data(uploaded_file)
+# Mapping Koordinat Default Posko Utama Kalteng (Fallback jika koordinat PIC tidak diisi di Excel)
+DEFAULT_CITY_COORDS = {
+    "Palangka Raya": (-2.2088, 113.9161),
+    "Sampit": (-2.5333, 112.9500),
+    "Pangkalan Bun": (-2.6833, 111.6167),
+    "Muara Teweh": (-0.9542, 114.8964),
+    "Buntok": (-1.7333, 114.8333),
+    "Kuala Kapuas": (-3.0083, 114.3833),
+    "Puruk Cahu": (-0.6167, 114.5833),
+    "Tamiang Layang": (-2.1433, 115.1611)
+}
 
-if dict_df is None:
-    st.info("💡 Silakan unggah file `mbp1.xlsx` melalui sidebar atau letakkan file tersebut di direktori utama repositori GitHub Anda.")
-    st.stop()
+# Sidebar Pengaturan Posko
+st.sidebar.header("📍 Pengaturan Posko Tim / Base")
+use_default_coords = st.sidebar.checkbox("Gunakan Koordinat Default Kota jika Koordinat PIC Kosong", value=True)
 
-# Pilih Sheet
-sheet_names = list(dict_df.keys())
-selected_sheet = st.sidebar.selectbox("Pilih Sheet Laporan", sheet_names)
-df = dict_df[selected_sheet].copy()
+# Fitur Upload File
+uploaded_file = st.file_uploader("Upload File Excel (Ticket MBP)", type=["xlsx", "xls"])
 
-# Tab Layout
-tab1, tab2, tab3 = st.tabs(["📋 Ringkasan Data", "📈 Analisis Laporan", "🔤 Analisis Teks"])
-
-# --- TAB 1: RINGKASAN DATA ---
-with tab1:
-    st.subheader(f"Data Sheet: {selected_sheet}")
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Baris", df.shape[0])
-    col2.metric("Total Kolom", df.shape[1])
-    col3.metric("Kolom Teks Terdeteksi", len(df.select_dtypes(include=['object', 'string']).columns))
-    
-    st.dataframe(df, use_container_width=True)
-
-# --- TAB 2: ANALISIS LAPORAN ---
-with tab2:
-    st.subheader("Visualisasi Laporan Data")
-    numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
-    categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
-
-    if numeric_cols:
-        col_x = st.selectbox("Pilih Kolom Sumbu X (Kategori/Tanggal)", options=df.columns, index=0)
-        col_y = st.selectbox("Pilih Kolom Sumbu Y (Nilai)", options=numeric_cols, index=0)
-        chart_type = st.radio("Tipe Grafik", ["Bar Chart", "Line Chart", "Box Plot"], horizontal=True)
-
-        if chart_type == "Bar Chart":
-            fig = px.bar(df, x=col_x, y=col_y, title=f"Grafik Batang {col_y} berdasarkan {col_x}")
-        elif chart_type == "Line Chart":
-            fig = px.line(df, x=col_x, y=col_y, title=f"Grafik Garis {col_y} berdasarkan {col_x}")
-        else:
-            fig = px.box(df, x=col_x, y=col_y, title=f"Box Plot {col_y} berdasarkan {col_x}")
-
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("Tidak ditemukan kolom numerik pada sheet ini untuk membuat grafik kuantitatif.")
-
-# --- TAB 3: ANALISIS TEKS ---
-with tab3:
-    st.subheader("Analisis Teks & Komentar")
-    text_cols = df.select_dtypes(include=['object', 'string']).columns.tolist()
-
-    if text_cols:
-        selected_text_col = st.selectbox("Pilih Kolom Teks untuk Menganalisis", text_cols)
+if uploaded_file:
+    with st.spinner('Memproses data, menghitung jarak tempuh, dan menganalisis pergerakan PIC...'):
+        df = pd.read_excel(uploaded_file, sheet_name=0)
         
-        # Bersihkan Teks
-        text_data = df[selected_text_col].dropna().astype(str)
-        combined_text = " ".join(text_data)
+        # Preprocessing Kolom Tanggal & Waktu
+        df['Created At'] = pd.to_datetime(df['Created At'], errors='coerce')
+        df['Cleared Time'] = pd.to_datetime(df['Cleared Time'], errors='coerce')
+        df['Take Over Date'] = pd.to_datetime(df['Take Over Date'], errors='coerce')
         
-        # Pembersihan kata sederhana (dapat disesuaikan)
-        clean_text = re.sub(r'[^\w\s]', '', combined_text.lower())
-        words = [w for w in clean_text.split() if len(w) > 2]
+        df['Date'] = df['Created At'].dt.date
+        df['Take Over Date Only'] = df['Take Over Date'].dt.date
+        
+        # Kalkulasi Downtime
+        df['Downtime'] = df['Cleared Time'] - df['Created At']
+        df['Downtime (Jam)'] = (df['Downtime'].dt.total_seconds() / 3600).round(2)
+        
+        # Deteksi Status Backup
+        df['Is_Backup'] = df['RH Start'].apply(lambda x: True if pd.notna(x) and str(x).strip() != '' and float(x) > 0 else False)
 
-        col_text1, col_text2 = st.columns(2)
+        # Kalkulasi Jarak Tempuh
+        def get_distance(row):
+            # Prioritas 1: Ambil koordinat PIC & Site dari row Excel jika ada
+            pic_lat = row.get('PIC Lat') or row.get('Base Lat')
+            pic_lon = row.get('PIC Long') or row.get('Base Long')
+            site_lat = row.get('Site Lat') or row.get('Latitude')
+            site_lon = row.get('Site Long') or row.get('Longitude')
 
-        with col_text1:
-            st.write("**Kata Paling Sering Muncul (Top 10)**")
-            word_counts = Counter(words).most_common(10)
-            df_words = pd.DataFrame(word_counts, columns=['Kata', 'Frekuensi'])
-            
-            fig_words = px.bar(df_words, x='Frekuensi', y='Kata', orientation='h', title="Top 10 Kata Terbanyak")
-            fig_words.update_layout(yaxis={'categoryorder': 'total ascending'})
-            st.plotly_chart(fig_words, use_container_width=True)
+            # Fallback jika koordinat PIC/Base kosong tetapi opsi default aktif
+            if (pd.isna(pic_lat) or pd.isna(pic_lon)) and use_default_coords:
+                city_name = row.get('City')
+                if city_name in DEFAULT_CITY_COORDS:
+                    pic_lat, pic_lon = DEFAULT_CITY_COORDS[city_name]
 
-        with col_text2:
-            st.write("**Word Cloud**")
-            if words:
-                wordcloud = WordCloud(width=600, height=400, background_color='white').generate(" ".join(words))
-                fig_wc, ax = plt.subplots(figsize=(8, 5))
-                ax.imshow(wordcloud, interpolation='bilinear')
-                ax.axis('off')
-                st.pyplot(fig_wc)
+            if pd.notna(pic_lat) and pd.notna(pic_lon) and pd.notna(site_lat) and pd.notna(site_lon):
+                return calculate_haversine(pic_lat, pic_lon, site_lat, site_lon)
+            return np.nan
+
+        df['Jarak Tempuh (km)'] = df.apply(get_distance, axis=1)
+
+        # Penilaian Posibilitas Backup
+        def assess_possibility(rc):
+            if pd.isna(rc):
+                return "Cek Manual (Tidak ada RC)"
+            rc_str = str(rc).lower()
+            if 'pln off' in rc_str or 'baterai' in rc_str or 'sewa daya' in rc_str or 'solar cell' in rc_str:
+                return "Tinggi (Issue Power/PLN)"
+            elif 'rectifier' in rc_str or 'ups' in rc_str:
+                return "Rendah (Butuh Perbaikan Rectifier)"
+            elif 'osp' in rc_str or 'transport' in rc_str or 'cme' in rc_str or 'telkom' in rc_str or 'isp' in rc_str:
+                return "Tidak Bisa (Issue Transmisi/Kabel/Hardware)"
             else:
-                st.info("Teks terlalu singkat untuk membuat Word Cloud.")
+                return f"Lainnya ({rc})"
 
-        st.markdown("---")
-        st.write("**Distribusi Panjang Teks (Jumlah Karakter)**")
-        df['Panjang_Teks'] = text_data.apply(len)
-        fig_len = px.histogram(df, x='Panjang_Teks', nbins=20, title="Distribusi Panjang Karakter Teks")
-        st.plotly_chart(fig_len, use_container_width=True)
+        # 1. TABEL ANALISA PERGERAKAN TIM (PIC)
+        pic_analysis = []
+        if 'PIC Take Over Ticket' in df.columns:
+            grouped_pic = df[df['PIC Take Over Ticket'].notna()].groupby(['PIC Take Over Ticket', 'Take Over Date Only', 'City'])
+            for (pic, date, city), group in grouped_pic:
+                total_handled = group['Site Id'].nunique()
+                backed_up_group = group[group['Is_Backup']]
+                no_backup_group = group[~group['Is_Backup']]
+                
+                sites_backup = ", ".join(backed_up_group['Site Id'].astype(str).unique()) if len(backed_up_group) > 0 else "-"
+                sites_no_backup = ", ".join(no_backup_group['Site Id'].astype(str).unique()) if len(no_backup_group) > 0 else "-"
+                
+                # Jarak Tempuh Per PIC / Tanggal
+                tot_dist = group['Jarak Tempuh (km)'].sum()
+                avg_dist = group['Jarak Tempuh (km)'].mean()
+                dist_info = f"{tot_dist:.1f} km (Rata-rata: {avg_dist:.1f} km/site)" if pd.notna(tot_dist) and tot_dist > 0 else "Data Koordinat Tidak Lengkap"
 
-    else:
-        st.warning("Tidak ditemukan kolom berbasis teks pada sheet ini.")
+                # Ringkasan RC / Alasan
+                if len(no_backup_group) == 0:
+                    rc_info = "Semua Sukses Backup"
+                    posibility = "-"
+                else:
+                    rcs = no_backup_group['INAP RC 1'].dropna().value_counts()
+                    rc_info = ", ".join([f"{k} ({v})" for k, v in rcs.items()]) if not rcs.empty else "Auto Resolved / No RC"
+                    
+                    possibilities = [assess_possibility(rc) for rc in no_backup_group['INAP RC 1']]
+                    pos_series = pd.Series(possibilities).value_counts()
+                    posibility = ", ".join([f"{k} ({v} site)" for k, v in pos_series.items()])
+                
+                pic_analysis.append({
+                    'PIC': pic,
+                    'Tanggal Take Over': date,
+                    'Kota (City)': city,
+                    'Total Site Down': total_handled,
+                    'Estimasi Jarak Tempuh': dist_info,
+                    'Site Sukses Backup': sites_backup,
+                    'Site Tidak Di-backup': sites_no_backup,
+                    'Alasan (INAP RC 1)': rc_info,
+                    'Posibilitas Backup': posibility,
+                    'Remark Lapangan': ""
+                })
+        df_pic_report = pd.DataFrame(pic_analysis)
+
+        # 2. TABEL RINGKASAN PER CITY
+        city_analysis = []
+        for city, group in df.groupby('City'):
+            total_tiket = len(group)
+            unique_sites = group['Site Id'].nunique()
+            mbp_group = group[group['Is_Backup']]
+            total_backup = len(mbp_group)
+            site_backup_list = ", ".join(mbp_group['Site Id'].astype(str).dropna().unique()) if total_backup > 0 else "-"
+            avg_city_dist = group['Jarak Tempuh (km)'].mean()
+            
+            city_analysis.append({
+                'City': city,
+                'Total Tiket Down': total_tiket,
+                'Total Site Down (Unique)': unique_sites,
+                'Total MBP Backup': total_backup,
+                'Rata-rata Jarak ke Site (km)': round(avg_city_dist, 2) if pd.notna(avg_city_dist) else "-",
+                'Site yang Di-Backup': site_backup_list,
+                'Remark Area': ""
+            })
+        df_city_report = pd.DataFrame(city_analysis)
+
+        # 3. TABEL DETAIL DATA & ENVA TIME
+        cols_detail = ['Date', 'City', 'Site Id', 'Site Name', 'PIC Take Over Ticket', 'Jarak Tempuh (km)', 'Created At', 'Cleared Time', 'Downtime (Jam)', 'RH Start', 'INAP RC 1']
+        cols_available = [col for col in cols_detail if col in df.columns]
+        df_detail = df[cols_available].copy()
+        df_detail['Remark (Alasan Tidak Bisa Backup)'] = ""
+
+        # STRUKTUR TAMPILAN STREAMLIT (TABS)
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            "🏃‍♂️ Pergerakan Tim (PIC)", 
+            "🏙️ Analisa per City", 
+            "📋 Detail & Enva Time", 
+            "📈 Pivot Interaktif", 
+            "💾 Download Excel"
+        ])
+        
+        with tab1:
+            st.subheader("Aktivitas, Pergerakan & Mobilisasi Jarak PIC")
+            st.write("Menampilkan pergerakan harian PIC, estimasi akumulasi jarak perjalanan, site backup, serta evaluasi kendala.")
+            if not df_pic_report.empty:
+                st.dataframe(df_pic_report, use_container_width=True)
+            else:
+                st.warning("Kolom 'PIC Take Over Ticket' tidak ditemukan pada data.")
+            
+        with tab2:
+            st.subheader("Rekapitulasi Total Down Site, Jarak Rata-rata & Status Backup per City")
+            st.dataframe(df_city_report, use_container_width=True)
+            
+        with tab3:
+            st.subheader("Detail Tiket, Kalkulasi Jarak & Enva Time (Downtime)")
+            st.dataframe(df_detail, use_container_width=True)
+
+        with tab4:
+            st.subheader("Custom Pivot Table")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                pivot_index = st.selectbox("Baris (Index):", options=df.columns, index=df.columns.get_loc('City') if 'City' in df.columns else 0)
+            with col2:
+                pivot_columns = st.selectbox("Kolom (Opsional):", options=['None'] + list(df.columns), index=0)
+            with col3:
+                pivot_values = st.selectbox("Values (Dihitung):", options=df.columns, index=df.columns.get_loc('Jarak Tempuh (km)') if 'Jarak Tempuh (km)' in df.columns else 0)
+                pivot_agg = st.selectbox("Metode Agregasi:", options=['sum', 'mean', 'count', 'nunique'])
+            
+            try:
+                if pivot_columns == 'None':
+                    pivot_df = pd.pivot_table(df, index=pivot_index, values=pivot_values, aggfunc=pivot_agg)
+                else:
+                    pivot_df = pd.pivot_table(df, index=pivot_index, columns=pivot_columns, values=pivot_values, aggfunc=pivot_agg)
+                st.dataframe(pivot_df, use_container_width=True)
+            except Exception as e:
+                st.warning(f"Gagal membuat pivot table dengan kombinasi tersebut: {e}")
+
+        with tab5:
+            st.subheader("Unduh Laporan Lengkap ke Excel")
+            st.write("Hasil rekapitulasi pergerakan PIC, analisa jarak tempuh, rekap kota, dan detail waktu siap diunduh.")
+            
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                if not df_pic_report.empty:
+                    df_pic_report.to_excel(writer, sheet_name='Pergerakan_Tim_PIC', index=False)
+                df_city_report.to_excel(writer, sheet_name='Analisa_Per_City', index=False)
+                df_detail.to_excel(writer, sheet_name='Detail_Enva_Time_Jarak', index=False)
+            
+            st.download_button(
+                label="📥 Download Analisa_Lengkap_MBP.xlsx",
+                data=buffer.getvalue(),
+                file_name="Analisa_Pergerakan_Jarak_Dan_Backup_MBP.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
