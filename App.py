@@ -1,170 +1,125 @@
 import streamlit as st
 import pandas as pd
-import io
+import plotly.express as px
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+import re
+from collections import Counter
 
-# Konfigurasi Halaman
-st.set_page_config(page_title="Analisa Pergerakan Tim & Backup MBP", layout="wide")
-st.title("⚡ Analisa Pergerakan PIC & Status Backup MBP (Kalteng)")
-st.write("Unggah file Excel tiket Anda untuk memantau aktivitas PIC per tanggal, beban site down per City, serta posibilitas backup site.")
+# Konfigurasi Halaman Streamlit
+st.set_page_config(
+    page_title="Dashboard Laporan & Analisis Teks",
+    page_icon="📊",
+    layout="wide"
+)
 
-# Fitur Upload File
-uploaded_file = st.file_uploader("Upload File Excel (Ticket MBP)", type=["xlsx", "xls"])
+st.title("📊 Dashboard Laporan & Analisis Teks (MBP1)")
+st.markdown("Aplikasi ini membaca data laporan Excel dan melakukan analisis data visual serta analisis teks otomatis.")
 
-if uploaded_file:
-    with st.spinner('Memproses data dan menganalisis pergerakan PIC...'):
-        # Membaca sheet pertama
-        df = pd.read_excel(uploaded_file, sheet_name=0)
-        
-        # Preprocessing Kolom Tanggal & Waktu
-        df['Created At'] = pd.to_datetime(df['Created At'], errors='coerce')
-        df['Cleared Time'] = pd.to_datetime(df['Cleared Time'], errors='coerce')
-        df['Take Over Date'] = pd.to_datetime(df['Take Over Date'], errors='coerce')
-        
-        df['Date'] = df['Created At'].dt.date
-        df['Take Over Date Only'] = df['Take Over Date'].dt.date
-        
-        # Kalkulasi Downtime (Enva Time)
-        df['Downtime'] = df['Cleared Time'] - df['Created At']
-        df['Downtime (Jam)'] = df['Downtime'].dt.total_seconds() / 3600
-        
-        # Deteksi Status Backup (RH Start valid / > 0)
-        df['Is_Backup'] = df['RH Start'].apply(lambda x: True if pd.notna(x) and x > 0 else False)
+# Sidebar untuk Pengaturan File
+st.sidebar.header("📁 Pengaturan Data")
+uploaded_file = st.sidebar.file_uploader("Unggah File Excel (mbp1.xlsx)", type=["xlsx", "xls"])
 
-        # Fungsi Penilaian Posibilitas Backup untuk Site yang Tidak Di-backup
-        def assess_possibility(rc):
-            if pd.isna(rc):
-                return "Cek Manual (Tidak ada RC)"
-            rc_str = str(rc).lower()
-            if 'pln off' in rc_str or 'baterai' in rc_str or 'sewa daya' in rc_str or 'solar cell' in rc_str:
-                return "Tinggi (Issue Power/PLN)"
-            elif 'rectifier' in rc_str or 'ups' in rc_str:
-                return "Rendah (Butuh Perbaikan Rectifier)"
-            elif 'osp' in rc_str or 'transport' in rc_str or 'cme' in rc_str or 'telkom' in rc_str or 'isp' in rc_str:
-                return "Tidak Bisa (Issue Transmisi/Kabel/Hardware)"
+# Fungsi Pembaca Data
+@st.cache_data
+def load_data(file):
+    if file is not None:
+        return pd.read_excel(file, sheet_name=None)
+    try:
+        return pd.read_excel("mbp1.xlsx", sheet_name=None)
+    except FileNotFoundError:
+        return None
+
+dict_df = load_data(uploaded_file)
+
+if dict_df is None:
+    st.info("💡 Silakan unggah file `mbp1.xlsx` melalui sidebar atau letakkan file tersebut di direktori utama repositori GitHub Anda.")
+    st.stop()
+
+# Pilih Sheet
+sheet_names = list(dict_df.keys())
+selected_sheet = st.sidebar.selectbox("Pilih Sheet Laporan", sheet_names)
+df = dict_df[selected_sheet].copy()
+
+# Tab Layout
+tab1, tab2, tab3 = st.tabs(["📋 Ringkasan Data", "📈 Analisis Laporan", "🔤 Analisis Teks"])
+
+# --- TAB 1: RINGKASAN DATA ---
+with tab1:
+    st.subheader(f"Data Sheet: {selected_sheet}")
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Baris", df.shape[0])
+    col2.metric("Total Kolom", df.shape[1])
+    col3.metric("Kolom Teks Terdeteksi", len(df.select_dtypes(include=['object', 'string']).columns))
+    
+    st.dataframe(df, use_container_width=True)
+
+# --- TAB 2: ANALISIS LAPORAN ---
+with tab2:
+    st.subheader("Visualisasi Laporan Data")
+    numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
+    categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+
+    if numeric_cols:
+        col_x = st.selectbox("Pilih Kolom Sumbu X (Kategori/Tanggal)", options=df.columns, index=0)
+        col_y = st.selectbox("Pilih Kolom Sumbu Y (Nilai)", options=numeric_cols, index=0)
+        chart_type = st.radio("Tipe Grafik", ["Bar Chart", "Line Chart", "Box Plot"], horizontal=True)
+
+        if chart_type == "Bar Chart":
+            fig = px.bar(df, x=col_x, y=col_y, title=f"Grafik Batang {col_y} berdasarkan {col_x}")
+        elif chart_type == "Line Chart":
+            fig = px.line(df, x=col_x, y=col_y, title=f"Grafik Garis {col_y} berdasarkan {col_x}")
+        else:
+            fig = px.box(df, x=col_x, y=col_y, title=f"Box Plot {col_y} berdasarkan {col_x}")
+
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("Tidak ditemukan kolom numerik pada sheet ini untuk membuat grafik kuantitatif.")
+
+# --- TAB 3: ANALISIS TEKS ---
+with tab3:
+    st.subheader("Analisis Teks & Komentar")
+    text_cols = df.select_dtypes(include=['object', 'string']).columns.tolist()
+
+    if text_cols:
+        selected_text_col = st.selectbox("Pilih Kolom Teks untuk Menganalisis", text_cols)
+        
+        # Bersihkan Teks
+        text_data = df[selected_text_col].dropna().astype(str)
+        combined_text = " ".join(text_data)
+        
+        # Pembersihan kata sederhana (dapat disesuaikan)
+        clean_text = re.sub(r'[^\w\s]', '', combined_text.lower())
+        words = [w for w in clean_text.split() if len(w) > 2]
+
+        col_text1, col_text2 = st.columns(2)
+
+        with col_text1:
+            st.write("**Kata Paling Sering Muncul (Top 10)**")
+            word_counts = Counter(words).most_common(10)
+            df_words = pd.DataFrame(word_counts, columns=['Kata', 'Frekuensi'])
+            
+            fig_words = px.bar(df_words, x='Frekuensi', y='Kata', orientation='h', title="Top 10 Kata Terbanyak")
+            fig_words.update_layout(yaxis={'categoryorder': 'total ascending'})
+            st.plotly_chart(fig_words, use_container_width=True)
+
+        with col_text2:
+            st.write("**Word Cloud**")
+            if words:
+                wordcloud = WordCloud(width=600, height=400, background_color='white').generate(" ".join(words))
+                fig_wc, ax = plt.subplots(figsize=(8, 5))
+                ax.imshow(wordcloud, interpolation='bilinear')
+                ax.axis('off')
+                st.pyplot(fig_wc)
             else:
-                return f"Lainnya ({rc})"
+                st.info("Teks terlalu singkat untuk membuat Word Cloud.")
 
-        # 1. TABEL ANALISA PERGERAKAN TIM (PIC)
-        pic_analysis = []
-        if 'PIC Take Over Ticket' in df.columns:
-            grouped_pic = df[df['PIC Take Over Ticket'].notna()].groupby(['PIC Take Over Ticket', 'Take Over Date Only', 'City'])
-            for (pic, date, city), group in grouped_pic:
-                total_handled = group['Site Id'].nunique()
-                backed_up_group = group[group['Is_Backup']]
-                no_backup_group = group[~group['Is_Backup']]
-                
-                sites_backup = ", ".join(backed_up_group['Site Id'].unique()) if len(backed_up_group) > 0 else "-"
-                sites_no_backup = ", ".join(no_backup_group['Site Id'].unique()) if len(no_backup_group) > 0 else "-"
-                
-                # Ringkasan RC / Alasan
-                if len(no_backup_group) == 0:
-                    rc_info = "Semua Sukses Backup"
-                    posibility = "-"
-                else:
-                    rcs = no_backup_group['INAP RC 1'].dropna().value_counts()
-                    rc_info = ", ".join([f"{k} ({v})" for k, v in rcs.items()]) if not rcs.empty else "Auto Resolved / No RC"
-                    
-                    possibilities = [assess_possibility(rc) for rc in no_backup_group['INAP RC 1']]
-                    pos_series = pd.Series(possibilities).value_counts()
-                    posibility = ", ".join([f"{k} ({v} site)" for k, v in pos_series.items()])
-                
-                pic_analysis.append({
-                    'PIC': pic,
-                    'Tanggal Take Over': date,
-                    'Kota (City)': city,
-                    'Total Site Down': total_handled,
-                    'Site Sukses Backup': sites_backup,
-                    'Site Tidak Di-backup': sites_no_backup,
-                    'Alasan (INAP RC 1)': rc_info,
-                    'Posibilitas Backup': posibility,
-                    'Remark Lapangan': "" # Kolom kosong untuk diisi user
-                })
-        df_pic_report = pd.DataFrame(pic_analysis)
+        st.markdown("---")
+        st.write("**Distribusi Panjang Teks (Jumlah Karakter)**")
+        df['Panjang_Teks'] = text_data.apply(len)
+        fig_len = px.histogram(df, x='Panjang_Teks', nbins=20, title="Distribusi Panjang Karakter Teks")
+        st.plotly_chart(fig_len, use_container_width=True)
 
-        # 2. TABEL RINGKASAN PER CITY
-        city_analysis = []
-        for city, group in df.groupby('City'):
-            total_tiket = len(group)
-            unique_sites = group['Site Id'].nunique()
-            mbp_group = group[group['Is_Backup']]
-            total_backup = len(mbp_group)
-            site_backup_list = ", ".join(mbp_group['Site Id'].dropna().unique()) if total_backup > 0 else "-"
-            
-            city_analysis.append({
-                'City': city,
-                'Total Tiket Down': total_tiket,
-                'Total Site Down (Unique)': unique_sites,
-                'Total MBP Backup': total_backup,
-                'Site yang Di-Backup': site_backup_list,
-                'Remark Area': ""
-            })
-        df_city_report = pd.DataFrame(city_analysis)
-
-        # 3. TABEL DETAIL DATA & ENVA TIME
-        cols_detail = ['Date', 'City', 'Site Id', 'Site Name', 'PIC Take Over Ticket', 'Created At', 'Cleared Time', 'Downtime (Jam)', 'RH Start', 'INAP RC 1']
-        cols_available = [col for col in cols_detail if col in df.columns]
-        df_detail = df[cols_available].copy()
-        df_detail['Remark (Alasan Tidak Bisa Backup)'] = ""
-
-        # STRUKTUR TAMPILAN STREAMLIT (TABS)
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
-            "🏃‍♂️ Pergerakan Tim (PIC)", 
-            "🏙️ Analisa per City", 
-            "📋 Detail & Enva Time", 
-            "📈 Pivot Interaktif", 
-            "💾 Download Excel"
-        ])
-        
-        with tab1:
-            st.subheader("Aktivitas dan Pergerakan PIC Berdasarkan Tanggal & Kota")
-            st.write("Menampilkan tanggal PIC mengambil alih tiket, site yang berhasil di-backup, site yang gagal, serta evaluasi posibilitas backup.")
-            if not df_pic_report.empty:
-                st.dataframe(df_pic_report, use_container_width=True)
-            else:
-                st.warning("Kolom 'PIC Take Over Ticket' tidak ditemukan pada data.")
-            
-        with tab2:
-            st.subheader("Rekapitulasi Total Down Site & Status Backup per City")
-            st.dataframe(df_city_report, use_container_width=True)
-            
-        with tab3:
-            st.subheader("Detail Tiket & Kalkulasi Enva Time (Downtime)")
-            st.dataframe(df_detail, use_container_width=True)
-
-        with tab4:
-            st.subheader("Custom Pivot Table")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                pivot_index = st.selectbox("Baris (Index):", options=df.columns, index=df.columns.get_loc('City') if 'City' in df.columns else 0)
-            with col2:
-                pivot_columns = st.selectbox("Kolom (Opsional):", options=['None'] + list(df.columns), index=0)
-            with col3:
-                pivot_values = st.selectbox("Values (Dihitung):", options=df.columns, index=df.columns.get_loc('Site Id') if 'Site Id' in df.columns else 0)
-                pivot_agg = st.selectbox("Metode Agregasi:", options=['count', 'sum', 'mean', 'nunique'])
-            
-            try:
-                if pivot_columns == 'None':
-                    pivot_df = pd.pivot_table(df, index=pivot_index, values=pivot_values, aggfunc=pivot_agg)
-                else:
-                    pivot_df = pd.pivot_table(df, index=pivot_index, columns=pivot_columns, values=pivot_values, aggfunc=pivot_agg)
-                st.dataframe(pivot_df, use_container_width=True)
-            except Exception as e:
-                st.warning(f"Gagal membuat pivot table dengan kombinasi tersebut: {e}")
-
-        with tab5:
-            st.subheader("Unduh Laporan Lengkap ke Excel")
-            st.write("Hasil rekapitulasi pergerakan PIC, rekap kota, dan detail waktu siap diunduh dalam format Excel (.xlsx).")
-            
-            buffer = io.BytesIO()
-            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                if not df_pic_report.empty:
-                    df_pic_report.to_excel(writer, sheet_name='Pergerakan_Tim_PIC', index=False)
-                df_city_report.to_excel(writer, sheet_name='Analisa_Per_City', index=False)
-                df_detail.to_excel(writer, sheet_name='Detail_Enva_Time', index=False)
-            
-            st.download_button(
-                label="📥 Download Analisa_Lengkap_MBP.xlsx",
-                data=buffer.getvalue(),
-                file_name="Analisa_Pergerakan_Dan_Backup_MBP.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+    else:
+        st.warning("Tidak ditemukan kolom berbasis teks pada sheet ini.")
