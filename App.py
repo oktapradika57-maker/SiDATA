@@ -21,7 +21,7 @@ def calculate_haversine(lat1, lon1, lat2, lon2):
     except (ValueError, TypeError):
         return np.nan
 
-# Mapping Koordinat Default Posko Utama Kalteng (Fallback jika koordinat PIC tidak diisi di Excel)
+# Mapping Koordinat Default Posko Utama Kalteng (Fallback jika koordinat PIC tidak diisi)
 DEFAULT_CITY_COORDS = {
     "Palangka Raya": (-2.2088, 113.9161),
     "Sampit": (-2.5333, 112.9500),
@@ -33,41 +33,59 @@ DEFAULT_CITY_COORDS = {
     "Tamiang Layang": (-2.1433, 115.1611)
 }
 
-# Sidebar Pengaturan Posko
 st.sidebar.header("📍 Pengaturan Posko Tim / Base")
 use_default_coords = st.sidebar.checkbox("Gunakan Koordinat Default Kota jika Koordinat PIC Kosong", value=True)
 
-# Fitur Upload File
 uploaded_file = st.file_uploader("Upload File Excel (Ticket MBP)", type=["xlsx", "xls"])
 
 if uploaded_file:
     with st.spinner('Memproses data, menghitung jarak tempuh, dan menganalisis pergerakan PIC...'):
         df = pd.read_excel(uploaded_file, sheet_name=0)
         
-        # Preprocessing Kolom Tanggal & Waktu
-        df['Created At'] = pd.to_datetime(df['Created At'], errors='coerce')
-        df['Cleared Time'] = pd.to_datetime(df['Cleared Time'], errors='coerce')
-        df['Take Over Date'] = pd.to_datetime(df['Take Over Date'], errors='coerce')
+        # 1. MENCEGAH KEYERROR: Hapus spasi tambahan pada nama kolom
+        df.columns = df.columns.str.strip()
         
-        df['Date'] = df['Created At'].dt.date
-        df['Take Over Date Only'] = df['Take Over Date'].dt.date
+        # 2. PREPROCESSING AMAN (Mengecek keberadaan kolom)
+        if 'Created At' in df.columns:
+            df['Created At'] = pd.to_datetime(df['Created At'], errors='coerce')
+            df['Date'] = df['Created At'].dt.date
+        else:
+            df['Created At'] = pd.NaT
+            df['Date'] = pd.NaT
+
+        if 'Cleared Time' in df.columns:
+            df['Cleared Time'] = pd.to_datetime(df['Cleared Time'], errors='coerce')
+        else:
+            df['Cleared Time'] = pd.NaT
+
+        # Pengecekan aman 'Take Over Date'
+        if 'Take Over Date' in df.columns:
+            df['Take Over Date'] = pd.to_datetime(df['Take Over Date'], errors='coerce')
+            df['Take Over Date Only'] = df['Take Over Date'].dt.date
+        else:
+            # Fallback ke 'Date' (Created At) jika 'Take Over Date' tidak ada di Excel
+            df['Take Over Date Only'] = df['Date']
         
         # Kalkulasi Downtime
-        df['Downtime'] = df['Cleared Time'] - df['Created At']
-        df['Downtime (Jam)'] = (df['Downtime'].dt.total_seconds() / 3600).round(2)
+        if 'Cleared Time' in df.columns and 'Created At' in df.columns:
+            df['Downtime'] = df['Cleared Time'] - df['Created At']
+            df['Downtime (Jam)'] = (df['Downtime'].dt.total_seconds() / 3600).round(2)
+        else:
+            df['Downtime (Jam)'] = np.nan
         
-        # Deteksi Status Backup
-        df['Is_Backup'] = df['RH Start'].apply(lambda x: True if pd.notna(x) and str(x).strip() != '' and float(x) > 0 else False)
+        # Deteksi Status Backup (RH Start > 0)
+        if 'RH Start' in df.columns:
+            df['Is_Backup'] = df['RH Start'].apply(lambda x: True if pd.notna(x) and str(x).strip() != '' and pd.to_numeric(x, errors='coerce') > 0 else False)
+        else:
+            df['Is_Backup'] = False
 
         # Kalkulasi Jarak Tempuh
         def get_distance(row):
-            # Prioritas 1: Ambil koordinat PIC & Site dari row Excel jika ada
             pic_lat = row.get('PIC Lat') or row.get('Base Lat')
             pic_lon = row.get('PIC Long') or row.get('Base Long')
             site_lat = row.get('Site Lat') or row.get('Latitude')
             site_lon = row.get('Site Long') or row.get('Longitude')
 
-            # Fallback jika koordinat PIC/Base kosong tetapi opsi default aktif
             if (pd.isna(pic_lat) or pd.isna(pic_lon)) and use_default_coords:
                 city_name = row.get('City')
                 if city_name in DEFAULT_CITY_COORDS:
@@ -93,6 +111,14 @@ if uploaded_file:
             else:
                 return f"Lainnya ({rc})"
 
+        # Memastikan kolom minimal ada
+        if 'City' not in df.columns:
+            df['City'] = "Unknown"
+        if 'Site Id' not in df.columns:
+            df['Site Id'] = "-"
+        if 'INAP RC 1' not in df.columns:
+            df['INAP RC 1'] = np.nan
+
         # 1. TABEL ANALISA PERGERAKAN TIM (PIC)
         pic_analysis = []
         if 'PIC Take Over Ticket' in df.columns:
@@ -105,12 +131,10 @@ if uploaded_file:
                 sites_backup = ", ".join(backed_up_group['Site Id'].astype(str).unique()) if len(backed_up_group) > 0 else "-"
                 sites_no_backup = ", ".join(no_backup_group['Site Id'].astype(str).unique()) if len(no_backup_group) > 0 else "-"
                 
-                # Jarak Tempuh Per PIC / Tanggal
                 tot_dist = group['Jarak Tempuh (km)'].sum()
                 avg_dist = group['Jarak Tempuh (km)'].mean()
                 dist_info = f"{tot_dist:.1f} km (Rata-rata: {avg_dist:.1f} km/site)" if pd.notna(tot_dist) and tot_dist > 0 else "Data Koordinat Tidak Lengkap"
 
-                # Ringkasan RC / Alasan
                 if len(no_backup_group) == 0:
                     rc_info = "Semua Sukses Backup"
                     posibility = "-"
