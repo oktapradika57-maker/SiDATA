@@ -7,7 +7,7 @@ import json
 import os
 
 # -------------------------------------------------------------------------
-# 1. KONFIGURASI CLOUDINARY
+# 1. KONFIGURASI CLOUDINARY (SESUAI AKUN ANDA)
 # -------------------------------------------------------------------------
 cloudinary.config( 
   cloud_name = "fxm61tjv", 
@@ -37,26 +37,31 @@ def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
     return urls
 
 # -------------------------------------------------------------------------
-# 2. SETUP HALAMAN & DATABASE LOKAL (FILE JSON)
+# 2. SETUP HYBRID DATABASE (JSON + SESSION STATE)
 # -------------------------------------------------------------------------
 st.set_page_config(page_title="Solar BTS Health Check Pro", page_icon="⚡", layout="wide")
 
 DB_FILE = "laporan_db.json"
 
-# Fungsi untuk membaca data dari file JSON
 def get_db():
     if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r") as f:
-            try:
+        try:
+            with open(DB_FILE, "r") as f:
                 return json.load(f)
-            except:
-                return []
+        except:
+            return []
     return []
 
-# Fungsi untuk menyimpan data ke file JSON
 def save_db(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f)
+    try:
+        with open(DB_FILE, "w") as f:
+            json.dump(data, f)
+    except Exception as e:
+        st.error(f"Gagal menyimpan database: {e}")
+
+# Inisialisasi awal: Tarik data dari JSON ke memory (Session State)
+if 'laporan_db' not in st.session_state:
+    st.session_state['laporan_db'] = get_db()
 
 # -------------------------------------------------------------------------
 # 3. NAVIGASI SIDEBAR
@@ -70,7 +75,7 @@ st.sidebar.markdown("---")
 # =========================================================================
 if menu == "📝 Form Pengecekan":
     st.title("⚡ Form Health Check Solar BTS (Detail & Ekstra)")
-    st.markdown("Isi form dengan lengkap. Data aman tidak akan hilang karena langsung disimpan ke database.")
+    st.info("💡 Isi form dengan lengkap. Data aman tidak akan hilang karena menggunakan Hybrid Database.")
     
     tabs = st.tabs([
         "1. Info & View Site", 
@@ -82,6 +87,7 @@ if menu == "📝 Form Pengecekan":
         "7. Action & Submit"
     ])
 
+    # --- TAB 1: INFORMASI & VIEW SITE ---
     with tabs[0]:
         st.subheader("Informasi Umum & Kondisi Fisik Site")
         col1, col2 = st.columns(2)
@@ -102,24 +108,27 @@ if menu == "📝 Form Pengecekan":
         with site_col2:
             site_photos = st.file_uploader("Upload Foto View Site (Pagar, Halaman, Tower 4 Arah) - Bisa >1 Foto", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="site_pics")
 
+    # --- TAB 2: SOLAR PANEL & SHADING ---
     with tabs[1]:
         st.subheader("Pengecekan Modul Surya & Shading")
+        
         shade_col1, shade_col2 = st.columns(2)
         with shade_col1:
-            shading_status = st.selectbox("Status Shading?", ["Aman (Clear area)", "Sedikit Shading (Bayangan pohon pagi/sore)", "Shading Kritis (Tertutup rimbunan)"])
+            shading_status = st.selectbox("Status Shading?", ["Aman (Clear area)", "Sedikit Shading (Bayangan pohon)", "Shading Kritis (Tertutup rimbunan)"])
         with shade_col2:
             shading_photos = st.file_uploader("Upload Foto Bukti Shading (Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="shd")
 
         st.divider()
         num_panels = st.number_input("Jumlah Panel (Umumnya 24-30)", min_value=1, max_value=60, value=24)
+
         panel_data = []
         for i in range(int(num_panels)):
             with st.expander(f"Panel / Modul #{i+1}", expanded=(i == 0)):
                 p_col1, p_col2, p_col3 = st.columns([1, 1.2, 1.2])
                 with p_col1:
-                    voc = st.number_input(f"Voc [V]", min_value=0.0, value=21.5, step=0.1, key=f"v_{i}")
-                    isc = st.number_input(f"Isc [A]", min_value=0.0, value=5.2, step=0.1, key=f"i_{i}")
-                    p_cond = st.selectbox(f"Kondisi Fisik", ["Baik & Mulus", "Sangat Kotor/Berlumut", "Kaca Retak (Hotspot)", "Delaminasi (Terbakar)"], key=f"c_{i}")
+                    voc = st.number_input(f"Voc [V] - P{i+1}", min_value=0.0, value=21.5, step=0.1, key=f"v_{i}")
+                    isc = st.number_input(f"Isc [A] - P{i+1}", min_value=0.0, value=5.2, step=0.1, key=f"i_{i}")
+                    p_cond = st.selectbox(f"Kondisi Fisik P{i+1}", ["Baik & Mulus", "Sangat Kotor/Berlumut", "Kaca Retak (Hotspot)", "Delaminasi (Terbakar)"], key=f"c_{i}")
                 with p_col2:
                     p_photo_before = st.file_uploader(f"📸 Foto BEFORE - Panel {i+1}", type=["jpg", "png", "jpeg"], key=f"pb_{i}")
                 with p_col3:
@@ -127,17 +136,19 @@ if menu == "📝 Form Pengecekan":
 
                 panel_data.append({"id": f"Panel #{i+1}", "voc": voc, "isc": isc, "kondisi": p_cond, "foto_before_obj": p_photo_before, "foto_after_obj": p_photo_after})
 
+    # --- TAB 3: PANEL DC, JUNCTION BOX & KABEL ---
     with tabs[2]:
         st.subheader("Junction Box, Panel DC & Perkabelan")
         jb_col1, jb_col2 = st.columns(2)
         with jb_col1:
             jb_enclosure = st.selectbox("Kondisi Box Panel DC", ["Bersih & Kedap Air (IP 65 Baik)", "Bocor / Kemasukan Air", "Ada Sarang Serangga/Semut"])
             jb_breaker = st.selectbox("Status MCB / Fuse / Breaker", ["Normal (On Semua)", "Ada yang Trip / Putus / Gosong"])
-            jb_spd = st.selectbox("Arrester / Surge Protection (SPD)", ["Normal (Hijau)", "Rusak Tersambar Petir (Merah/Hitam)"])
-            cabling = st.selectbox("Kondisi Kabel & Kontaktor (Jika ada)", ["Rapi & Kuat", "Kontak Lengket (Chattering)", "Kabel Terkelupas / Oksidasi"])
+            jb_spd = st.selectbox("Arrester / SPD", ["Normal (Hijau)", "Rusak Tersambar Petir (Merah/Hitam)"])
+            cabling = st.selectbox("Kondisi Kabel & Kontaktor", ["Rapi & Kuat", "Kontak Lengket (Chattering)", "Kabel Terkelupas / Oksidasi"])
         with jb_col2:
             jb_photos = st.file_uploader("Upload Foto Detail Panel DC, Kabel, Kontaktor (Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="jb")
 
+    # --- TAB 4: SCC, RECTIFIER & INVERTER ---
     with tabs[3]:
         st.subheader("Pengontrol Daya, Rectifier & Inverter")
         scc_col1, scc_col2 = st.columns(2)
@@ -148,9 +159,10 @@ if menu == "📝 Form Pengecekan":
             inv_status = st.selectbox("Kondisi Inverter", ["Normal / Output 220V AC", "Error / Alarm Fault", "Tidak Pakai Inverter"])
             is_datalog_taken = st.checkbox("✅ Datalog berhasil ditarik")
         with scc_col2:
-            scc_alarm = st.selectbox("Status Layar / LED Indikator SCC", ["Normal (No Alarm)", "Ada Alarm Fault (Tulis di Action)"])
+            scc_alarm = st.selectbox("Status Layar / LED SCC", ["Normal (No Alarm)", "Ada Alarm Fault (Tulis di Action)"])
             scc_photos = st.file_uploader("Upload Foto Layar SCC, Recty, Inverter (Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="scc")
 
+    # --- TAB 5: BATERAI (TAMBAHAN SUHU PER SEL) ---
     with tabs[4]:
         st.subheader("Pemeriksaan Baterai Detail")
         bat_total_col1, bat_total_col2 = st.columns(2)
@@ -173,6 +185,7 @@ if menu == "📝 Form Pengecekan":
                 
                 bat_data.append({"id": f"Baterai #{j+1}", "voltase": b_volt, "suhu": b_temp, "kondisi": b_cond, "foto_objs": b_photo})
 
+    # --- TAB 6: GROUNDING ---
     with tabs[5]:
         st.subheader("Grounding & Proteksi Petir")
         grd_col1, grd_col2 = st.columns(2)
@@ -180,26 +193,29 @@ if menu == "📝 Form Pengecekan":
             earth_resistance = st.number_input("Nilai Tahanan Grounding (Earth Tester) [Ohm]", value=2.1, step=0.1)
             grd_cable = st.selectbox("Kondisi Busbar & Kabel BC", ["Terhubung Kuat & Utuh", "Baut Kendor / Karat", "Kabel Putus / Dicuri"])
         with grd_col2:
-            grd_photos = st.file_uploader("Upload Foto Grounding (Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="grd")
+            grd_photos = st.file_uploader("Upload Foto Alat Ukur & Busbar (Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="grd")
 
+    # --- TAB 7: ACTION & SUBMIT ---
     with tabs[6]:
         st.subheader("Ringkasan, Tindakan Eksekusi & Kebutuhan Material")
         action_taken = st.text_area("🔧 Ketik Mandiri Action / Eksekusi yang Dilakukan:", height=120)
-        sparepart_needed = st.text_input("📦 Daftar Sparepart yang Dibutuhkan (Jika Ada):")
-        final_status = st.radio("Status Akhir Site:", ["Normal (Aman)", "Minor Issue (Diperbaiki Sementara)", "Major / Critical (Berbahaya/Ganti Part)"])
+        sparepart_needed = st.text_input("📦 Daftar Sparepart yang Dibutuhkan/Diganti (Jika Ada):")
+        final_status = st.radio("Status Akhir Site:", ["Normal (Aman)", "Minor Issue (Sudah Diperbaiki)", "Major / Critical (Berbahaya/Butuh Part)"])
 
         if st.button("🚀 Upload Foto & Submit Laporan", type="primary"):
             if not site_name or not technician_name:
                 st.error("⚠️ Mohon isi Nama Site dan Nama Teknisi di Tab 1!")
             else:
-                with st.spinner("⏳ Memproses upload Cloudinary & Simpan Database... Jangan tutup halaman ini."):
+                with st.spinner("⏳ Memproses multi-upload foto & database... Mohon DITUNGGU JANGAN DI-REFRESH."):
                     
+                    # Upload Jamak
                     url_sites = upload_multiple_images(site_photos, "solar_view_site")
                     url_shadings = upload_multiple_images(shading_photos, "solar_shading")
                     url_jbs = upload_multiple_images(jb_photos, "solar_junction_box")
                     url_sccs = upload_multiple_images(scc_photos, "solar_scc_inverter")
                     url_grds = upload_multiple_images(grd_photos, "solar_grounding")
 
+                    # Upload Panel
                     panel_results = []
                     for p in panel_data:
                         url_bef = upload_image(p["foto_before_obj"], "solar_panel_before") if p["foto_before_obj"] else None
@@ -209,6 +225,7 @@ if menu == "📝 Form Pengecekan":
                             "Kondisi": p["kondisi"], "URL_Before": url_bef, "URL_After": url_aft
                         })
                     
+                    # Upload Baterai
                     bat_results = []
                     for b in bat_data:
                         url_bats = upload_multiple_images(b["foto_objs"], "solar_battery")
@@ -217,69 +234,70 @@ if menu == "📝 Form Pengecekan":
                             "Kondisi": b["kondisi"], "URL_Fotos": url_bats
                         })
 
+                    # Susun Dictionary Laporan
                     report_dict = {
                         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "site_name": site_name, "nop": nop_area, "teknisi": technician_name,
                         "status": final_status, "action": action_taken, "sparepart": sparepart_needed,
                         "site_cond": site_condition, "tower_cond": tower_condition, "url_sites": url_sites,
                         "shading_status": shading_status, "url_shadings": url_shadings,
-                        "jb_enclosure": jb_enclosure, "jb_breaker": jb_breaker, "url_jbs": url_jbs,
+                        "jb_enclosure": jb_enclosure, "jb_breaker": jb_breaker, "jb_spd": jb_spd, "cabling": cabling, "url_jbs": url_jbs,
                         "scc_brand": scc_brand, "scc_alarm": scc_alarm, "total_load": total_load_a, "inv_status": inv_status,
                         "datalog_status": "Ditarik" if is_datalog_taken else "Tidak Ditarik", "url_sccs": url_sccs,
                         "earth_ohm": earth_resistance, "grd_cable": grd_cable, "url_grds": url_grds,
                         "panel_data": panel_results, "battery_data": bat_results
                     }
                     
-                    # --- SIMPAN KE FILE JSON LOKAL ---
-                    db_current = get_db()
-                    db_current.append(report_dict)
-                    save_db(db_current)
-                
+                    # --- SIMPAN KE HYBRID DB ---
+                    st.session_state['laporan_db'].append(report_dict) # Simpan ke RAM aktif
+                    save_db(st.session_state['laporan_db'])            # Backup ke file JSON lokal
+
                 st.success(f"✅ Laporan lengkap Site {site_name} berhasil disimpan PERMANEN!")
 
 # =========================================================================
-# MENU 2: HASIL PENGECEKAN (DASHBOARD)
+# MENU 2: HASIL PENGECEKAN (DASHBOARD & EDIT MODE)
 # =========================================================================
 elif menu == "📊 Hasil Pengecekan (Laporan)":
     st.title("📊 Laporan Komprehensif Eksekusi Site")
     st.markdown("Rekam jejak parameter teknis dan dokumentasi.")
     st.divider()
 
-    # --- AMBIL DATA DARI FILE JSON ---
-    db = get_db()
+    # --- AMBIL DATA HYBRID ---
+    db = st.session_state['laporan_db']
 
     if len(db) == 0:
-        st.info("Data laporan masih kosong. Silakan isi form di menu sebelah kiri.")
+        st.info("Data laporan masih kosong. Silakan isi form 1 kali di menu sebelah kiri lalu submit.")
     else:
-        # Loop mundur menggunakan index asli agar tidak salah saat menyimpan data
+        # Menampilkan data dari yang terbaru (dibaca terbalik dari index belakang)
         for i in range(len(db) - 1, -1, -1):
             r = db[i]
-            with st.expander(f"📍 {r['site_name']} | {r['timestamp']} | Status: {r['status']}"):
+            with st.expander(f"📍 {r['site_name']} | {r['timestamp']} | Status: {r.get('status', 'Unknown')}"):
                 
-                # ---------------------------------------------------------
-                # FITUR BARU: EDIT TEKS MANUAL TANPA UPLOAD ULANG FOTO
-                # ---------------------------------------------------------
+                # --- FITUR EDIT TEKS ---
                 edit_mode = st.toggle("✏️ Edit Teks Laporan Ini", key=f"edit_toggle_{i}")
                 
                 if edit_mode:
-                    st.markdown("### 📝 Mode Edit (Foto dari Cloudinary tetap aman)")
+                    st.markdown("### 📝 Mode Edit (Foto dari Cloudinary tidak akan di-upload ulang/aman)")
                     new_teknisi = st.text_input("Edit Teknisi:", value=r.get('teknisi', ''), key=f"tek_{i}")
                     new_action = st.text_area("Edit Action / Tindakan:", value=r.get('action', ''), key=f"act_{i}", height=100)
                     new_sparepart = st.text_input("Edit Kebutuhan Sparepart:", value=r.get('sparepart', ''), key=f"sp_{i}")
                     
                     if st.button("💾 Simpan Perubahan Teks", key=f"save_{i}", type="primary"):
-                        db[i]['teknisi'] = new_teknisi
-                        db[i]['action'] = new_action
-                        db[i]['sparepart'] = new_sparepart
-                        save_db(db) # Simpan kembali ke file JSON
-                        st.success("Teks berhasil diupdate permanen!")
-                        st.rerun()  # Refresh halaman otomatis agar data baru langsung tampil
+                        # Update memori
+                        st.session_state['laporan_db'][i]['teknisi'] = new_teknisi
+                        st.session_state['laporan_db'][i]['action'] = new_action
+                        st.session_state['laporan_db'][i]['sparepart'] = new_sparepart
+                        
+                        # Backup ke JSON
+                        save_db(st.session_state['laporan_db']) 
+                        
+                        st.success("✅ Teks berhasil diupdate permanen!")
+                        st.rerun() # Refresh layar otomatis agar perubahan tampil
                     st.divider()
-                # ---------------------------------------------------------
 
-                # --- TAMPILAN NORMAL LAPORAN ---
-                st.markdown(f"**Teknisi:** {r['teknisi']} | **NOP:** {r['nop']} | **Load Beban:** {r['total_load']} A")
-                st.markdown(f"**Tindakan Eksekusi (Action):**\n> {r['action']}")
+                # --- TAMPILAN LAPORAN UTAMA ---
+                st.markdown(f"**Teknisi:** {r.get('teknisi', '-')} | **NOP:** {r.get('nop', '-')} | **Load Beban:** {r.get('total_load', '-')} A")
+                st.markdown(f"**Tindakan Eksekusi (Action):**\n> {r.get('action', '-')}")
                 if r.get('sparepart'):
                     st.warning(f"**Kebutuhan Sparepart:** {r['sparepart']}")
                 
@@ -300,7 +318,7 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
 
                 with ltab2:
                     for p in r.get('panel_data', []):
-                        st.markdown(f"**{p['Panel']}** - Voc: {p['Voc']}V | Isc: {p['Isc']}A | Fisik: {p['Kondisi']}")
+                        st.markdown(f"**{p.get('Panel', '-')}** - Voc: {p.get('Voc', '-')}V | Isc: {p.get('Isc', '-')}A | Fisik: {p.get('Kondisi', '-')}")
                         c_bef, c_aft = st.columns(2)
                         with c_bef:
                             if p.get('URL_Before'): st.image(p['URL_Before'], caption="Before", width=250)
@@ -310,7 +328,7 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
 
                 with ltab3:
                     for b in r.get('battery_data', []):
-                        st.markdown(f"**{b['Baterai']}** - {b['Voltase']}V | Suhu: {b['Suhu']}°C | Fisik: {b['Kondisi']}")
+                        st.markdown(f"**{b.get('Baterai', '-')}** - {b.get('Voltase', '-')}V | Suhu: {b.get('Suhu', '-')}°C | Fisik: {b.get('Kondisi', '-')}")
                         if b.get('URL_Fotos'):
                             cols = st.columns(len(b['URL_Fotos']) if len(b['URL_Fotos']) < 4 else 3)
                             for idx, url in enumerate(b['URL_Fotos']): cols[idx%3].image(url, width=200)
@@ -320,7 +338,7 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                     col_e1, col_e2 = st.columns(2)
                     with col_e1:
                         st.markdown("**Panel DC / Junction Box**")
-                        st.write(f"- Box: {r.get('jb_enclosure', '-')} \n- Breaker: {r.get('jb_breaker', '-')}")
+                        st.write(f"- Box: {r.get('jb_enclosure', '-')} \n- Breaker: {r.get('jb_breaker', '-')} \n- Kabel: {r.get('cabling', '-')}")
                         if r.get('url_jbs'):
                             for url in r['url_jbs']: st.image(url, width=150)
                     with col_e2:
