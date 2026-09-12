@@ -36,7 +36,7 @@ def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
     return urls
 
 # -------------------------------------------------------------------------
-# 2. SETUP HYBRID DATABASE (JSON + SESSION STATE)
+# 2. SETUP HYBRID DATABASE
 # -------------------------------------------------------------------------
 st.set_page_config(page_title="Solar BTS Health Check Pro", page_icon="⚡", layout="wide")
 
@@ -268,11 +268,9 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                     r['action'] = st.text_area("Tindakan / Action", r.get('action', ''), key=f"a_{i}")
                     r['sparepart'] = st.text_input("Kebutuhan Sparepart", r.get('sparepart', ''), key=f"s_{i}")
                     
-                    # LOGIKA AMAN UNTUK INDEX STATUS (Mencegah ValueError)
                     status_options = ["Normal (Aman)", "Minor Issue (Sudah Diperbaiki)", "Major / Critical (Butuh Part)"]
                     current_status = r.get('status', "Normal (Aman)")
                     safe_index = status_options.index(current_status) if current_status in status_options else 0
-                    
                     r['status'] = st.selectbox("Status Akhir", status_options, index=safe_index, key=f"st_{i}")
                 else:
                     st.markdown(f"**Teknisi:** {r.get('teknisi', '-')} | **NOP:** {r.get('nop', '-')} | **Load Beban:** {r.get('total_load', '-')} A")
@@ -298,12 +296,14 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                         cols = st.columns(4)
                         for idx, url in enumerate(all_fisik): cols[idx%4].image(url, width=150)
 
-                # --- TAB 2: PANEL SURYA ---
+                # --- TAB 2: PANEL SURYA (AMAN UNTUK DATA LAMA) ---
                 with ltab2:
                     if edit_mode:
                         up_panel = st.file_uploader("📸 Tambah Foto Susulan (Panel)", accept_multiple_files=True, key=f"up_{i}")
                     
                     for idx_p, p in enumerate(r.get('panel_data', [])):
+                        tipe_panel = p.get('Tipe', 'Individu') # Pengaman Data Lama
+                        
                         if edit_mode:
                             st.markdown(f"**{p.get('Panel', '-')}**")
                             c1, c2, c3 = st.columns(3)
@@ -311,22 +311,34 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                             with c2: p['Isc'] = st.number_input(f"Isc", value=float(p.get('Isc', 0)), key=f"pisc_{i}_{idx_p}")
                             with c3: p['Kondisi'] = st.text_input(f"Kondisi", value=p.get('Kondisi', ''), key=f"pcon_{i}_{idx_p}")
                         else:
-                            if p.get('Tipe') == 'Individu':
+                            if tipe_panel == 'Individu':
                                 st.markdown(f"**{p.get('Panel')}** - Voc: {p.get('Voc')}V | Isc: {p.get('Isc')}A | Fisik: {p.get('Kondisi')}")
                                 cb, ca = st.columns(2)
                                 with cb:
-                                    if p.get('URL_Before'): st.image(p['URL_Before'], caption="Before", width=250)
+                                    url_b = p.get('URL_Before') or p.get('URLs_Before')
+                                    if url_b:
+                                        if isinstance(url_b, list):
+                                            for u in url_b: st.image(u, caption="Before", width=250)
+                                        else: st.image(url_b, caption="Before", width=250)
                                 with ca:
-                                    if p.get('URL_After'): st.image(p['URL_After'], caption="After", width=250)
+                                    url_a = p.get('URL_After') or p.get('URLs_After')
+                                    if url_a:
+                                        if isinstance(url_a, list):
+                                            for u in url_a: st.image(u, caption="After", width=250)
+                                        else: st.image(url_a, caption="After", width=250)
                             else:
-                                st.markdown(f"**{p.get('Panel')} ({p.get('Qty')} Panel)** - Voc: {p.get('Voc')}V | Isc: {p.get('Isc')}A | Fisik: {p.get('Kondisi')}")
+                                st.markdown(f"**{p.get('Panel')} ({p.get('Qty', '-')} Panel)** - Total Voc: {p.get('Voc')}V | Isc: {p.get('Isc')}A | Fisik: {p.get('Kondisi')}")
                                 cb, ca = st.columns(2)
                                 with cb:
-                                    if p.get('URLs_Before'):
-                                        for u in p['URLs_Before']: st.image(u, width=150)
+                                    urls_b = p.get('URLs_Before') or p.get('URL_Before')
+                                    if urls_b:
+                                        if isinstance(urls_b, str): urls_b = [urls_b]
+                                        for u in urls_b: st.image(u, width=150)
                                 with ca:
-                                    if p.get('URLs_After'):
-                                        for u in p['URLs_After']: st.image(u, width=150)
+                                    urls_a = p.get('URLs_After') or p.get('URL_After')
+                                    if urls_a:
+                                        if isinstance(urls_a, str): urls_a = [urls_a]
+                                        for u in urls_a: st.image(u, width=150)
                         st.divider()
                     
                     if r.get('extras_panel'):
@@ -334,7 +346,7 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                         cols = st.columns(4)
                         for idx, url in enumerate(r['extras_panel']): cols[idx%4].image(url, width=150)
 
-                # --- TAB 3: BATERAI ---
+                # --- TAB 3: BATERAI (AMAN UNTUK DATA LAMA) ---
                 with ltab3:
                     if edit_mode:
                         up_bat = st.file_uploader("📸 Tambah Foto Susulan (Baterai)", accept_multiple_files=True, key=f"ub_{i}")
@@ -348,9 +360,12 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                             with c3: b['Kondisi'] = st.text_input(f"Kondisi Fisik", value=b.get('Kondisi', ''), key=f"bcon_{i}_{idx_b}")
                         else:
                             st.markdown(f"**{b.get('Baterai')}** - {b.get('Voltase')}V | Suhu: {b.get('Suhu')}°C | Fisik: {b.get('Kondisi')}")
-                            if b.get('URL_Fotos'):
+                            url_bats = b.get('URL_Fotos') or b.get('URL_Foto')
+                            if url_bats:
+                                if isinstance(url_bats, str): url_bats = [url_bats]
                                 cols = st.columns(3)
-                                for idx, url in enumerate(b['URL_Fotos']): cols[idx%3].image(url, width=200)
+                                for idx, url in enumerate(url_bats): 
+                                    if isinstance(url, str): cols[idx%3].image(url, width=200)
                         st.divider()
                     
                     if r.get('extras_baterai'):
