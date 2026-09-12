@@ -35,6 +35,18 @@ def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
             if url: urls.append(url)
     return urls
 
+# FUNGSI EXTRAKTOR FOTO UNIVERSAL (Mencegah foto lama hilang)
+def get_safe_urls(data_dict, keys):
+    urls = []
+    for k in keys:
+        val = data_dict.get(k)
+        if val:
+            if isinstance(val, str) and val.startswith("http"):
+                urls.append(val)
+            elif isinstance(val, list):
+                urls.extend([u for u in val if isinstance(u, str) and u.startswith("http")])
+    return urls
+
 # -------------------------------------------------------------------------
 # 2. SETUP HYBRID DATABASE
 # -------------------------------------------------------------------------
@@ -250,10 +262,10 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
         for i in range(len(db) - 1, -1, -1):
             r = db[i]
             
-            wa_text = f"""*REPORT HEALTH CHECK SOLAR BTS* ⚡\n📍 *Site:* {r['site_name']} ({r.get('nop', '-')})\n📅 *Tanggal:* {r['timestamp']}\n👷 *Teknisi:* {r.get('teknisi', '-')}\n📊 *Status Akhir:* {r.get('status', '-')}\n\n*TINDAKAN (ACTION):*\n{r.get('action', '-')}\n\n*KEBUTUHAN SPAREPART:*\n{r.get('sparepart', '-')}\n\n*DATA TEKNIS UTAMA:*\n- Total Load: {r.get('total_load', '-')} A\n- Nilai Grounding: {r.get('earth_ohm', '-')} Ohm\n- SCC / Recty: {r.get('scc_brand', '-')}"""
+            wa_text = f"""*REPORT HEALTH CHECK SOLAR BTS* ⚡\n📍 *Site:* {r.get('site_name', '-')} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Teknisi:* {r.get('teknisi', '-')}\n📊 *Status Akhir:* {r.get('status', '-')}\n\n*TINDAKAN (ACTION):*\n{r.get('action', '-')}\n\n*KEBUTUHAN SPAREPART:*\n{r.get('sparepart', '-')}\n\n*DATA TEKNIS UTAMA:*\n- Total Load: {r.get('total_load', '-')} A\n- Nilai Grounding: {r.get('earth_ohm', '-')} Ohm\n- SCC / Recty: {r.get('scc_brand', '-')}"""
             wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
 
-            with st.expander(f"📍 {r['site_name']} | {r['timestamp']} | Status: {r.get('status', 'Unknown')}"):
+            with st.expander(f"📍 {r.get('site_name', 'Unknown')} | {r.get('timestamp', '')} | Status: {r.get('status', 'Unknown')}"):
                 
                 st.link_button("📱 Generate Rangkuman ke WhatsApp", wa_url)
                 
@@ -291,54 +303,40 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                         st.write(f"- Kondisi Site: {r.get('site_cond', '-')} | Tower: {r.get('tower_cond', '-')}")
                         st.write(f"- Status Shading: {r.get('shading_status', '-')}")
                     
-                    all_fisik = (r.get('url_sites') or []) + (r.get('url_shadings') or []) + (r.get('extras_fisik') or [])
+                    all_fisik = get_safe_urls(r, ['url_sites', 'url_shadings', 'extras_fisik'])
                     if all_fisik:
                         cols = st.columns(4)
                         for idx, url in enumerate(all_fisik): cols[idx%4].image(url, width=150)
 
-                # --- TAB 2: PANEL SURYA (AMAN UNTUK DATA LAMA) ---
+                # --- TAB 2: PANEL SURYA (AMAN & BULLETPROOF) ---
                 with ltab2:
                     if edit_mode:
                         up_panel = st.file_uploader("📸 Tambah Foto Susulan (Panel)", accept_multiple_files=True, key=f"up_{i}")
                     
                     for idx_p, p in enumerate(r.get('panel_data', [])):
-                        tipe_panel = p.get('Tipe', 'Individu') # Pengaman Data Lama
-                        
                         if edit_mode:
                             st.markdown(f"**{p.get('Panel', '-')}**")
                             c1, c2, c3 = st.columns(3)
-                            with c1: p['Voc'] = st.number_input(f"Voc", value=float(p.get('Voc', 0)), key=f"pvoc_{i}_{idx_p}")
-                            with c2: p['Isc'] = st.number_input(f"Isc", value=float(p.get('Isc', 0)), key=f"pisc_{i}_{idx_p}")
+                            with c1: p['Voc'] = st.number_input(f"Voc", value=float(p.get('Voc', 0) or 0), key=f"pvoc_{i}_{idx_p}")
+                            with c2: p['Isc'] = st.number_input(f"Isc", value=float(p.get('Isc', 0) or 0), key=f"pisc_{i}_{idx_p}")
                             with c3: p['Kondisi'] = st.text_input(f"Kondisi", value=p.get('Kondisi', ''), key=f"pcon_{i}_{idx_p}")
                         else:
-                            if tipe_panel == 'Individu':
-                                st.markdown(f"**{p.get('Panel')}** - Voc: {p.get('Voc')}V | Isc: {p.get('Isc')}A | Fisik: {p.get('Kondisi')}")
-                                cb, ca = st.columns(2)
-                                with cb:
-                                    url_b = p.get('URL_Before') or p.get('URLs_Before')
-                                    if url_b:
-                                        if isinstance(url_b, list):
-                                            for u in url_b: st.image(u, caption="Before", width=250)
-                                        else: st.image(url_b, caption="Before", width=250)
-                                with ca:
-                                    url_a = p.get('URL_After') or p.get('URLs_After')
-                                    if url_a:
-                                        if isinstance(url_a, list):
-                                            for u in url_a: st.image(u, caption="After", width=250)
-                                        else: st.image(url_a, caption="After", width=250)
+                            tipe = p.get('Tipe')
+                            # Render Teks Berdasarkan Tipe
+                            if tipe == 'Individu' or tipe is None:
+                                st.markdown(f"**{p.get('Panel', '-')}** - Voc: {p.get('Voc', '-')}V | Isc: {p.get('Isc', '-')}A | Fisik: {p.get('Kondisi', '-')}")
                             else:
-                                st.markdown(f"**{p.get('Panel')} ({p.get('Qty', '-')} Panel)** - Total Voc: {p.get('Voc')}V | Isc: {p.get('Isc')}A | Fisik: {p.get('Kondisi')}")
-                                cb, ca = st.columns(2)
-                                with cb:
-                                    urls_b = p.get('URLs_Before') or p.get('URL_Before')
-                                    if urls_b:
-                                        if isinstance(urls_b, str): urls_b = [urls_b]
-                                        for u in urls_b: st.image(u, width=150)
-                                with ca:
-                                    urls_a = p.get('URLs_After') or p.get('URL_After')
-                                    if urls_a:
-                                        if isinstance(urls_a, str): urls_a = [urls_a]
-                                        for u in urls_a: st.image(u, width=150)
+                                st.markdown(f"**{p.get('Panel', '-')} ({p.get('Qty', '-')} Panel)** - Total Voc: {p.get('Voc', '-')}V | Isc: {p.get('Isc', '-')}A | Fisik: {p.get('Kondisi', '-')}")
+                            
+                            # Ekstraksi Foto Universal
+                            bef_urls = get_safe_urls(p, ['URL_Before', 'URLs_Before', 'foto_before_obj'])
+                            aft_urls = get_safe_urls(p, ['URL_After', 'URLs_After', 'foto_after_obj'])
+                            
+                            cb, ca = st.columns(2)
+                            with cb:
+                                for u in bef_urls: st.image(u, caption="Before", width=250)
+                            with ca:
+                                for u in aft_urls: st.image(u, caption="After", width=250)
                         st.divider()
                     
                     if r.get('extras_panel'):
@@ -346,7 +344,7 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                         cols = st.columns(4)
                         for idx, url in enumerate(r['extras_panel']): cols[idx%4].image(url, width=150)
 
-                # --- TAB 3: BATERAI (AMAN UNTUK DATA LAMA) ---
+                # --- TAB 3: BATERAI (AMAN & BULLETPROOF) ---
                 with ltab3:
                     if edit_mode:
                         up_bat = st.file_uploader("📸 Tambah Foto Susulan (Baterai)", accept_multiple_files=True, key=f"ub_{i}")
@@ -355,17 +353,17 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                         if edit_mode:
                             st.markdown(f"**{b.get('Baterai')}**")
                             c1, c2, c3 = st.columns(3)
-                            with c1: b['Voltase'] = st.number_input(f"Voltase", value=float(b.get('Voltase', 0)), key=f"bv_{i}_{idx_b}")
-                            with c2: b['Suhu'] = st.number_input(f"Suhu °C", value=float(b.get('Suhu', 0)), key=f"bs_{i}_{idx_b}")
+                            with c1: b['Voltase'] = st.number_input(f"Voltase", value=float(b.get('Voltase', 0) or 0), key=f"bv_{i}_{idx_b}")
+                            with c2: b['Suhu'] = st.number_input(f"Suhu °C", value=float(b.get('Suhu', 0) or 0), key=f"bs_{i}_{idx_b}")
                             with c3: b['Kondisi'] = st.text_input(f"Kondisi Fisik", value=b.get('Kondisi', ''), key=f"bcon_{i}_{idx_b}")
                         else:
-                            st.markdown(f"**{b.get('Baterai')}** - {b.get('Voltase')}V | Suhu: {b.get('Suhu')}°C | Fisik: {b.get('Kondisi')}")
-                            url_bats = b.get('URL_Fotos') or b.get('URL_Foto')
-                            if url_bats:
-                                if isinstance(url_bats, str): url_bats = [url_bats]
+                            st.markdown(f"**{b.get('Baterai')}** - {b.get('Voltase', '-')}V | Suhu: {b.get('Suhu', '-')}°C | Fisik: {b.get('Kondisi', '-')}")
+                            
+                            # Ekstraksi Foto Universal Baterai
+                            bat_urls = get_safe_urls(b, ['URL_Fotos', 'URL_Foto', 'foto_objs'])
+                            if bat_urls:
                                 cols = st.columns(3)
-                                for idx, url in enumerate(url_bats): 
-                                    if isinstance(url, str): cols[idx%3].image(url, width=200)
+                                for idx, u in enumerate(bat_urls): cols[idx%3].image(u, width=200)
                         st.divider()
                     
                     if r.get('extras_baterai'):
@@ -378,8 +376,8 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                     if edit_mode:
                         c1, c2 = st.columns(2)
                         with c1:
-                            r['total_load'] = st.number_input("Total Load (A)", value=float(r.get('total_load', 0)), key=f"ld_{i}")
-                            r['earth_ohm'] = st.number_input("Earth/Grounding (Ohm)", value=float(r.get('earth_ohm', 0)), key=f"ea_{i}")
+                            r['total_load'] = st.number_input("Total Load (A)", value=float(r.get('total_load', 0) or 0), key=f"ld_{i}")
+                            r['earth_ohm'] = st.number_input("Earth/Grounding (Ohm)", value=float(r.get('earth_ohm', 0) or 0), key=f"ea_{i}")
                             r['datalog_status'] = st.text_input("Status Datalog", r.get('datalog_status', ''), key=f"dt_{i}")
                         with c2:
                             r['jb_enclosure'] = st.text_input("Kondisi Box JB", r.get('jb_enclosure', ''), key=f"jbe_{i}")
@@ -393,7 +391,7 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                             st.write(f"**SCC / Elektrikal:** \n- SCC: {r.get('scc_brand', '-')} \n- Alarm: {r.get('scc_alarm', '-')} \n- Datalog: {r.get('datalog_status', '-')}")
                         st.write(f"**Grounding:** {r.get('earth_ohm', '-')} Ohm ({r.get('grd_cable', '-')})")
                     
-                    all_elek = (r.get('url_jbs') or []) + (r.get('url_sccs') or []) + (r.get('url_grds') or []) + (r.get('extras_elektrikal') or [])
+                    all_elek = get_safe_urls(r, ['url_jbs', 'url_sccs', 'url_grds', 'extras_elektrikal'])
                     if all_elek:
                         cols = st.columns(4)
                         for idx, url in enumerate(all_elek): cols[idx%4].image(url, width=150)
