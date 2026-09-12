@@ -5,9 +5,10 @@ import cloudinary
 import cloudinary.uploader
 import json
 import os
+import urllib.parse  # Untuk format URL WhatsApp
 
 # -------------------------------------------------------------------------
-# 1. KONFIGURASI CLOUDINARY (SESUAI AKUN ANDA)
+# 1. KONFIGURASI CLOUDINARY
 # -------------------------------------------------------------------------
 cloudinary.config( 
   cloud_name = "fxm61tjv", 
@@ -17,7 +18,6 @@ cloudinary.config(
 )
 
 def upload_image(file_obj, folder_name="solar_bts_healthcheck"):
-    """Fungsi upload 1 gambar ke Cloudinary"""
     if file_obj is not None:
         try:
             response = cloudinary.uploader.upload(file_obj.getvalue(), folder=folder_name)
@@ -28,7 +28,6 @@ def upload_image(file_obj, folder_name="solar_bts_healthcheck"):
     return None
 
 def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
-    """Fungsi upload banyak gambar sekaligus, return list of URLs"""
     urls = []
     if file_objs:
         for file in file_objs:
@@ -74,19 +73,10 @@ st.sidebar.markdown("---")
 # =========================================================================
 if menu == "📝 Form Pengecekan":
     st.title("⚡ Form Health Check Solar BTS")
-    st.info("💡 Pilih Konfigurasi Pengukuran Panel sesuai SCC Site (Satuan vs Seri). Data otomatis tersimpan permanen.")
+    st.info("💡 Pilih Konfigurasi Panel (Satuan vs Seri). Data otomatis tersimpan permanen.")
     
-    tabs = st.tabs([
-        "1. Info & View Site", 
-        "2. Solar Panel", 
-        "3. Panel DC & Kabel", 
-        "4. SCC & Inverter", 
-        "5. Baterai", 
-        "6. Grounding", 
-        "7. Action & Submit"
-    ])
+    tabs = st.tabs(["1. Info & View Site", "2. Solar Panel", "3. Panel DC & Kabel", "4. SCC & Inverter", "5. Baterai", "6. Grounding", "7. Action & Submit"])
 
-    # --- TAB 1: INFORMASI & VIEW SITE ---
     with tabs[0]:
         st.subheader("Informasi Umum & Kondisi Fisik Site")
         col1, col2 = st.columns(2)
@@ -96,21 +86,16 @@ if menu == "📝 Form Pengecekan":
             check_date = st.date_input("Tanggal Pengecekan", value=datetime.date.today())
         with col2:
             technician_name = st.text_input("Nama Teknisi", placeholder="Nama lengkap tim")
-            weather = st.selectbox("Kondisi Cuaca saat Eksekusi", ["Cerah", "Berawan", "Hujan", "Badai/Ekstrem"])
-
+            weather = st.selectbox("Kondisi Cuaca", ["Cerah", "Berawan", "Hujan", "Badai/Ekstrem"])
         st.divider()
-        st.markdown("**Dokumentasi Fisik Site (View Site)**")
         site_col1, site_col2 = st.columns(2)
         with site_col1:
             site_condition = st.selectbox("Kondisi Halaman & Pagar", ["Bersih & Aman", "Banyak Rumput Liar / Belukar", "Pagar Rusak / Gembok Hilang"])
             tower_condition = st.selectbox("Kondisi Fisik Tower / Tiang", ["Aman Tidak Berkarat", "Berkarat / Baut Kendur"])
         with site_col2:
-            site_photos = st.file_uploader("Upload Foto View Site (Pagar, Halaman, Tower) - Bisa >1 Foto", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="site_pics")
+            site_photos = st.file_uploader("Upload Foto View Site (Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="spics")
 
-    # --- TAB 2: SOLAR PANEL ---
     with tabs[1]:
-        st.subheader("Pengecekan Modul Surya & Shading")
-        
         shade_col1, shade_col2 = st.columns(2)
         with shade_col1:
             shading_status = st.selectbox("Status Shading?", ["Aman (Clear area)", "Sedikit Shading (Bayangan pohon)", "Shading Kritis (Tertutup rimbunan)"])
@@ -118,76 +103,61 @@ if menu == "📝 Form Pengecekan":
             shading_photos = st.file_uploader("Upload Foto Bukti Shading (Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="shd")
         st.divider()
         
-        st.markdown("**B. Konfigurasi & Pengukuran Panel Surya**")
-        konfigurasi_panel = st.radio(
-            "Pilih Metode Pengukuran Panel di Site ini:", 
-            ["Individu (Ukur per Panel Satuan - ex: Morningstar)", "Seri / String (Ukur per Grup/Seri - ex: Huawei/ZTE)"]
-        )
-
+        konfigurasi_panel = st.radio("Metode Pengukuran Panel:", ["Individu (Satuan)", "Seri / String (Grup/Seri)"])
         panel_data = []
 
-        if konfigurasi_panel == "Individu (Ukur per Panel Satuan - ex: Morningstar)":
+        if konfigurasi_panel == "Individu (Satuan)":
             num_panels = st.number_input("Jumlah Total Panel", min_value=1, max_value=60, value=24)
             for i in range(int(num_panels)):
-                with st.expander(f"Panel / Modul #{i+1}", expanded=(i == 0)):
+                with st.expander(f"Panel #{i+1}", expanded=(i == 0)):
                     p_col1, p_col2, p_col3 = st.columns([1, 1.2, 1.2])
                     with p_col1:
-                        voc = st.number_input(f"Voc [V] - P{i+1}", min_value=0.0, value=21.5, step=0.1, key=f"v_{i}")
-                        isc = st.number_input(f"Isc [A] - P{i+1}", min_value=0.0, value=5.2, step=0.1, key=f"i_{i}")
-                        p_cond = st.selectbox(f"Kondisi Fisik P{i+1}", ["Baik & Mulus", "Sangat Kotor/Berlumut", "Kaca Retak (Hotspot)", "Delaminasi"], key=f"c_{i}")
+                        voc = st.number_input(f"Voc [V] - P{i+1}", value=21.5, step=0.1, key=f"v_{i}")
+                        isc = st.number_input(f"Isc [A] - P{i+1}", value=5.2, step=0.1, key=f"i_{i}")
+                        p_cond = st.selectbox(f"Fisik P{i+1}", ["Baik & Mulus", "Sangat Kotor", "Kaca Retak", "Delaminasi"], key=f"c_{i}")
                     with p_col2:
-                        p_photo_before = st.file_uploader(f"📸 Foto BEFORE - Panel {i+1}", type=["jpg", "png", "jpeg"], key=f"pb_{i}")
+                        p_photo_before = st.file_uploader(f"📸 BEFORE P{i+1}", type=["jpg", "png", "jpeg"], key=f"pb_{i}")
                     with p_col3:
-                        p_photo_after = st.file_uploader(f"✨ Foto AFTER - Panel {i+1}", type=["jpg", "png", "jpeg"], key=f"pa_{i}")
-
+                        p_photo_after = st.file_uploader(f"✨ AFTER P{i+1}", type=["jpg", "png", "jpeg"], key=f"pa_{i}")
                     panel_data.append({"tipe": "Individu", "id": f"Panel #{i+1}", "voc": voc, "isc": isc, "kondisi": p_cond, "foto_before_obj": p_photo_before, "foto_after_obj": p_photo_after})
-        
         else: 
-            num_strings = st.number_input("Jumlah String / Seri MPPT", min_value=1, max_value=20, value=4)
+            num_strings = st.number_input("Jumlah String / Seri", min_value=1, max_value=20, value=4)
             for i in range(int(num_strings)):
                 with st.expander(f"String / Seri #{i+1}", expanded=(i == 0)):
                     p_col1, p_col2 = st.columns([1, 1.5])
                     with p_col1:
-                        qty = st.number_input(f"Isi Panel di Seri {i+1}", min_value=1, max_value=30, value=6, key=f"sq_{i}")
-                        voc = st.number_input(f"Total Voc Seri {i+1} [V]", min_value=0.0, value=129.0, step=0.1, key=f"sv_{i}")
-                        isc = st.number_input(f"Isc Seri {i+1} [A]", min_value=0.0, value=5.2, step=0.1, key=f"si_{i}")
-                        p_cond = st.selectbox(f"Kondisi Mayoritas", ["Baik & Mulus", "Banyak Kotoran/Lumut", "Ada Retak", "Delaminasi"], key=f"sc_{i}")
+                        qty = st.number_input(f"Isi Panel Seri {i+1}", value=6, key=f"sq_{i}")
+                        voc = st.number_input(f"Total Voc Seri {i+1} [V]", value=129.0, step=0.1, key=f"sv_{i}")
+                        isc = st.number_input(f"Isc Seri {i+1} [A]", value=5.2, step=0.1, key=f"si_{i}")
+                        p_cond = st.selectbox(f"Kondisi Mayoritas", ["Baik & Mulus", "Banyak Kotoran", "Ada Retak", "Delaminasi"], key=f"sc_{i}")
                     with p_col2:
-                        st.info("💡 Anda bisa upload banyak foto sekaligus untuk mewakili grup seri panel ini.")
-                        p_photo_before = st.file_uploader(f"📸 Foto BEFORE Seri {i+1} (Bisa >1)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key=f"spb_{i}")
-                        p_photo_after = st.file_uploader(f"✨ Foto AFTER Seri {i+1} (Bisa >1)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key=f"spa_{i}")
-                    
+                        p_photo_before = st.file_uploader(f"📸 BEFORE Seri {i+1} (Bisa >1)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key=f"spb_{i}")
+                        p_photo_after = st.file_uploader(f"✨ AFTER Seri {i+1} (Bisa >1)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key=f"spa_{i}")
                     panel_data.append({"tipe": "Seri", "id": f"String #{i+1}", "qty": qty, "voc": voc, "isc": isc, "kondisi": p_cond, "foto_before_objs": p_photo_before, "foto_after_objs": p_photo_after})
 
-    # --- TAB 3: PANEL DC, JUNCTION BOX & KABEL ---
     with tabs[2]:
-        st.subheader("Junction Box, Panel DC & Perkabelan")
         jb_col1, jb_col2 = st.columns(2)
         with jb_col1:
-            jb_enclosure = st.selectbox("Kondisi Box Panel DC", ["Bersih & Kedap Air (IP 65 Baik)", "Bocor / Kemasukan Air", "Ada Sarang Serangga/Semut"])
-            jb_breaker = st.selectbox("Status MCB / Fuse / Breaker", ["Normal (On Semua)", "Ada yang Trip / Putus / Gosong"])
-            jb_spd = st.selectbox("Arrester / SPD", ["Normal (Hijau)", "Rusak Tersambar Petir (Merah/Hitam)"])
-            cabling = st.selectbox("Kondisi Kabel & Kontaktor", ["Rapi & Kuat", "Kontak Lengket (Chattering)", "Kabel Terkelupas / Oksidasi"])
+            jb_enclosure = st.selectbox("Kondisi Box DC", ["Bersih & Kedap Air", "Bocor / Kemasukan Air", "Sarang Serangga"])
+            jb_breaker = st.selectbox("Status Breaker", ["Normal (On Semua)", "Trip / Putus / Gosong"])
+            jb_spd = st.selectbox("Arrester / SPD", ["Normal (Hijau)", "Rusak (Merah/Hitam)"])
+            cabling = st.selectbox("Kondisi Kabel & Kontaktor", ["Rapi & Kuat", "Chattering", "Terkelupas / Oksidasi"])
         with jb_col2:
-            jb_photos = st.file_uploader("Upload Foto Detail Panel DC, Kabel, Kontaktor (Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="jb")
+            jb_photos = st.file_uploader("Upload Foto Panel DC (Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="jb")
 
-    # --- TAB 4: SCC, RECTIFIER & INVERTER ---
     with tabs[3]:
-        st.subheader("Pengontrol Daya, Rectifier & Inverter")
         scc_col1, scc_col2 = st.columns(2)
         with scc_col1:
-            scc_brand = st.text_input("Merek/Tipe SCC & Rectifier", placeholder="Contoh: SmartGen, Eltek, Huawei")
-            system_out_v = st.number_input("Tegangan Output ke Beban (BTS) [Volt]", value=48.0)
-            total_load_a = st.number_input("Total Beban / Load (Ampere)", value=15.5, step=0.1)
-            inv_status = st.selectbox("Kondisi Inverter", ["Normal / Output 220V AC", "Error / Alarm Fault", "Tidak Pakai Inverter"])
+            scc_brand = st.text_input("Merek SCC/Recty", placeholder="SmartGen, Huawei")
+            system_out_v = st.number_input("Tegangan Output ke BTS [V]", value=48.0)
+            total_load_a = st.number_input("Total Beban (Ampere)", value=15.5, step=0.1)
+            inv_status = st.selectbox("Kondisi Inverter", ["Normal / 220V AC", "Error / Fault", "Tidak Pakai"])
             is_datalog_taken = st.checkbox("✅ Datalog berhasil ditarik")
         with scc_col2:
-            scc_alarm = st.selectbox("Status Layar / LED SCC", ["Normal (No Alarm)", "Ada Alarm Fault (Tulis di Action)"])
-            scc_photos = st.file_uploader("Upload Foto Layar SCC, Recty, Inverter (Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="scc")
+            scc_alarm = st.selectbox("Status Layar SCC", ["Normal (No Alarm)", "Ada Alarm Fault"])
+            scc_photos = st.file_uploader("Upload Foto SCC/Inverter (Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="scc")
 
-    # --- TAB 5: BATERAI ---
     with tabs[4]:
-        st.subheader("Pemeriksaan Baterai Detail")
         bat_total_col1, bat_total_col2 = st.columns(2)
         with bat_total_col1:
             num_batteries = st.number_input("Jumlah Blok Baterai (Maks 12)", min_value=1, max_value=12, value=4)
@@ -196,71 +166,56 @@ if menu == "📝 Form Pengecekan":
         
         bat_data = []
         for j in range(int(num_batteries)):
-            with st.expander(f"Unit Baterai #{j+1}", expanded=(j==0)):
+            with st.expander(f"Baterai #{j+1}", expanded=(j==0)):
                 b_col1, b_col2, b_col3 = st.columns([1, 1, 1.2])
                 with b_col1:
                     b_volt = st.number_input(f"Voltase Bat {j+1} [V]", value=12.2, step=0.1, key=f"bv_{j}")
-                    b_temp = st.number_input(f"Suhu Fisik Bat {j+1} [°C]", value=28.0, step=0.1, key=f"bt_{j}")
+                    b_temp = st.number_input(f"Suhu Bat {j+1} [°C]", value=28.0, step=0.1, key=f"bt_{j}")
                 with b_col2:
-                    b_cond = st.selectbox(f"Fisik Baterai {j+1}", ["Normal (Tidak Menggelembung)", "Bengkak / Swelling", "Terminal Korosi Putih/Hijau"], key=f"bc_{j}")
+                    b_cond = st.selectbox(f"Fisik Baterai {j+1}", ["Normal", "Bengkak", "Korosi"], key=f"bc_{j}")
                 with b_col3:
-                    b_photo = st.file_uploader(f"Upload Foto Detail Baterai {j+1}", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key=f"bp_{j}")
-                
+                    b_photo = st.file_uploader(f"Upload Foto Baterai {j+1}", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key=f"bp_{j}")
                 bat_data.append({"id": f"Baterai #{j+1}", "voltase": b_volt, "suhu": b_temp, "kondisi": b_cond, "foto_objs": b_photo})
 
-    # --- TAB 6: GROUNDING ---
     with tabs[5]:
-        st.subheader("Grounding & Proteksi Petir")
         grd_col1, grd_col2 = st.columns(2)
         with grd_col1:
-            earth_resistance = st.number_input("Nilai Tahanan Grounding (Earth Tester) [Ohm]", value=2.1, step=0.1)
-            grd_cable = st.selectbox("Kondisi Busbar & Kabel BC", ["Terhubung Kuat & Utuh", "Baut Kendor / Karat", "Kabel Putus / Dicuri"])
+            earth_resistance = st.number_input("Tahanan Grounding [Ohm]", value=2.1, step=0.1)
+            grd_cable = st.selectbox("Kondisi Busbar & Kabel", ["Terhubung Kuat", "Kendor / Karat", "Putus / Dicuri"])
         with grd_col2:
-            grd_photos = st.file_uploader("Upload Foto Alat Ukur & Busbar (Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="grd")
+            grd_photos = st.file_uploader("Upload Foto Grounding (Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key="grd")
 
-    # --- TAB 7: ACTION & SUBMIT ---
     with tabs[6]:
-        st.subheader("Ringkasan, Tindakan Eksekusi & Kebutuhan Material")
-        action_taken = st.text_area("🔧 Ketik Mandiri Action / Eksekusi yang Dilakukan:", height=120)
-        sparepart_needed = st.text_input("📦 Daftar Sparepart yang Dibutuhkan/Diganti (Jika Ada):")
-        final_status = st.radio("Status Akhir Site:", ["Normal (Aman)", "Minor Issue (Sudah Diperbaiki)", "Major / Critical (Berbahaya/Butuh Part)"])
+        action_taken = st.text_area("🔧 Ketik Action / Eksekusi:", height=120)
+        sparepart_needed = st.text_input("📦 Daftar Sparepart Dibutuhkan/Diganti:")
+        final_status = st.radio("Status Akhir Site:", ["Normal (Aman)", "Minor Issue (Sudah Diperbaiki)", "Major / Critical (Butuh Part)"])
 
-        if st.button("🚀 Upload Foto & Submit Laporan", type="primary"):
+        if st.button("🚀 Upload & Submit Laporan", type="primary"):
             if not site_name or not technician_name:
                 st.error("⚠️ Mohon isi Nama Site dan Nama Teknisi di Tab 1!")
             else:
-                with st.spinner("⏳ Memproses multi-upload foto & database... Mohon DITUNGGU JANGAN DI-REFRESH."):
-                    
-                    url_sites = upload_multiple_images(site_photos, "solar_view_site")
-                    url_shadings = upload_multiple_images(shading_photos, "solar_shading")
-                    url_jbs = upload_multiple_images(jb_photos, "solar_junction_box")
-                    url_sccs = upload_multiple_images(scc_photos, "solar_scc_inverter")
-                    url_grds = upload_multiple_images(grd_photos, "solar_grounding")
+                with st.spinner("⏳ Mengunggah data & foto... Mohon tunggu."):
+                    url_sites = upload_multiple_images(site_photos, "solar_view")
+                    url_shadings = upload_multiple_images(shading_photos, "solar_shade")
+                    url_jbs = upload_multiple_images(jb_photos, "solar_jb")
+                    url_sccs = upload_multiple_images(scc_photos, "solar_scc")
+                    url_grds = upload_multiple_images(grd_photos, "solar_grd")
 
                     panel_results = []
                     for p in panel_data:
                         if p.get("tipe") == "Individu":
-                            url_bef = upload_image(p["foto_before_obj"], "solar_panel_before") if p["foto_before_obj"] else None
-                            url_aft = upload_image(p["foto_after_obj"], "solar_panel_after") if p["foto_after_obj"] else None
-                            panel_results.append({
-                                "Tipe": "Individu", "Panel": p["id"], "Voc": p["voc"], "Isc": p["isc"], 
-                                "Kondisi": p["kondisi"], "URL_Before": url_bef, "URL_After": url_aft
-                            })
+                            u_bef = upload_image(p["foto_before_obj"], "solar_panel") if p["foto_before_obj"] else None
+                            u_aft = upload_image(p["foto_after_obj"], "solar_panel") if p["foto_after_obj"] else None
+                            panel_results.append({"Tipe": "Individu", "Panel": p["id"], "Voc": p["voc"], "Isc": p["isc"], "Kondisi": p["kondisi"], "URL_Before": u_bef, "URL_After": u_aft})
                         else:
-                            urls_bef = upload_multiple_images(p["foto_before_objs"], "solar_string_before")
-                            urls_aft = upload_multiple_images(p["foto_after_objs"], "solar_string_after")
-                            panel_results.append({
-                                "Tipe": "Seri", "Panel": p["id"], "Qty": p["qty"], "Voc": p["voc"], "Isc": p["isc"], 
-                                "Kondisi": p["kondisi"], "URLs_Before": urls_bef, "URLs_After": urls_aft
-                            })
+                            u_bef = upload_multiple_images(p["foto_before_objs"], "solar_panel")
+                            u_aft = upload_multiple_images(p["foto_after_objs"], "solar_panel")
+                            panel_results.append({"Tipe": "Seri", "Panel": p["id"], "Qty": p["qty"], "Voc": p["voc"], "Isc": p["isc"], "Kondisi": p["kondisi"], "URLs_Before": u_bef, "URLs_After": u_aft})
                     
                     bat_results = []
                     for b in bat_data:
-                        url_bats = upload_multiple_images(b["foto_objs"], "solar_battery")
-                        bat_results.append({
-                            "Baterai": b["id"], "Voltase": b["voltase"], "Suhu": b["suhu"],
-                            "Kondisi": b["kondisi"], "URL_Fotos": url_bats
-                        })
+                        u_bat = upload_multiple_images(b["foto_objs"], "solar_bat")
+                        bat_results.append({"Baterai": b["id"], "Voltase": b["voltase"], "Suhu": b["suhu"], "Kondisi": b["kondisi"], "URL_Fotos": u_bat})
 
                     report_dict = {
                         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -273,140 +228,168 @@ if menu == "📝 Form Pengecekan":
                         "datalog_status": "Ditarik" if is_datalog_taken else "Tidak Ditarik", "url_sccs": url_sccs,
                         "earth_ohm": earth_resistance, "grd_cable": grd_cable, "url_grds": url_grds,
                         "panel_data": panel_results, "battery_data": bat_results,
-                        "url_extras": [] # Inisialisasi list kosong untuk foto susulan nantinya
+                        # Dictionary penyimpanan foto susulan per kategori
+                        "extras_fisik": [], "extras_panel": [], "extras_baterai": [], "extras_elektrikal": []
                     }
-                    
                     st.session_state['laporan_db'].append(report_dict) 
                     save_db(st.session_state['laporan_db'])            
-
-                st.success(f"✅ Laporan lengkap Site {site_name} berhasil disimpan PERMANEN!")
+                st.success(f"✅ Laporan Site {site_name} disimpan PERMANEN!")
 
 # =========================================================================
-# MENU 2: HASIL PENGECEKAN (DASHBOARD & EDIT MODE)
+# MENU 2: HASIL PENGECEKAN (DASHBOARD & FULL EDIT)
 # =========================================================================
 elif menu == "📊 Hasil Pengecekan (Laporan)":
-    st.title("📊 Laporan Komprehensif Eksekusi Site")
-    st.markdown("Rekam jejak parameter teknis dan dokumentasi.")
+    st.title("📊 Laporan Komprehensif & Edit Data")
+    st.markdown("Rekam jejak parameter teknis, generate WhatsApp, dan perbaiki data yang salah.")
     st.divider()
 
     db = st.session_state['laporan_db']
 
     if len(db) == 0:
-        st.info("Data laporan masih kosong. Silakan isi form 1 kali di menu sebelah kiri lalu submit.")
+        st.info("Data laporan kosong. Silakan isi form 1 kali di menu sebelah kiri.")
     else:
         for i in range(len(db) - 1, -1, -1):
             r = db[i]
+            
+            # --- TOMBOL WA GENERATOR ---
+            wa_text = f"""*REPORT HEALTH CHECK SOLAR BTS* ⚡\n📍 *Site:* {r['site_name']} ({r.get('nop', '-')})\n📅 *Tanggal:* {r['timestamp']}\n👷 *Teknisi:* {r.get('teknisi', '-')}\n📊 *Status Akhir:* {r.get('status', '-')}\n\n*TINDAKAN (ACTION):*\n{r.get('action', '-')}\n\n*KEBUTUHAN SPAREPART:*\n{r.get('sparepart', '-')}\n\n*DATA TEKNIS UTAMA:*\n- Total Load: {r.get('total_load', '-')} A\n- Nilai Grounding: {r.get('earth_ohm', '-')} Ohm\n- SCC / Recty: {r.get('scc_brand', '-')}"""
+            wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
+
             with st.expander(f"📍 {r['site_name']} | {r['timestamp']} | Status: {r.get('status', 'Unknown')}"):
                 
-                edit_mode = st.toggle("✏️ Edit Teks & Tambah Foto Susulan", key=f"edit_toggle_{i}")
+                st.link_button("📱 Generate Rangkuman ke WhatsApp", wa_url)
                 
+                # --- TOGGLE FULL EDIT ---
+                edit_mode = st.toggle("✏️ Edit Seluruh Laporan & Tambah Foto", key=f"edit_toggle_{i}")
+                
+                up_fisik = up_panel = up_bat = up_elek = None # Variabel foto susulan
+
                 if edit_mode:
-                    st.markdown("### 📝 Mode Edit & Tambahan")
-                    new_teknisi = st.text_input("Edit Teknisi:", value=r.get('teknisi', ''), key=f"tek_{i}")
-                    new_action = st.text_area("Edit Action / Tindakan:", value=r.get('action', ''), key=f"act_{i}", height=100)
-                    new_sparepart = st.text_input("Edit Kebutuhan Sparepart:", value=r.get('sparepart', ''), key=f"sp_{i}")
-                    
-                    # FITUR BARU: UPLOAD FOTO SUSULAN
-                    extra_photos = st.file_uploader("📸 Tambah Foto Susulan (Jika ada yang tertinggal, Bisa >1 Foto)", type=["jpg", "png", "jpeg"], accept_multiple_files=True, key=f"ext_photo_{i}")
-                    
-                    if st.button("💾 Simpan Perubahan & Upload Susulan", key=f"save_{i}", type="primary"):
-                        st.session_state['laporan_db'][i]['teknisi'] = new_teknisi
-                        st.session_state['laporan_db'][i]['action'] = new_action
-                        st.session_state['laporan_db'][i]['sparepart'] = new_sparepart
-                        
-                        # Jika ada foto tambahan yang di-upload
-                        if extra_photos:
-                            with st.spinner("Mengunggah foto tambahan ke Cloudinary..."):
-                                new_urls = upload_multiple_images(extra_photos, "solar_foto_susulan")
-                                if 'url_extras' not in st.session_state['laporan_db'][i]:
-                                    st.session_state['laporan_db'][i]['url_extras'] = []
-                                st.session_state['laporan_db'][i]['url_extras'].extend(new_urls)
-
-                        save_db(st.session_state['laporan_db']) 
-                        st.success("✅ Update & Tambahan Foto berhasil disimpan!")
-                        st.rerun() 
-                    st.divider()
-
-                st.markdown(f"**Teknisi:** {r.get('teknisi', '-')} | **NOP:** {r.get('nop', '-')} | **Load Beban:** {r.get('total_load', '-')} A")
-                st.markdown(f"**Tindakan Eksekusi (Action):**\n> {r.get('action', '-')}")
-                if r.get('sparepart'):
-                    st.warning(f"**Kebutuhan Sparepart:** {r['sparepart']}")
+                    st.info("Anda berada di Mode Edit. Perbaiki teks/angka atau tambahkan foto yang tertinggal di tiap Tab di bawah. Jangan lupa klik **Simpan Perubahan** di paling bawah!")
+                    r['teknisi'] = st.text_input("Teknisi", r.get('teknisi', ''), key=f"t_{i}")
+                    r['action'] = st.text_area("Tindakan / Action", r.get('action', ''), key=f"a_{i}")
+                    r['sparepart'] = st.text_input("Kebutuhan Sparepart", r.get('sparepart', ''), key=f"s_{i}")
+                    r['status'] = st.selectbox("Status Akhir", ["Normal (Aman)", "Minor Issue (Sudah Diperbaiki)", "Major / Critical (Butuh Part)"], index=["Normal (Aman)", "Minor Issue (Sudah Diperbaiki)", "Major / Critical (Butuh Part)"].index(r.get('status', "Normal (Aman)")), key=f"st_{i}")
+                else:
+                    st.markdown(f"**Teknisi:** {r.get('teknisi', '-')} | **NOP:** {r.get('nop', '-')} | **Load Beban:** {r.get('total_load', '-')} A")
+                    st.markdown(f"**Tindakan Eksekusi (Action):**\n> {r.get('action', '-')}")
+                    if r.get('sparepart'):
+                        st.warning(f"**Kebutuhan Sparepart:** {r['sparepart']}")
                 
-                # FITUR BARU: TAB 5 (FOTO SUSULAN)
-                ltab1, ltab2, ltab3, ltab4, ltab5 = st.tabs(["Fisik & Umum", "Data Panel", "Baterai", "Elektrikal", "Foto Susulan"])
+                ltab1, ltab2, ltab3, ltab4 = st.tabs(["Fisik & Umum", "Data Panel Surya", "Bank Baterai", "Elektrikal (SCC/JB)"])
                 
+                # --- TAB 1: FISIK ---
                 with ltab1:
-                    st.write(f"- Kondisi Site: {r.get('site_cond', '-')} | Tower: {r.get('tower_cond', '-')}")
-                    st.write(f"- Status Shading: {r.get('shading_status', '-')}")
-                    
-                    if r.get('url_sites'):
-                        st.markdown("**Foto View Site:**")
-                        cols = st.columns(len(r['url_sites']) if len(r['url_sites']) < 5 else 4)
-                        for idx, url in enumerate(r['url_sites']): cols[idx%4].image(url, width=150)
-                    if r.get('url_shadings'):
-                        st.markdown("**Foto Shading:**")
-                        cols = st.columns(len(r['url_shadings']) if len(r['url_shadings']) < 5 else 4)
-                        for idx, url in enumerate(r['url_shadings']): cols[idx%4].image(url, width=150)
-
-                with ltab2:
-                    for p in r.get('panel_data', []):
-                        if p.get('Tipe', 'Individu') == 'Individu':
-                            st.markdown(f"**{p.get('Panel', '-')}** - Voc: {p.get('Voc', '-')}V | Isc: {p.get('Isc', '-')}A | Fisik: {p.get('Kondisi', '-')}")
-                            c_bef, c_aft = st.columns(2)
-                            with c_bef:
-                                if p.get('URL_Before'): st.image(p['URL_Before'], caption="Before", width=250)
-                            with c_aft:
-                                if p.get('URL_After'): st.image(p['URL_After'], caption="After", width=250)
-                        else:
-                            st.markdown(f"**{p.get('Panel', '-')} ({p.get('Qty', '-')} Panel)** - Total Voc: {p.get('Voc', '-')}V | Isc: {p.get('Isc', '-')}A | Mayoritas Fisik: {p.get('Kondisi', '-')}")
-                            c_bef, c_aft = st.columns(2)
-                            with c_bef:
-                                st.caption("📸 BEFORE")
-                                if p.get('URLs_Before'):
-                                    for u in p['URLs_Before']: st.image(u, width=150)
-                                else: st.write("*(Tidak ada)*")
-                            with c_aft:
-                                st.caption("✨ AFTER")
-                                if p.get('URLs_After'):
-                                    for u in p['URLs_After']: st.image(u, width=150)
-                                else: st.write("*(Tidak ada)*")
-                        st.divider()
-
-                with ltab3:
-                    for b in r.get('battery_data', []):
-                        st.markdown(f"**{b.get('Baterai', '-')}** - {b.get('Voltase', '-')}V | Suhu: {b.get('Suhu', '-')}°C | Fisik: {b.get('Kondisi', '-')}")
-                        if b.get('URL_Fotos'):
-                            cols = st.columns(len(b['URL_Fotos']) if len(b['URL_Fotos']) < 4 else 3)
-                            for idx, url in enumerate(b['URL_Fotos']): cols[idx%3].image(url, width=200)
-                        st.divider()
-
-                with ltab4:
-                    col_e1, col_e2 = st.columns(2)
-                    with col_e1:
-                        st.markdown("**Panel DC / Junction Box**")
-                        st.write(f"- Box: {r.get('jb_enclosure', '-')} \n- Breaker: {r.get('jb_breaker', '-')} \n- Kabel: {r.get('cabling', '-')}")
-                        if r.get('url_jbs'):
-                            for url in r['url_jbs']: st.image(url, width=150)
-                    with col_e2:
-                        st.markdown("**SCC & Inverter**")
-                        st.write(f"- Merek: {r.get('scc_brand', '-')} \n- Status: {r.get('scc_alarm', '-')} \n- Datalog: {r.get('datalog_status', '-')}")
-                        if r.get('url_sccs'):
-                            for url in r['url_sccs']: st.image(url, width=150)
-                    
-                    st.divider()
-                    st.markdown("**Grounding**")
-                    st.write(f"- Nilai Tahanan: {r.get('earth_ohm', '-')} Ohm \n- Kabel: {r.get('grd_cable', '-')}")
-                    if r.get('url_grds'):
-                        cols = st.columns(3)
-                        for idx, url in enumerate(r['url_grds']): cols[idx%3].image(url, width=150)
-
-                # FITUR BARU: TAB TAMPILAN FOTO SUSULAN
-                with ltab5:
-                    st.markdown("**📸 Foto Tambahan (Susulan):**")
-                    extras = r.get('url_extras', [])
-                    if extras:
-                        cols = st.columns(len(extras) if len(extras) < 5 else 4)
-                        for idx, url in enumerate(extras):
-                            cols[idx%4].image(url, width=150)
+                    if edit_mode:
+                        r['site_cond'] = st.text_input("Kondisi Site", r.get('site_cond', ''), key=f"sc_{i}")
+                        r['tower_cond'] = st.text_input("Kondisi Tower", r.get('tower_cond', ''), key=f"tc_{i}")
+                        r['shading_status'] = st.text_input("Status Shading", r.get('shading_status', ''), key=f"sh_{i}")
+                        up_fisik = st.file_uploader("📸 Tambah Foto Susulan (Fisik/Shading)", accept_multiple_files=True, key=f"uf_{i}")
                     else:
-                        st.info("*(Tidak ada foto susulan untuk site ini)*")
+                        st.write(f"- Kondisi Site: {r.get('site_cond', '-')} | Tower: {r.get('tower_cond', '-')}")
+                        st.write(f"- Status Shading: {r.get('shading_status', '-')}")
+                    
+                    # Tampilkan Foto Original + Tambahan Fisik
+                    all_fisik = r.get('url_sites', []) + r.get('url_shadings', []) + r.get('extras_fisik', [])
+                    if all_fisik:
+                        cols = st.columns(4)
+                        for idx, url in enumerate(all_fisik): cols[idx%4].image(url, width=150)
+
+                # --- TAB 2: PANEL SURYA ---
+                with ltab2:
+                    if edit_mode:
+                        up_panel = st.file_uploader("📸 Tambah Foto Susulan (Panel)", accept_multiple_files=True, key=f"up_{i}")
+                    
+                    for idx_p, p in enumerate(r.get('panel_data', [])):
+                        if edit_mode:
+                            st.markdown(f"**{p.get('Panel', '-')}**")
+                            c1, c2, c3 = st.columns(3)
+                            with c1: p['Voc'] = st.number_input(f"Voc", value=float(p.get('Voc', 0)), key=f"pvoc_{i}_{idx_p}")
+                            with c2: p['Isc'] = st.number_input(f"Isc", value=float(p.get('Isc', 0)), key=f"pisc_{i}_{idx_p}")
+                            with c3: p['Kondisi'] = st.text_input(f"Kondisi", value=p.get('Kondisi', ''), key=f"pcon_{i}_{idx_p}")
+                        else:
+                            if p.get('Tipe') == 'Individu':
+                                st.markdown(f"**{p.get('Panel')}** - Voc: {p.get('Voc')}V | Isc: {p.get('Isc')}A | Fisik: {p.get('Kondisi')}")
+                                cb, ca = st.columns(2)
+                                with cb:
+                                    if p.get('URL_Before'): st.image(p['URL_Before'], caption="Before", width=250)
+                                with ca:
+                                    if p.get('URL_After'): st.image(p['URL_After'], caption="After", width=250)
+                            else:
+                                st.markdown(f"**{p.get('Panel')} ({p.get('Qty')} Panel)** - Voc: {p.get('Voc')}V | Isc: {p.get('Isc')}A | Fisik: {p.get('Kondisi')}")
+                                cb, ca = st.columns(2)
+                                with cb:
+                                    if p.get('URLs_Before'):
+                                        for u in p['URLs_Before']: st.image(u, width=150)
+                                with ca:
+                                    if p.get('URLs_After'):
+                                        for u in p['URLs_After']: st.image(u, width=150)
+                        st.divider()
+                    
+                    if r.get('extras_panel'):
+                        st.markdown("**Foto Tambahan Panel:**")
+                        cols = st.columns(4)
+                        for idx, url in enumerate(r['extras_panel']): cols[idx%4].image(url, width=150)
+
+                # --- TAB 3: BATERAI ---
+                with ltab3:
+                    if edit_mode:
+                        up_bat = st.file_uploader("📸 Tambah Foto Susulan (Baterai)", accept_multiple_files=True, key=f"ub_{i}")
+                    
+                    for idx_b, b in enumerate(r.get('battery_data', [])):
+                        if edit_mode:
+                            st.markdown(f"**{b.get('Baterai')}**")
+                            c1, c2, c3 = st.columns(3)
+                            with c1: b['Voltase'] = st.number_input(f"Voltase", value=float(b.get('Voltase', 0)), key=f"bv_{i}_{idx_b}")
+                            with c2: b['Suhu'] = st.number_input(f"Suhu °C", value=float(b.get('Suhu', 0)), key=f"bs_{i}_{idx_b}")
+                            with c3: b['Kondisi'] = st.text_input(f"Kondisi Fisik", value=b.get('Kondisi', ''), key=f"bcon_{i}_{idx_b}")
+                        else:
+                            st.markdown(f"**{b.get('Baterai')}** - {b.get('Voltase')}V | Suhu: {b.get('Suhu')}°C | Fisik: {b.get('Kondisi')}")
+                            if b.get('URL_Fotos'):
+                                cols = st.columns(3)
+                                for idx, url in enumerate(b['URL_Fotos']): cols[idx%3].image(url, width=200)
+                        st.divider()
+                    
+                    if r.get('extras_baterai'):
+                        st.markdown("**Foto Tambahan Baterai:**")
+                        cols = st.columns(4)
+                        for idx, url in enumerate(r['extras_baterai']): cols[idx%4].image(url, width=150)
+
+                # --- TAB 4: ELEKTRIKAL ---
+                with ltab4:
+                    if edit_mode:
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            r['total_load'] = st.number_input("Total Load (A)", value=float(r.get('total_load', 0)), key=f"ld_{i}")
+                            r['earth_ohm'] = st.number_input("Earth/Grounding (Ohm)", value=float(r.get('earth_ohm', 0)), key=f"ea_{i}")
+                            r['datalog_status'] = st.text_input("Status Datalog", r.get('datalog_status', ''), key=f"dt_{i}")
+                        with c2:
+                            r['jb_enclosure'] = st.text_input("Kondisi Box JB", r.get('jb_enclosure', ''), key=f"jbe_{i}")
+                            r['scc_alarm'] = st.text_input("Alarm SCC", r.get('scc_alarm', ''), key=f"sca_{i}")
+                        up_elek = st.file_uploader("📸 Tambah Foto Susulan (SCC/JB/Grounding)", accept_multiple_files=True, key=f"ue_{i}")
+                    else:
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            st.write(f"**Panel DC / JB:** \n- Box: {r.get('jb_enclosure', '-')} \n- Breaker: {r.get('jb_breaker', '-')} \n- Kabel: {r.get('cabling', '-')}")
+                        with c2:
+                            st.write(f"**SCC / Elektrikal:** \n- SCC: {r.get('scc_brand', '-')} \n- Alarm: {r.get('scc_alarm', '-')} \n- Datalog: {r.get('datalog_status', '-')}")
+                        st.write(f"**Grounding:** {r.get('earth_ohm', '-')} Ohm ({r.get('grd_cable', '-')})")
+                    
+                    # Tampilkan Foto Elektrikal + Tambahan
+                    all_elek = r.get('url_jbs', []) + r.get('url_sccs', []) + r.get('url_grds', []) + r.get('extras_elektrikal', [])
+                    if all_elek:
+                        cols = st.columns(4)
+                        for idx, url in enumerate(all_elek): cols[idx%4].image(url, width=150)
+
+                # --- TOMBOL SIMPAN (HANYA MUNCUL DI EDIT MODE) ---
+                if edit_mode:
+                    st.divider()
+                    if st.button("💾 SIMPAN SEMUA PERUBAHAN", key=f"save_{i}", type="primary"):
+                        with st.spinner("Menyimpan teks & mengunggah foto tambahan ke Cloudinary..."):
+                            if up_fisik: r['extras_fisik'] = r.get('extras_fisik', []) + upload_multiple_images(up_fisik, "solar_extra")
+                            if up_panel: r['extras_panel'] = r.get('extras_panel', []) + upload_multiple_images(up_panel, "solar_extra")
+                            if up_bat: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_bat, "solar_extra")
+                            if up_elek: r['extras_elektrikal'] = r.get('extras_elektrikal', []) + upload_multiple_images(up_elek, "solar_extra")
+                            save_db(st.session_state['laporan_db']) 
+                        st.success("✅ Perubahan & Tambahan Foto berhasil disimpan!")
+                        st.rerun()
