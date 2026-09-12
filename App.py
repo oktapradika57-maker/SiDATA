@@ -5,7 +5,7 @@ import cloudinary
 import cloudinary.uploader
 import json
 import os
-import urllib.parse  # Untuk format URL WhatsApp
+import urllib.parse
 
 # -------------------------------------------------------------------------
 # 1. KONFIGURASI CLOUDINARY
@@ -228,7 +228,6 @@ if menu == "📝 Form Pengecekan":
                         "datalog_status": "Ditarik" if is_datalog_taken else "Tidak Ditarik", "url_sccs": url_sccs,
                         "earth_ohm": earth_resistance, "grd_cable": grd_cable, "url_grds": url_grds,
                         "panel_data": panel_results, "battery_data": bat_results,
-                        # Dictionary penyimpanan foto susulan per kategori
                         "extras_fisik": [], "extras_panel": [], "extras_baterai": [], "extras_elektrikal": []
                     }
                     st.session_state['laporan_db'].append(report_dict) 
@@ -251,7 +250,6 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
         for i in range(len(db) - 1, -1, -1):
             r = db[i]
             
-            # --- TOMBOL WA GENERATOR ---
             wa_text = f"""*REPORT HEALTH CHECK SOLAR BTS* ⚡\n📍 *Site:* {r['site_name']} ({r.get('nop', '-')})\n📅 *Tanggal:* {r['timestamp']}\n👷 *Teknisi:* {r.get('teknisi', '-')}\n📊 *Status Akhir:* {r.get('status', '-')}\n\n*TINDAKAN (ACTION):*\n{r.get('action', '-')}\n\n*KEBUTUHAN SPAREPART:*\n{r.get('sparepart', '-')}\n\n*DATA TEKNIS UTAMA:*\n- Total Load: {r.get('total_load', '-')} A\n- Nilai Grounding: {r.get('earth_ohm', '-')} Ohm\n- SCC / Recty: {r.get('scc_brand', '-')}"""
             wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
 
@@ -259,17 +257,23 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                 
                 st.link_button("📱 Generate Rangkuman ke WhatsApp", wa_url)
                 
-                # --- TOGGLE FULL EDIT ---
                 edit_mode = st.toggle("✏️ Edit Seluruh Laporan & Tambah Foto", key=f"edit_toggle_{i}")
                 
-                up_fisik = up_panel = up_bat = up_elek = None # Variabel foto susulan
+                up_fisik = up_panel = up_bat = up_elek = None
 
                 if edit_mode:
-                    st.info("Anda berada di Mode Edit. Perbaiki teks/angka atau tambahkan foto yang tertinggal di tiap Tab di bawah. Jangan lupa klik **Simpan Perubahan** di paling bawah!")
+                    st.info("Mode Edit: Perbaiki teks/angka atau tambahkan foto yang tertinggal di tiap Tab di bawah. Jangan lupa klik **Simpan Perubahan**!")
+                    
                     r['teknisi'] = st.text_input("Teknisi", r.get('teknisi', ''), key=f"t_{i}")
                     r['action'] = st.text_area("Tindakan / Action", r.get('action', ''), key=f"a_{i}")
                     r['sparepart'] = st.text_input("Kebutuhan Sparepart", r.get('sparepart', ''), key=f"s_{i}")
-                    r['status'] = st.selectbox("Status Akhir", ["Normal (Aman)", "Minor Issue (Sudah Diperbaiki)", "Major / Critical (Butuh Part)"], index=["Normal (Aman)", "Minor Issue (Sudah Diperbaiki)", "Major / Critical (Butuh Part)"].index(r.get('status', "Normal (Aman)")), key=f"st_{i}")
+                    
+                    # LOGIKA AMAN UNTUK INDEX STATUS (Mencegah ValueError)
+                    status_options = ["Normal (Aman)", "Minor Issue (Sudah Diperbaiki)", "Major / Critical (Butuh Part)"]
+                    current_status = r.get('status', "Normal (Aman)")
+                    safe_index = status_options.index(current_status) if current_status in status_options else 0
+                    
+                    r['status'] = st.selectbox("Status Akhir", status_options, index=safe_index, key=f"st_{i}")
                 else:
                     st.markdown(f"**Teknisi:** {r.get('teknisi', '-')} | **NOP:** {r.get('nop', '-')} | **Load Beban:** {r.get('total_load', '-')} A")
                     st.markdown(f"**Tindakan Eksekusi (Action):**\n> {r.get('action', '-')}")
@@ -289,8 +293,7 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                         st.write(f"- Kondisi Site: {r.get('site_cond', '-')} | Tower: {r.get('tower_cond', '-')}")
                         st.write(f"- Status Shading: {r.get('shading_status', '-')}")
                     
-                    # Tampilkan Foto Original + Tambahan Fisik
-                    all_fisik = r.get('url_sites', []) + r.get('url_shadings', []) + r.get('extras_fisik', [])
+                    all_fisik = (r.get('url_sites') or []) + (r.get('url_shadings') or []) + (r.get('extras_fisik') or [])
                     if all_fisik:
                         cols = st.columns(4)
                         for idx, url in enumerate(all_fisik): cols[idx%4].image(url, width=150)
@@ -375,21 +378,20 @@ elif menu == "📊 Hasil Pengecekan (Laporan)":
                             st.write(f"**SCC / Elektrikal:** \n- SCC: {r.get('scc_brand', '-')} \n- Alarm: {r.get('scc_alarm', '-')} \n- Datalog: {r.get('datalog_status', '-')}")
                         st.write(f"**Grounding:** {r.get('earth_ohm', '-')} Ohm ({r.get('grd_cable', '-')})")
                     
-                    # Tampilkan Foto Elektrikal + Tambahan
-                    all_elek = r.get('url_jbs', []) + r.get('url_sccs', []) + r.get('url_grds', []) + r.get('extras_elektrikal', [])
+                    all_elek = (r.get('url_jbs') or []) + (r.get('url_sccs') or []) + (r.get('url_grds') or []) + (r.get('extras_elektrikal') or [])
                     if all_elek:
                         cols = st.columns(4)
                         for idx, url in enumerate(all_elek): cols[idx%4].image(url, width=150)
 
-                # --- TOMBOL SIMPAN (HANYA MUNCUL DI EDIT MODE) ---
+                # --- TOMBOL SIMPAN ---
                 if edit_mode:
                     st.divider()
                     if st.button("💾 SIMPAN SEMUA PERUBAHAN", key=f"save_{i}", type="primary"):
                         with st.spinner("Menyimpan teks & mengunggah foto tambahan ke Cloudinary..."):
-                            if up_fisik: r['extras_fisik'] = r.get('extras_fisik', []) + upload_multiple_images(up_fisik, "solar_extra")
-                            if up_panel: r['extras_panel'] = r.get('extras_panel', []) + upload_multiple_images(up_panel, "solar_extra")
-                            if up_bat: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_bat, "solar_extra")
-                            if up_elek: r['extras_elektrikal'] = r.get('extras_elektrikal', []) + upload_multiple_images(up_elek, "solar_extra")
+                            if up_fisik: r['extras_fisik'] = (r.get('extras_fisik') or []) + upload_multiple_images(up_fisik, "solar_extra")
+                            if up_panel: r['extras_panel'] = (r.get('extras_panel') or []) + upload_multiple_images(up_panel, "solar_extra")
+                            if up_bat: r['extras_baterai'] = (r.get('extras_baterai') or []) + upload_multiple_images(up_bat, "solar_extra")
+                            if up_elek: r['extras_elektrikal'] = (r.get('extras_elektrikal') or []) + upload_multiple_images(up_elek, "solar_extra")
                             save_db(st.session_state['laporan_db']) 
                         st.success("✅ Perubahan & Tambahan Foto berhasil disimpan!")
                         st.rerun()
