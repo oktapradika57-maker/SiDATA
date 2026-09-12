@@ -1,251 +1,314 @@
-import streamlit as st
+import datetime
+from PIL import Image
 import pandas as pd
-import numpy as np
-import io
+import streamlit as st
 
 # Konfigurasi Halaman
-st.set_page_config(page_title="Analisa Pergerakan Tim & Backup MBP", layout="wide")
-st.title("⚡ Analisa Pergerakan PIC, Status Backup & Jarak MBP (Kalteng)")
-st.write("Unggah file Excel tiket Anda untuk memantau aktivitas PIC, kalkulasi jarak tempuh ke site, serta posibilitas backup site.")
+st.set_page_config(
+    page_title="Solar BTS Health Check System",
+    page_icon="⚡",
+    layout="wide",
+)
 
-# Fungsi Kalkulasi Jarak Haversine (km)
-def calculate_haversine(lat1, lon1, lat2, lon2):
-    try:
-        R = 6371.0 # Radius bumi dalam km
-        lat1, lon1, lat2, lon2 = map(np.radians, [float(lat1), float(lon1), float(lat2), float(lon2)])
-        dlat = lat2 - lat1
-        dlon = lon2 - lon1
-        a = np.sin(dlat / 2.0)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2.0)**2
-        c = 2 * np.arcsin(np.sqrt(a))
-        return round(R * c, 2)
-    except (ValueError, TypeError):
-        return np.nan
+st.title("⚡ Preventive Maintenance & Health Check Solar BTS")
+st.markdown(
+    "Formulir pemeriksaan berkala sistem PLTS dan Catu Daya BTS Telekomunikasi."
+)
+st.markdown("---")
 
-# Mapping Koordinat Default Posko Utama Kalteng (Fallback jika koordinat PIC tidak diisi)
-DEFAULT_CITY_COORDS = {
-    "Palangka Raya": (-2.2088, 113.9161),
-    "Sampit": (-2.5333, 112.9500),
-    "Pangkalan Bun": (-2.6833, 111.6167),
-    "Muara Teweh": (-0.9542, 114.8964),
-    "Buntok": (-1.7333, 114.8333),
-    "Kuala Kapuas": (-3.0083, 114.3833),
-    "Puruk Cahu": (-0.6167, 114.5833),
-    "Tamiang Layang": (-2.1433, 115.1611)
-}
+# Menggunakan Tabs untuk Navigasi Bagian Form
+tabs = st.tabs(
+    [
+        "1. Info Site",
+        "2. Solar Panel",
+        "3. Junction Box",
+        "4. SCC & Rectifier",
+        "5. Baterai",
+        "6. Grounding",
+        "7. Ringkasan & Submit",
+    ]
+)
 
-st.sidebar.header("📍 Pengaturan Posko Tim / Base")
-use_default_coords = st.sidebar.checkbox("Gunakan Koordinat Default Kota jika Koordinat PIC Kosong", value=True)
+# -------------------------------------------------------------------------
+# TAB 1: INFORMASI SITE
+# -------------------------------------------------------------------------
+with tabs[0]:
+  st.subheader("Informasi Umum Site")
+  col1, col2 = st.columns(2)
 
-uploaded_file = st.file_uploader("Upload File Excel (Ticket MBP)", type=["xlsx", "xls"])
+  with col1:
+    site_name = st.text_input(
+        "Nama / ID Site", placeholder="Contoh: BTS-PKY-001"
+    )
+    nop_area = st.selectbox(
+        "Network Operation Point (NOP)",
+        ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"],
+    )
+    check_date = st.date_input(
+        "Tanggal Pengecekan", value=datetime.date.today()
+    )
 
-if uploaded_file:
-    with st.spinner('Memproses data, menghitung jarak tempuh, dan menganalisis pergerakan PIC...'):
-        df = pd.read_excel(uploaded_file, sheet_name=0)
-        
-        # 1. MENCEGAH KEYERROR: Hapus spasi tambahan pada nama kolom
-        df.columns = df.columns.str.strip()
-        
-        # 2. PREPROCESSING AMAN (Mengecek keberadaan kolom)
-        if 'Created At' in df.columns:
-            df['Created At'] = pd.to_datetime(df['Created At'], errors='coerce')
-            df['Date'] = df['Created At'].dt.date
-        else:
-            df['Created At'] = pd.NaT
-            df['Date'] = pd.NaT
+  with col2:
+    technician_name = st.text_input(
+        "Nama Teknisi", placeholder="Nama lengkap teknisi"
+    )
+    weather = st.selectbox(
+        "Kondisi Cuaca", ["Cerah", "Berawan", "Hujan / Mendung"]
+    )
 
-        if 'Cleared Time' in df.columns:
-            df['Cleared Time'] = pd.to_datetime(df['Cleared Time'], errors='coerce')
-        else:
-            df['Cleared Time'] = pd.NaT
+  st.info(
+      "Pastikan semua parameter terisi dengan benar sebelum melanjutkan ke"
+      " tab berikutnya."
+  )
 
-        # Pengecekan aman 'Take Over Date'
-        if 'Take Over Date' in df.columns:
-            df['Take Over Date'] = pd.to_datetime(df['Take Over Date'], errors='coerce')
-            df['Take Over Date Only'] = df['Take Over Date'].dt.date
-        else:
-            # Fallback ke 'Date' (Created At) jika 'Take Over Date' tidak ada di Excel
-            df['Take Over Date Only'] = df['Date']
-        
-        # Kalkulasi Downtime
-        if 'Cleared Time' in df.columns and 'Created At' in df.columns:
-            df['Downtime'] = df['Cleared Time'] - df['Created At']
-            df['Downtime (Jam)'] = (df['Downtime'].dt.total_seconds() / 3600).round(2)
-        else:
-            df['Downtime (Jam)'] = np.nan
-        
-        # Deteksi Status Backup (RH Start > 0)
-        if 'RH Start' in df.columns:
-            df['Is_Backup'] = df['RH Start'].apply(lambda x: True if pd.notna(x) and str(x).strip() != '' and pd.to_numeric(x, errors='coerce') > 0 else False)
-        else:
-            df['Is_Backup'] = False
+# -------------------------------------------------------------------------
+# TAB 2: SOLAR PANEL (PER SATUAN / PANEL)
+# -------------------------------------------------------------------------
+with tabs[1]:
+  st.subheader("Pemeriksaan Modul Panel Surya (PV Array)")
+  st.markdown(
+      "Masukkan data dan unggah foto dokumentasi untuk masing-masing panel atau"
+      " string."
+  )
 
-        # Kalkulasi Jarak Tempuh
-        def get_distance(row):
-            pic_lat = row.get('PIC Lat') or row.get('Base Lat')
-            pic_lon = row.get('PIC Long') or row.get('Base Long')
-            site_lat = row.get('Site Lat') or row.get('Latitude')
-            site_lon = row.get('Site Long') or row.get('Longitude')
+  num_panels = st.number_input(
+      "Jumlah Panel / String yang Diperiksa",
+      min_value=1,
+      max_value=20,
+      value=4,
+      step=1,
+  )
 
-            if (pd.isna(pic_lat) or pd.isna(pic_lon)) and use_default_coords:
-                city_name = row.get('City')
-                if city_name in DEFAULT_CITY_COORDS:
-                    pic_lat, pic_lon = DEFAULT_CITY_COORDS[city_name]
+  panel_data = []
+  for i in range(int(num_panels)):
+    with st.expander(f"Panel / String #{i+1}", expanded=(i == 0)):
+      p_col1, p_col2 = st.columns(2)
 
-            if pd.notna(pic_lat) and pd.notna(pic_lon) and pd.notna(site_lat) and pd.notna(site_lon):
-                return calculate_haversine(pic_lat, pic_lon, site_lat, site_lon)
-            return np.nan
+      with p_col1:
+        voc = st.number_input(
+            f"Tegangan Open Circuit (Voc) - Panel {i+1} [Volt]",
+            min_value=0.0,
+            value=21.5,
+            step=0.1,
+            key=f"voc_{i}",
+        )
+        isc = st.number_input(
+            f"Arus Short Circuit (Isc) - Panel {i+1} [Ampere]",
+            min_value=0.0,
+            value=5.2,
+            step=0.1,
+            key=f"isc_{i}",
+        )
+        p_condition = st.selectbox(
+            f"Kondisi Fisik - Panel {i+1}",
+            ["Baik", "Retak / Pecah", "Kotor / Soiling", "Delaminasi"],
+            key=f"cond_{i}",
+        )
 
-        df['Jarak Tempuh (km)'] = df.apply(get_distance, axis=1)
+      with p_col2:
+        p_photo = st.file_uploader(
+            f"Upload Foto Fisik - Panel {i+1}",
+            type=["jpg", "jpeg", "png"],
+            key=f"photo_panel_{i}",
+        )
+        if p_photo is not None:
+          st.image(
+              p_photo,
+              caption=f"Preview Panel {i+1}",
+              use_container_width=True,
+          )
 
-        # Penilaian Posibilitas Backup
-        def assess_possibility(rc):
-            if pd.isna(rc):
-                return "Cek Manual (Tidak ada RC)"
-            rc_str = str(rc).lower()
-            if 'pln off' in rc_str or 'baterai' in rc_str or 'sewa daya' in rc_str or 'solar cell' in rc_str:
-                return "Tinggi (Issue Power/PLN)"
-            elif 'rectifier' in rc_str or 'ups' in rc_str:
-                return "Rendah (Butuh Perbaikan Rectifier)"
-            elif 'osp' in rc_str or 'transport' in rc_str or 'cme' in rc_str or 'telkom' in rc_str or 'isp' in rc_str:
-                return "Tidak Bisa (Issue Transmisi/Kabel/Hardware)"
-            else:
-                return f"Lainnya ({rc})"
+      panel_data.append({
+          "Panel_ID": f"Panel #{i+1}",
+          "Voc": voc,
+          "Isc": isc,
+          "Condition": p_condition,
+          "Has_Photo": True if p_photo is not None else False,
+      })
 
-        # Memastikan kolom minimal ada
-        if 'City' not in df.columns:
-            df['City'] = "Unknown"
-        if 'Site Id' not in df.columns:
-            df['Site Id'] = "-"
-        if 'INAP RC 1' not in df.columns:
-            df['INAP RC 1'] = np.nan
+# -------------------------------------------------------------------------
+# TAB 3: JUNCTION BOX / COMBINER BOX
+# -------------------------------------------------------------------------
+with tabs[2]:
+  st.subheader("Junction Box / Combiner Box (DC Box)")
 
-        # 1. TABEL ANALISA PERGERAKAN TIM (PIC)
-        pic_analysis = []
-        if 'PIC Take Over Ticket' in df.columns:
-            grouped_pic = df[df['PIC Take Over Ticket'].notna()].groupby(['PIC Take Over Ticket', 'Take Over Date Only', 'City'])
-            for (pic, date, city), group in grouped_pic:
-                total_handled = group['Site Id'].nunique()
-                backed_up_group = group[group['Is_Backup']]
-                no_backup_group = group[~group['Is_Backup']]
-                
-                sites_backup = ", ".join(backed_up_group['Site Id'].astype(str).unique()) if len(backed_up_group) > 0 else "-"
-                sites_no_backup = ", ".join(no_backup_group['Site Id'].astype(str).unique()) if len(no_backup_group) > 0 else "-"
-                
-                tot_dist = group['Jarak Tempuh (km)'].sum()
-                avg_dist = group['Jarak Tempuh (km)'].mean()
-                dist_info = f"{tot_dist:.1f} km (Rata-rata: {avg_dist:.1f} km/site)" if pd.notna(tot_dist) and tot_dist > 0 else "Data Koordinat Tidak Lengkap"
+  jb_col1, jb_col2 = st.columns(2)
+  with jb_col1:
+    jb_enclosure = st.selectbox(
+        "Kondisi Enklosur & Seal Karet",
+        ["Baik & Kedap Air", "Rusak / Seal Lepas", "Berkarat / Ada Serangga"],
+    )
+    jb_fuse = st.selectbox(
+        "Status Fuse & MCB DC",
+        ["Normal / Aman", "Trip / Perlu Reset", "Putus / Terbakar"],
+    )
+    jb_spd = st.selectbox(
+        "Indikator Surge Protection Device (SPD)",
+        ["Normal (Hijau)", "Rusak / Triggered (Merah/Hitam)"],
+    )
+    jb_terminal = st.selectbox(
+        "Kondisi Terminal & Busbar",
+        ["Kencang & Bersih", "Kendur", "Oksidasi / Gosong"],
+    )
 
-                if len(no_backup_group) == 0:
-                    rc_info = "Semua Sukses Backup"
-                    posibility = "-"
-                else:
-                    rcs = no_backup_group['INAP RC 1'].dropna().value_counts()
-                    rc_info = ", ".join([f"{k} ({v})" for k, v in rcs.items()]) if not rcs.empty else "Auto Resolved / No RC"
-                    
-                    possibilities = [assess_possibility(rc) for rc in no_backup_group['INAP RC 1']]
-                    pos_series = pd.Series(possibilities).value_counts()
-                    posibility = ", ".join([f"{k} ({v} site)" for k, v in pos_series.items()])
-                
-                pic_analysis.append({
-                    'PIC': pic,
-                    'Tanggal Take Over': date,
-                    'Kota (City)': city,
-                    'Total Site Down': total_handled,
-                    'Estimasi Jarak Tempuh': dist_info,
-                    'Site Sukses Backup': sites_backup,
-                    'Site Tidak Di-backup': sites_no_backup,
-                    'Alasan (INAP RC 1)': rc_info,
-                    'Posibilitas Backup': posibility,
-                    'Remark Lapangan': ""
-                })
-        df_pic_report = pd.DataFrame(pic_analysis)
+  with jb_col2:
+    jb_photo = st.file_uploader(
+        "Upload Foto Dalam Junction Box",
+        type=["jpg", "jpeg", "png"],
+        key="jb_photo",
+    )
+    if jb_photo is not None:
+      st.image(
+          jb_photo, caption="Preview Junction Box", use_container_width=True
+      )
 
-        # 2. TABEL RINGKASAN PER CITY
-        city_analysis = []
-        for city, group in df.groupby('City'):
-            total_tiket = len(group)
-            unique_sites = group['Site Id'].nunique()
-            mbp_group = group[group['Is_Backup']]
-            total_backup = len(mbp_group)
-            site_backup_list = ", ".join(mbp_group['Site Id'].astype(str).dropna().unique()) if total_backup > 0 else "-"
-            avg_city_dist = group['Jarak Tempuh (km)'].mean()
-            
-            city_analysis.append({
-                'City': city,
-                'Total Tiket Down': total_tiket,
-                'Total Site Down (Unique)': unique_sites,
-                'Total MBP Backup': total_backup,
-                'Rata-rata Jarak ke Site (km)': round(avg_city_dist, 2) if pd.notna(avg_city_dist) else "-",
-                'Site yang Di-Backup': site_backup_list,
-                'Remark Area': ""
-            })
-        df_city_report = pd.DataFrame(city_analysis)
+# -------------------------------------------------------------------------
+# TAB 4: SOLAR CHARGE CONTROLLER (SCC) / RECTIFIER
+# -------------------------------------------------------------------------
+with tabs[3]:
+  st.subheader("Solar Charge Controller (SCC) / Rectifier")
 
-        # 3. TABEL DETAIL DATA & ENVA TIME
-        cols_detail = ['Date', 'City', 'Site Id', 'Site Name', 'PIC Take Over Ticket', 'Jarak Tempuh (km)', 'Created At', 'Cleared Time', 'Downtime (Jam)', 'RH Start', 'INAP RC 1']
-        cols_available = [col for col in cols_detail if col in df.columns]
-        df_detail = df[cols_available].copy()
-        df_detail['Remark (Alasan Tidak Bisa Backup)'] = ""
+  scc_col1, scc_col2 = st.columns(2)
+  with scc_col1:
+    scc_alarm = st.selectbox(
+        "Status Indikator & Alarm",
+        ["Normal (No Alarm)", "Ada Alarm Fault / Error"],
+    )
+    alarm_code = st.text_input(
+        "Kode Alarm (Jika ada)", placeholder="Contoh: Err-03 / Overvoltage"
+    )
+    float_v = st.number_input(
+        "Pengukuran Float Voltage [V]", min_value=0.0, value=54.2, step=0.1
+    )
+    system_out_v = st.number_input(
+        "Tegangan Output DC ke BTS [V]", min_value=0.0, value=48.0, step=0.1
+    )
+    scc_fan = st.selectbox(
+        "Kondisi Kipas Pendingin (Fan)",
+        ["Berputar Normal", "Berisik / Macet", "Mati Total"],
+    )
 
-        # STRUKTUR TAMPILAN STREAMLIT (TABS)
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
-            "🏃‍♂️ Pergerakan Tim (PIC)", 
-            "🏙️ Analisa per City", 
-            "📋 Detail & Enva Time", 
-            "📈 Pivot Interaktif", 
-            "💾 Download Excel"
-        ])
-        
-        with tab1:
-            st.subheader("Aktivitas, Pergerakan & Mobilisasi Jarak PIC")
-            st.write("Menampilkan pergerakan harian PIC, estimasi akumulasi jarak perjalanan, site backup, serta evaluasi kendala.")
-            if not df_pic_report.empty:
-                st.dataframe(df_pic_report, use_container_width=True)
-            else:
-                st.warning("Kolom 'PIC Take Over Ticket' tidak ditemukan pada data.")
-            
-        with tab2:
-            st.subheader("Rekapitulasi Total Down Site, Jarak Rata-rata & Status Backup per City")
-            st.dataframe(df_city_report, use_container_width=True)
-            
-        with tab3:
-            st.subheader("Detail Tiket, Kalkulasi Jarak & Enva Time (Downtime)")
-            st.dataframe(df_detail, use_container_width=True)
+  with scc_col2:
+    scc_photo = st.file_uploader(
+        "Upload Foto Display SCC / Rectifier",
+        type=["jpg", "jpeg", "png"],
+        key="scc_photo",
+    )
+    if scc_photo is not None:
+      st.image(
+          scc_photo, caption="Preview SCC / Rectifier", use_container_width=True
+      )
 
-        with tab4:
-            st.subheader("Custom Pivot Table")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                pivot_index = st.selectbox("Baris (Index):", options=df.columns, index=df.columns.get_loc('City') if 'City' in df.columns else 0)
-            with col2:
-                pivot_columns = st.selectbox("Kolom (Opsional):", options=['None'] + list(df.columns), index=0)
-            with col3:
-                pivot_values = st.selectbox("Values (Dihitung):", options=df.columns, index=df.columns.get_loc('Jarak Tempuh (km)') if 'Jarak Tempuh (km)' in df.columns else 0)
-                pivot_agg = st.selectbox("Metode Agregasi:", options=['sum', 'mean', 'count', 'nunique'])
-            
-            try:
-                if pivot_columns == 'None':
-                    pivot_df = pd.pivot_table(df, index=pivot_index, values=pivot_values, aggfunc=pivot_agg)
-                else:
-                    pivot_df = pd.pivot_table(df, index=pivot_index, columns=pivot_columns, values=pivot_values, aggfunc=pivot_agg)
-                st.dataframe(pivot_df, use_container_width=True)
-            except Exception as e:
-                st.warning(f"Gagal membuat pivot table dengan kombinasi tersebut: {e}")
+# -------------------------------------------------------------------------
+# TAB 5: BANK BATERAI (BATTERY BANK)
+# -------------------------------------------------------------------------
+with tabs[4]:
+  st.subheader("Pemeriksaan Bank Baterai")
 
-        with tab5:
-            st.subheader("Unduh Laporan Lengkap ke Excel")
-            st.write("Hasil rekapitulasi pergerakan PIC, analisa jarak tempuh, rekap kota, dan detail waktu siap diunduh.")
-            
-            buffer = io.BytesIO()
-            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                if not df_pic_report.empty:
-                    df_pic_report.to_excel(writer, sheet_name='Pergerakan_Tim_PIC', index=False)
-                df_city_report.to_excel(writer, sheet_name='Analisa_Per_City', index=False)
-                df_detail.to_excel(writer, sheet_name='Detail_Enva_Time_Jarak', index=False)
-            
-            st.download_button(
-                label="📥 Download Analisa_Lengkap_MBP.xlsx",
-                data=buffer.getvalue(),
-                file_name="Analisa_Pergerakan_Jarak_Dan_Backup_MBP.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+  bat_col1, bat_col2 = st.columns(2)
+  with bat_col1:
+    bat_physical = st.selectbox(
+        "Kondisi Fisik Casing Baterai",
+        ["Normal / Mulus", "Bengkak (Swelling)", "Retak / Bocor"],
+    )
+    bat_temp = st.number_input(
+        "Suhu Ruang Baterai [°C]", min_value=15.0, max_value=60.0, value=28.5
+    )
+    bat_term = st.selectbox(
+        "Kondisi Terminal Baterai",
+        [
+            "Bersih & Kencang",
+            "Ada Kerak Oksidasi (Putih/Hijau)",
+            "Kendur / Panas",
+        ],
+    )
+    bat_total_v = st.number_input(
+        "Total Tegangan Bank Baterai [V]", min_value=0.0, value=52.8, step=0.1
+    )
+
+  with bat_col2:
+    bat_photo = st.file_uploader(
+        "Upload Foto Bank Baterai", type=["jpg", "jpeg", "png"], key="bat_photo"
+    )
+    if bat_photo is not None:
+      st.image(
+          bat_photo, caption="Preview Bank Baterai", use_container_width=True
+      )
+
+# -------------------------------------------------------------------------
+# TAB 6: GROUNDING & LIGHTNING PROTECTION
+# -------------------------------------------------------------------------
+with tabs[5]:
+  st.subheader("Sistem Pembumian & Penangkal Petir")
+
+  grd_col1, grd_col2 = st.columns(2)
+  with grd_col1:
+    earth_resistance = st.number_input(
+        "Nilai Tahanan Pentanahan (Earth Tester) [Ohm]",
+        min_value=0.0,
+        value=2.1,
+        step=0.1,
+    )
+    grd_cable = st.selectbox(
+        "Kondisi Kabel & Sambungan Grounding",
+        ["Terhubung Kuat & Utuh", "Kendor", "Putus / Hilang (Pencurian)"],
+    )
+
+  with grd_col2:
+    grd_photo = st.file_uploader(
+        "Upload Foto Pengukuran Grounding / Batang Ground",
+        type=["jpg", "jpeg", "png"],
+        key="grd_photo",
+    )
+    if grd_photo is not None:
+      st.image(
+          grd_photo, caption="Preview Grounding", use_container_width=True
+      )
+
+# -------------------------------------------------------------------------
+# TAB 7: RINGKASAN & SUBMIT
+# -------------------------------------------------------------------------
+with tabs[6]:
+  st.subheader("Ringkasan Hasil Health Check")
+
+  if not site_name or not technician_name:
+    st.warning(
+        "⚠️ Mohon lengkapi **Nama Site** dan **Nama Teknisi** di Tab 1 (Info"
+        " Site) sebelum melakukan submit."
+    )
+  else:
+    st.success(
+        "✅ Data siap disubmit. Berikut ringkasan pemeriksaan untuk site:"
+        f" **{site_name}**"
+    )
+
+    # Tampilkan Ringkasan Data Panel
+    st.markdown("### Ringkasan Panel Surya")
+    df_panels = pd.DataFrame(panel_data)
+    st.dataframe(df_panels, use_container_width=True)
+
+    # Catatan Tambahan
+    notes = st.text_area(
+        "Catatan Tambahan / Temuan Penting di Lapangan",
+        placeholder="Tuliskan temuan atau tindakan perbaikan yang sudah dilakukan...",
+    )
+    sparepart_needed = st.text_input(
+        "Daftar Sparepart yang Perlu Penggantian (Jika ada)"
+    )
+
+    final_status = st.radio(
+        "Status Keseluruhan Site:",
+        [
+            "Normal / Healthy (Siap Beroperasi Optimal)",
+            "Minor Issue (Sudah Ditangani di Tempat)",
+            "Major Issue / Critical (Perlu Eskalasi & Penggantian Sparepart)",
+        ],
+    )
+
+    if st.button("🚀 Kirim Laporan Health Check", type="primary"):
+      st.balloons()
+      st.success(
+          f"Laporan untuk site **{site_name}** (NOP: {nop_area}) berhasil"
+          " disimpan dan dikirim ke sistem!"
+      )
+      # Di sini Anda bisa menambahkan logika tambahan seperti export ke CSV/Excel atau kirim ke Google Sheets API / Database.
