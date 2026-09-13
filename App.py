@@ -34,16 +34,26 @@ def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
             if url: urls.append(url)
     return urls
 
-def tampilkan_foto(url_data, caption=""):
+# FUNGSI BARU: Render Foto Grid Super Rapi (Maksimal 3 Kolom per baris)
+def tampilkan_grid_foto(url_data, caption=""):
     if not url_data: return
+    
+    urls = []
     if isinstance(url_data, str) and url_data.startswith("http"):
-        st.image(url_data, caption=caption, width=200)
+        urls = [url_data]
     elif isinstance(url_data, list):
-        valid_urls = [u for u in url_data if isinstance(u, str) and u.startswith("http")]
-        if valid_urls:
-            cols = st.columns(len(valid_urls) if len(valid_urls) < 4 else 4)
-            for idx, u in enumerate(valid_urls):
-                cols[idx%4].image(u, caption=caption, width=200)
+        urls = [u for u in url_data if isinstance(u, str) and u.startswith("http")]
+        
+    if urls:
+        if caption:
+            st.markdown(f"*{caption}*")
+        
+        # Looping untuk membuat baris baru setiap 3 foto agar rapi dan tidak numpuk
+        for i in range(0, len(urls), 3):
+            cols = st.columns(3)
+            for j in range(3):
+                if i + j < len(urls):
+                    cols[j].image(urls[i + j], use_container_width=True)
 
 # -------------------------------------------------------------------------
 # 2. SETUP DATABASE (HYBRID JSON BACKUP KE GOOGLE SHEETS TARGET)
@@ -188,12 +198,11 @@ if menu == "📝 Form Preventive Check":
         
         with g2:
             st.markdown("#### ⛽ Leveling BBM & Kalkulator Tangki")
-            tank_capacity = st.selectbox("Kapasitas Tangki Harian / Dasar", [200, 300, 500, 1000], help="Standar tangki dasar/tanam umumnya 200 Liter atau Drum")
+            tank_capacity = st.selectbox("Kapasitas Tangki Harian / Dasar", [200, 300, 500, 1000])
             current_fuel_pct = st.slider("Level BBM Saat Ini [%]", min_value=0, max_value=100, value=75)
             
-            # Perhitungan otomatis BBM
             estimated_fuel_liter = (current_fuel_pct / 100.0) * tank_capacity
-            estimated_backup_hours = estimated_fuel_liter / 3.5 # Asumsi rata-rata konsumsi genset bts ~3.5 Liter/Jam
+            estimated_backup_hours = estimated_fuel_liter / 3.5 
             
             st.info(f"📌 **Estimasi Volume BBM:** {estimated_fuel_liter:.1f} Liter dari total {tank_capacity} L.\n⏱️ **Estimasi Waktu Operasi:** ~{estimated_backup_hours:.1f} Jam.")
             
@@ -220,7 +229,7 @@ if menu == "📝 Form Preventive Check":
         
         with b2:
             st.markdown("#### 🌍 Sistem Grounding")
-            earth_resistance = st.number_input("Tahanan Grounding [Ohm]", value=2.1, help="Standar telekomunikasi < 5 Ohm")
+            earth_resistance = st.number_input("Tahanan Grounding [Ohm]", value=2.1)
             grd_cable = st.selectbox("Kondisi Kabel BC & Busbar", ["Kuat & Terhubung", "Kendor / Berkarat", "Putus"])
             grd_photos = st.file_uploader("Foto Hasil Earth Tester & Grounding (Bisa >1)", accept_multiple_files=True, key="grd")
 
@@ -236,7 +245,7 @@ if menu == "📝 Form Preventive Check":
         )
         
         st.divider()
-        action_taken = st.text_area("🔧 Detail Tindakan (Action) di Lapangan:", height=100, placeholder="Contoh: 1. Pembersihan panel surya 24 modul. 2. Pengecekan level BBM genset aman di 75%. 3. Penarikan datalog rectifier.")
+        action_taken = st.text_area("🔧 Detail Tindakan (Action) di Lapangan:", height=100)
         sparepart_needed = st.text_input("📦 Kebutuhan Material / Sparepart (Jika Ada):")
         final_status = st.radio("Status Keseluruhan Site:", ["Normal (Aman / Siap Operasional)", "Minor Issue (Sudah Ditangani Sementara)", "Major / Critical (Perlu Eskalasi Cepat)"])
 
@@ -245,21 +254,18 @@ if menu == "📝 Form Preventive Check":
                 st.error("⚠️ Mohon lengkapi Nama Site dan Nama Teknisi di Tab 1!")
             else:
                 with st.spinner("⏳ Mengunggah foto ke Cloudinary & menyimpan data ke database..."):
-                    # Proses Upload Foto-foto Pendukung
                     url_sites = upload_multiple_images(site_photos, "preventive_view")
                     url_shadings = upload_multiple_images(shading_photos, "preventive_shade")
                     url_rects = upload_multiple_images(rect_photos, "preventive_rect")
                     url_gensets = upload_multiple_images(genset_photos, "preventive_genset")
                     url_grds = upload_multiple_images(grd_photos, "preventive_grd")
                     
-                    # Upload Datalog All File
                     datalog_urls = []
                     if datalog_files:
                         for df in datalog_files:
                             du = upload_image(df, "preventive_datalog")
                             if du: datalog_urls.append({"name": df.name, "url": du})
 
-                    # Proses Panel SPS
                     p_res = []
                     for p in panel_data:
                         if p.get("tipe") == "Individu":
@@ -269,7 +275,6 @@ if menu == "📝 Form Preventive Check":
                             p_res.append({"Tipe": "Seri", "Panel": p["id"], "Qty": p["qty"], "Voc": p["voc"], "Isc": p["isc"], "Kondisi": p["kondisi"], 
                                           "URLs_Before": upload_multiple_images(p["foto_before_objs"]), "URLs_After": upload_multiple_images(p["foto_after_objs"])})
                     
-                    # Proses Baterai
                     b_res = []
                     for b in bat_data:
                         b_res.append({"Baterai": b["id"], "Voltase": b["voltase"], "Suhu": b["suhu"], "Kondisi": b["kondisi"], "URL_Fotos": upload_multiple_images(b["foto_objs"])})
@@ -279,40 +284,34 @@ if menu == "📝 Form Preventive Check":
                         "site_name": site_name, "nop": nop_area, "teknisi": technician_name,
                         "status": final_status, "action": action_taken, "sparepart": sparepart_needed,
                         
-                        # Data Fisik & SPS
                         "site_cond": site_condition, "tower_cond": tower_condition, "url_sites": url_sites,
                         "shading_status": shading_status, "url_shadings": url_shadings,
                         "panel_data": p_res,
                         
-                        # Data PLN & Rectifier
                         "pln_status": pln_status, "rect_brand": rect_brand, "rect_out_v": rect_out_v, 
                         "total_load": total_load_a, "rect_alarm": rect_alarm, "url_rects": url_rects,
                         
-                        # Data Genset & BBM
                         "genset_status": genset_status, "genset_brand": genset_brand, "hour_meter": hour_meter,
                         "tank_capacity": tank_capacity, "fuel_pct": current_fuel_pct, "fuel_liter": estimated_fuel_liter,
                         "url_gensets": url_gensets,
                         
-                        # Data Baterai & Grounding
                         "battery_data": b_res, "earth_ohm": earth_resistance, "url_grds": url_grds,
                         
-                        # Datalog All File
                         "datalog_files": datalog_urls,
                         
-                        # Kolom tambahan edit foto bebas
                         "extras_fisik": [], "extras_panel": [], "extras_baterai": [], "extras_elektrikal": []
                     }
                     
                     st.session_state['laporan_db'].append(report_dict) 
                     save_db(st.session_state['laporan_db'])            
-                st.success(f"✅ Laporan Site **{site_name}** berhasil disimpan dan siap disinkronkan ke Spreadsheet target!")
+                st.success(f"✅ Laporan Site **{site_name}** berhasil disimpan!")
 
 # =========================================================================
 # MENU 2: HASIL LAPORAN, EDIT & GENERATE WHATSAPP
 # =========================================================================
 elif menu == "📊 Hasil Laporan & Dashboard":
     st.title("📊 Dashboard Laporan Preventive Maintenance")
-    st.markdown(f"Kelola data, edit teks laporan tanpa re-upload foto, dan kirim rekap ke WhatsApp.")
+    st.markdown(f"Kelola data, edit teks laporan, tambah foto susulan bebas, dan kirim rekap ke WhatsApp.")
     st.divider()
 
     db = st.session_state['laporan_db']
@@ -323,8 +322,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         for i in range(len(db) - 1, -1, -1):
             r = db[i]
             
-            # Format Rangkuman WhatsApp
-            wa_text = f"""*REPORT PREVENTIVE MAINTENANCE BTS* ⚡\n📍 *Site:* {r.get('site_name', '-')} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Teknisi:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect cosas', r.get('rect_out_v', '-'))}V)\n- Load BTS: {r.get('total_load', '-')} A\n- Genset BBM: {r.get('fuel_pct', '-')}% (~{r.get('fuel_liter', '-')} Liter)\n\n*TINDAKAN (ACTION):*\n{r.get('action', '-')}\n\n*SPAREPART:*\n{r.get('sparepart', '-')}\n\n🔗 *Google Sheets Target:* Report Preventive"""
+            wa_text = f"""*REPORT PREVENTIVE MAINTENANCE BTS* ⚡\n📍 *Site:* {r.get('site_name', '-')} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Teknisi:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n- Genset BBM: {r.get('fuel_pct', '-')}% (~{r.get('fuel_liter', '-')} Liter)\n\n*TINDAKAN (ACTION):*\n{r.get('action', '-')}\n\n*SPAREPART:*\n{r.get('sparepart', '-')}\n\n🔗 *Google Sheets Target:* Report Preventive"""
             wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
 
             with st.expander(f"📍 {r.get('site_name', 'Unknown')} | {r.get('timestamp', '')} | Status: {r.get('status', '')}"):
@@ -343,20 +341,20 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 
                 with ltab1:
                     st.write(f"- Kondisi Site: {r.get('site_cond', '-')} | Tower: {r.get('tower_cond', '-')} | Shading: {r.get('shading_status', '-')}")
-                    tampilkan_foto(r.get('url_sites'), "View Site")
-                    tampilkan_foto(r.get('url_shadings'), "Shading")
+                    tampilkan_grid_foto(r.get('url_sites'), "📸 Foto View Site")
+                    tampilkan_grid_foto(r.get('url_shadings'), "📸 Foto Shading")
+                    tampilkan_grid_foto(r.get('extras_fisik'), "📸 Foto Susulan Fisik (Bebas)")
 
                 with ltab2:
                     for p in r.get('panel_data', []):
                         st.write(f"**{p.get('Panel', '-')}** | Voc: {p.get('Voc','-')}V | Isc: {p.get('Isc','-')}A | Fisik: {p.get('Kondisi','-')}")
                         cb, ca = st.columns(2)
                         with cb: 
-                            tampilkan_foto(p.get('URL_Before'), "Before")
-                            tampilkan_foto(p.get('URLs_Before'), "Before")
+                            tampilkan_grid_foto(p.get('URL_Before') or p.get('URLs_Before'), "📸 BEFORE")
                         with ca: 
-                            tampilkan_foto(p.get('URL_After'), "After")
-                            tampilkan_foto(p.get('URLs_After'), "After")
+                            tampilkan_grid_foto(p.get('URL_After') or p.get('URLs_After'), "✨ AFTER")
                         st.divider()
+                    tampilkan_grid_foto(r.get('extras_panel'), "📸 Foto Susulan Panel (Bebas)")
 
                 with ltab3:
                     c_p1, c_p2 = st.columns(2)
@@ -365,22 +363,27 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         st.write(f"- PLN: {r.get('pln_status', '-')}")
                         st.write(f"- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)")
                         st.write(f"- Alarm Recti: {r.get('rect_alarm', '-')}")
-                        tampilkan_foto(r.get('url_rects'), "Rectifier")
+                        tampilkan_grid_foto(r.get('url_rects'), "📸 Foto Rectifier")
                     with c_p2:
                         st.markdown("**Genset & Manajemen BBM:**")
                         st.write(f"- Status: {r.get('genset_status', '-')}")
                         st.write(f"- Tipe: {r.get('genset_brand', '-')}")
-                        st.write(f"- Level BBM: {r.get('fuel_pct', '-')}% (~{r.get('fuel_liter', 0):.1f} L dari Tangki {r.get('tank_capacity', 200)}L)")
+                        st.write(f"- Level BBM: {r.get('fuel_pct', '-')}% (~{r.get('fuel_liter', 0):.1f} L)")
                         st.write(f"- Hour Meter: {r.get('hour_meter', '-')} Jam")
-                        tampilkan_foto(r.get('url_gensets'), "Genset")
+                        tampilkan_grid_foto(r.get('url_gensets'), "📸 Foto Genset")
+                    
+                    st.divider()
+                    tampilkan_grid_foto(r.get('extras_elektrikal'), "📸 Foto Susulan Elektrikal/Mesin (Bebas)")
 
                 with ltab4:
                     for b in r.get('battery_data', []):
                         st.write(f"**{b.get('Baterai', '-')}** | {b.get('Voltase','-')}V | Suhu: {b.get('Suhu','-')}°C | Fisik: {b.get('Kondisi','-')}")
-                        tampilkan_foto(b.get('URL_Fotos'))
+                        tampilkan_grid_foto(b.get('URL_Fotos'))
                         st.divider()
                     st.write(f"**Grounding Resistance:** {r.get('earth_ohm', '-')} Ohm")
-                    tampilkan_foto(r.get('url_grds'), "Grounding")
+                    tampilkan_grid_foto(r.get('url_grds'), "📸 Foto Grounding")
+                    st.divider()
+                    tampilkan_grid_foto(r.get('extras_baterai'), "📸 Foto Susulan Baterai/Grounding (Bebas)")
 
                 with ltab5:
                     st.markdown("📂 **Datalog Universal yang Diunggah:**")
@@ -392,14 +395,25 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         st.info("Tidak ada file datalog diunggah pada site ini.")
 
                 st.divider()
-                st.markdown("### 🛠️ EDIT TEKS & TAMBAH FOTO BEBAS")
+                st.markdown("### 🛠️ EDIT TEKS & TAMBAH FOTO BEBAS KAPAN SAJA")
                 with st.container(border=True):
                     new_tek = st.text_input("Perbaiki Teknisi", r.get('teknisi',''), key=f"et_{i}")
                     new_act = st.text_area("Perbaiki Action", r.get('action',''), key=f"ea_{i}")
                     new_sp = st.text_input("Perbaiki Sparepart", r.get('sparepart',''), key=f"es_{i}")
+                    
+                    st.markdown("**Tambah Foto Susulan (Bebas Upload Foto Apapun Sesuai Kategori):**")
+                    up_f = st.file_uploader("📸 Fisik / Shading", accept_multiple_files=True, key=f"uf_{i}")
+                    up_p = st.file_uploader("📸 Panel Surya", accept_multiple_files=True, key=f"up_{i}")
+                    up_b = st.file_uploader("📸 Baterai / Grounding", accept_multiple_files=True, key=f"ub_{i}")
+                    up_e = st.file_uploader("📸 Elektrikal / Mesin", accept_multiple_files=True, key=f"ue_{i}")
 
-                    if st.button("💾 Simpan Perubahan Teks", key=f"btn_{i}", type="primary"):
-                        r['teknisi'], r['action'], r['sparepart'] = new_tek, new_act, new_sp
-                        save_db(db)
-                        st.success("✅ Perubahan teks berhasil disimpan permanen!")
+                    if st.button("💾 Simpan Edit & Upload Susulan", key=f"btn_{i}", type="primary"):
+                        with st.spinner("Menyimpan teks & foto..."):
+                            r['teknisi'], r['action'], r['sparepart'] = new_tek, new_act, new_sp
+                            if up_f: r['extras_fisik'] = r.get('extras_fisik', []) + upload_multiple_images(up_f)
+                            if up_p: r['extras_panel'] = r.get('extras_panel', []) + upload_multiple_images(up_p)
+                            if up_b: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_b)
+                            if up_e: r['extras_elektrikal'] = r.get('extras_elektrikal', []) + upload_multiple_images(up_e)
+                            save_db(db)
+                        st.success("✅ Tersimpan! Layar akan refresh.")
                         st.rerun()
