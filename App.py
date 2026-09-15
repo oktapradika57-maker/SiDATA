@@ -43,12 +43,18 @@ def tampilkan_grid_foto(url_data, caption=""):
         
     if urls:
         if caption: st.markdown(f"*{caption}*")
-        for i in range(0, len(urls), 3):
-            cols = st.columns(3)
-            for j in range(3):
-                if i + j < len(urls):
-                    cols[j].image(urls[i + j], use_container_width=True)
-
+        
+        # Trik HTML/CSS agar semua foto tingginya seragam & rapi (seperti galeri HP)
+        img_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 15px;">'
+        for u in urls:
+            img_html += f'''
+                <a href="{u}" target="_blank">
+                    <img src="{u}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
+                </a>
+            '''
+        img_html += '</div>'
+        
+        st.markdown(img_html, unsafe_allow_html=True)
 # -------------------------------------------------------------------------
 # 2. SETUP DATABASE: SINKRONISASI KE GOOGLE SHEETS
 # -------------------------------------------------------------------------
