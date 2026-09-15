@@ -10,7 +10,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # -------------------------------------------------------------------------
-# 1. KONFIGURASI CLOUDINARY (TETAP SAMA)
+# 1. KONFIGURASI CLOUDINARY
 # -------------------------------------------------------------------------
 cloudinary.config( 
   cloud_name = "fxm61tjv", 
@@ -59,25 +59,26 @@ SHEET_NAME = "Report Preventive"
 
 def connect_gsheets():
     try:
-        creds_json = st.secrets["GCP_CREDENTIALS"]
+        # SUDAH DISESUAIKAN DENGAN NAMA VARIABEL SECRETS ANDA
+        creds_json = st.secrets["gcp_json"]
         creds_dict = json.loads(creds_json)
         scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         client = gspread.authorize(creds)
         return client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
     except Exception as e:
-        st.error("⚠️ Koneksi Spreadsheet Gagal! Pastikan Streamlit Secrets sudah disetting dengan benar.")
+        st.error(f"⚠️ Koneksi Spreadsheet Gagal! Detail Error: {e}")
         return None
 
-@st.cache_data(ttl=600) # Cache/Simpan memori 10 menit agar tidak limit API
+@st.cache_data(ttl=600) 
 def fetch_data_from_gsheets():
     sheet = connect_gsheets()
     if sheet:
         data = sheet.get_all_values()
-        if len(data) > 1: # Mulai ambil dari baris 2 (Baris 1 adalah Header)
+        if len(data) > 1: 
             db = []
             for row in data[1:]:
-                if len(row) >= 6: # Pastikan ada kolom Database JSON di F
+                if len(row) >= 6: 
                     try:
                         db.append(json.loads(row[5]))
                     except: pass
@@ -273,7 +274,7 @@ if menu == "📝 Form Preventive Check":
                         st.session_state['laporan_db'].append(report_dict)
                         st.success("✅ BERHASIL! Data telah masuk ke Google Sheets permanen.")
                     else:
-                        st.error("Gagal menyambung ke Spreadsheet, mohon periksa Setting Secret API Anda.")
+                        st.error("⚠️ Gagal menyambung ke Spreadsheet, mohon periksa Setting Secret API Anda.")
 
 # =========================================================================
 # MENU 2: HASIL LAPORAN (DITARIK DARI SPREADSHEET)
