@@ -10,7 +10,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # -------------------------------------------------------------------------
-# 1. KONFIGURASI CLOUDINARY
+# 1. KONFIGURASI CLOUDINARY (AKUN ANDA)
 # -------------------------------------------------------------------------
 cloudinary.config( 
   cloud_name = "fxm61tjv", 
@@ -24,7 +24,8 @@ def upload_image(file_obj, folder_name="solar_bts_healthcheck"):
         try:
             response = cloudinary.uploader.upload(file_obj.getvalue(), folder=folder_name)
             return response.get('secure_url')
-        except Exception: return None
+        except Exception:
+            return None
     return None
 
 def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
@@ -35,6 +36,7 @@ def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
             if url: urls.append(url)
     return urls
 
+# FUNGSI GRID FOTO RAPI (Satu baris lurus tanpa spasi kosong berlebih)
 def tampilkan_grid_foto(url_data, caption=""):
     if not url_data: return
     urls = []
@@ -43,14 +45,12 @@ def tampilkan_grid_foto(url_data, caption=""):
         
     if urls:
         if caption: st.markdown(f"*{caption}*")
-        
-        # Trik HTML ditulis 1 baris lurus agar Streamlit tidak menciptakan spasi kosong
         img_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px;">'
         for u in urls:
             img_html += f'<a href="{u}" target="_blank"><img src="{u}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);"></a>'
         img_html += '</div>'
-        
         st.markdown(img_html, unsafe_allow_html=True)
+
 # -------------------------------------------------------------------------
 # 2. SETUP DATABASE: SINKRONISASI KE GOOGLE SHEETS
 # -------------------------------------------------------------------------
@@ -61,7 +61,6 @@ SHEET_NAME = "Report Preventive"
 
 def connect_gsheets():
     try:
-        # SUDAH DISESUAIKAN DENGAN NAMA VARIABEL SECRETS ANDA
         creds_json = st.secrets["gcp_json"]
         creds_dict = json.loads(creds_json)
         scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -263,7 +262,6 @@ if menu == "📝 Form Preventive Check":
                         "extras_fisik": [], "extras_panel": [], "extras_baterai": [], "extras_elektrikal": []
                     }
                     
-                    # PROSES PENYIMPANAN LANGSUNG KE SPREADSHEET
                     sheet = connect_gsheets()
                     if sheet:
                         row_data = [
@@ -272,7 +270,7 @@ if menu == "📝 Form Preventive Check":
                             report_dict.get('status', ''), json.dumps(report_dict)
                         ]
                         sheet.append_row(row_data)
-                        st.cache_data.clear() # Reset cache laporan
+                        st.cache_data.clear()
                         st.session_state['laporan_db'].append(report_dict)
                         st.success("✅ BERHASIL! Data telah masuk ke Google Sheets permanen.")
                     else:
@@ -301,7 +299,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 with c_btn1: st.link_button("📱 Kirim Rangkuman ke WhatsApp", wa_url)
                 with c_btn2: st.link_button("📈 Buka Spreadsheet Target", f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit")
                 
-                st.markdown(f"**Teknisi:** {r.get('teknisi', '-')} | **Load:** {r.get('total_load', '-')} A")
+                st.markdown(f"**Teknisi:** {r.get('teknisi', '-')} | **NOP:** {r.get('nop', '-')} | **Load:** {r.get('total_load', '-')} A")
                 st.markdown(f"**Action:** {r.get('action', '-')}")
                 if r.get('sparepart'): st.warning(f"**Sparepart:** {r['sparepart']}")
                 
@@ -333,14 +331,30 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     st.divider()
                     tampilkan_grid_foto(r.get('extras_elektrikal'), "📸 Tambahan Mesin/Elektrikal")
 
+                # --- TAB 4: BATERAI & GROUNDING (DIBUAT PRESISI & RAPI) ---
                 with ltab4:
+                    st.markdown("### 🔋 Bank Baterai")
                     for b in r.get('battery_data', []):
-                        st.write(f"**{b.get('Baterai', '-')}** | {b.get('Voltase','-')}V | Suhu: {b.get('Suhu','-')}°C")
-                        tampilkan_grid_foto(b.get('URL_Fotos'))
-                        st.divider()
-                    st.write(f"**Grounding:** {r.get('earth_ohm', '-')} Ohm")
-                    tampilkan_grid_foto(r.get('url_grds'), "📸 Grounding")
-                    tampilkan_grid_foto(r.get('extras_baterai'), "📸 Tambahan Baterai")
+                        with st.container(border=True):
+                            bc1, bc2 = st.columns([2, 1])
+                            with bc1:
+                                st.markdown(f"**{b.get('Baterai', 'Baterai')}**")
+                                st.write(f"🔹 **Voltase:** {b.get('Voltase', '-') } V  |  🌡️ **Suhu:** {b.get('Suhu', '-') } °C")
+                                st.write(f"🔍 **Kondisi Fisik:** {b.get('Kondisi', '-')}")
+                            with bc2:
+                                pass
+                            
+                            bat_urls = b.get('URL_Fotos') or b.get('URL_Foto')
+                            if bat_urls:
+                                st.markdown("")
+                                tampilkan_grid_foto(bat_urls, "📸 Dokumentasi Baterai")
+                        st.markdown("")
+                    
+                    st.markdown("---")
+                    st.markdown("### 🌍 Sistem Grounding")
+                    st.write(f"⚡ **Tahanan Grounding:** {r.get('earth_ohm', '-')} Ohm")
+                    tampilkan_grid_foto(r.get('url_grds'), "📸 Foto Grounding")
+                    tampilkan_grid_foto(r.get('extras_baterai'), "📸 Tambahan Baterai & Grounding")
 
                 with ltab5:
                     dls = r.get('datalog_files', [])
@@ -367,13 +381,12 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                             if up_b: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_b)
                             if up_e: r['extras_elektrikal'] = r.get('extras_elektrikal', []) + upload_multiple_images(up_e)
                             
-                            # Update ke Google Sheets
                             sheet = connect_gsheets()
                             if sheet:
-                                row_num = i + 2 # Google Sheet index mulai dari 2 (1 itu Header)
+                                row_num = i + 2 
                                 sheet.update_cell(row_num, 4, new_tek)
                                 sheet.update_cell(row_num, 5, r.get('status', ''))
                                 sheet.update_cell(row_num, 6, json.dumps(r))
-                                st.cache_data.clear() # Refresh Cache
+                                st.cache_data.clear() 
                         st.success("✅ Perubahan Teks & Foto tersimpan permanen di Google Sheets!")
                         st.rerun()
