@@ -44,14 +44,10 @@ def tampilkan_grid_foto(url_data, caption=""):
     if urls:
         if caption: st.markdown(f"*{caption}*")
         
-        # Trik HTML/CSS agar semua foto tingginya seragam & rapi (seperti galeri HP)
-        img_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 15px;">'
+        # Trik HTML ditulis 1 baris lurus agar Streamlit tidak menciptakan spasi kosong
+        img_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px;">'
         for u in urls:
-            img_html += f'''
-                <a href="{u}" target="_blank">
-                    <img src="{u}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
-                </a>
-            '''
+            img_html += f'<a href="{u}" target="_blank"><img src="{u}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);"></a>'
         img_html += '</div>'
         
         st.markdown(img_html, unsafe_allow_html=True)
