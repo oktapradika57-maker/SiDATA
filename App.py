@@ -151,30 +151,51 @@ def build_pdf(r):
         pdf.set_font("helvetica", "B", 10)
         pdf.cell(0, 8, clean_text(title), ln=True)
         
-        img_w = 85
-        img_h = 60
+        img_w = 85  # Lebar kolom foto tetap rapi (2 foto berdampingan)
         margin_x = 5
         
         for i in range(0, len(urls), 2): 
             row_urls = urls[i:i+2]
-            if pdf.get_y() + img_h > 270: pdf.add_page()
+            if pdf.get_y() + 70 > 270: pdf.add_page()
             
             y_curr = pdf.get_y()
-            for j, u in enumerate(row_urls):
+            max_h_in_row = 0  # Untuk mencatat tinggi maksimum baris ini
+            
+            # Download & hitung ukuran proporsional gambar
+            row_images = []
+            for u in row_urls:
                 opt_url = optimize_cloudinary_url(u)
-                x_curr = 15 + (j * (img_w + margin_x))
                 try:
                     response = requests.get(opt_url, timeout=7)
                     if response.status_code == 200:
                         img = Image.open(BytesIO(response.content))
-                        pdf.image(img, x=x_curr, y=y_curr, w=img_w, h=img_h)
+                        # Hitung tinggi proporsional otomatis berdasarkan lebar w=img_w
+                        w_orig, h_orig = img.size
+                        calc_h = (img_w / w_orig) * h_orig
+                        if calc_h > 75: calc_h = 75 # Batasi maksimal tinggi agar tidak terlalu panjang
+                        if calc_h > max_h_in_row: max_h_in_row = calc_h
+                        row_images.append((img, calc_h))
                     else:
-                        pdf.set_xy(x_curr, y_curr)
-                        pdf.cell(img_w, img_h, clean_text("[Gagal muat]"), border=1, align="C")
+                        row_images.append((None, 50))
                 except Exception:
+                    row_images.append((None, 50))
+            
+            if max_h_in_row == 0: max_h_in_row = 50
+            
+            # Render foto ke PDF dengan ukuran asli yang utuh (tidak terpotong)
+            for j, (img, h_val) in enumerate(row_images):
+                x_curr = 15 + (j * (img_w + margin_x))
+                if img:
+                    try:
+                        pdf.image(img, x=x_curr, y=y_curr, w=img_w) # Parameter h dikosongkan agar tampil full proporsional
+                    except:
+                        pdf.set_xy(x_curr, y_curr)
+                        pdf.cell(img_w, h_val, clean_text("[Error Render]"), border=1, align="C")
+                else:
                     pdf.set_xy(x_curr, y_curr)
-                    pdf.cell(img_w, img_h, clean_text("[Error URL]"), border=1, align="C")
-            pdf.set_y(y_curr + img_h + 5)
+                    pdf.cell(img_w, 50, clean_text("[Gagal Muat]"), border=1, align="C")
+            
+            pdf.set_y(y_curr + max_h_in_row + 8)
         pdf.ln(5)
         
     fisik_urls = (r.get('url_sites') or []) + (r.get('url_shadings') or []) + (r.get('extras_fisik') or [])
