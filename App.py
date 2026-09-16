@@ -40,17 +40,31 @@ def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
     return urls
 
 def tampilkan_grid_foto(url_data, caption=""):
-    if not url_data: return
+    if not url_data: 
+        return
+    
     urls = []
-    if isinstance(url_data, str) and url_data.startswith("http"): urls = [url_data]
-    elif isinstance(url_data, list): urls = [u for u in url_data if isinstance(u, str) and u.startswith("http")]
+    if isinstance(url_data, str) and url_data.startswith("http"): 
+        urls = [url_data]
+    elif isinstance(url_data, list): 
+        urls = [u for u in url_data if isinstance(u, str) and u.startswith("http")]
         
     if urls:
-        if caption: st.markdown(f"*{caption}*")
-        img_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px;">'
+        if caption: 
+            st.markdown(f"*{caption}*")
+        
+        # Menggunakan HTML Grid dengan rasio gambar utuh (contain) agar tidak terpotong
+        img_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 15px;">'
         for u in urls:
-            img_html += f'<a href="{u}" target="_blank"><img src="{u}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);"></a>'
+            img_html += f'''
+                <div style="background-color: #1e1e1e; border-radius: 8px; padding: 6px; box-shadow: 0px 4px 6px rgba(0,0,0,0.3); text-align: center;">
+                    <a href="{u}" target="_blank">
+                        <img src="{u}" style="max-width: 100%; height: auto; max-height: 400px; object-fit: contain; border-radius: 6px;">
+                    </a>
+                </div>
+            '''
         img_html += '</div>'
+        
         st.markdown(img_html, unsafe_allow_html=True)
 
 # -------------------------------------------------------------------------
