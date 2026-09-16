@@ -53,20 +53,13 @@ def tampilkan_grid_foto(url_data, caption=""):
         if caption: 
             st.markdown(f"*{caption}*")
         
-        # Menggunakan HTML Grid dengan rasio gambar utuh (contain) agar tidak terpotong
+        # Trik HTML SATU BARIS LURUS agar Streamlit tidak menambah spasi kosong
         img_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 15px;">'
         for u in urls:
-            img_html += f'''
-                <div style="background-color: #1e1e1e; border-radius: 8px; padding: 6px; box-shadow: 0px 4px 6px rgba(0,0,0,0.3); text-align: center;">
-                    <a href="{u}" target="_blank">
-                        <img src="{u}" style="max-width: 100%; height: auto; max-height: 400px; object-fit: contain; border-radius: 6px;">
-                    </a>
-                </div>
-            '''
+            img_html += f'<div style="background-color: #1e1e1e; border-radius: 8px; padding: 6px; box-shadow: 0px 4px 6px rgba(0,0,0,0.3); text-align: center;"><a href="{u}" target="_blank"><img src="{u}" style="max-width: 100%; height: auto; max-height: 400px; object-fit: contain; border-radius: 6px;"></a></div>'
         img_html += '</div>'
         
         st.markdown(img_html, unsafe_allow_html=True)
-
 # -------------------------------------------------------------------------
 # 2. GENERATOR PDF (FORMAT BERITA ACARA RESMI)
 # -------------------------------------------------------------------------
