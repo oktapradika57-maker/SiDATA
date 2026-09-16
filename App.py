@@ -8,9 +8,13 @@ import os
 import urllib.parse
 import gspread
 from google.oauth2.service_account import Credentials
+from fpdf import FPDF
+import requests
+from io import BytesIO
+from PIL import Image
 
 # -------------------------------------------------------------------------
-# 1. KONFIGURASI CLOUDINARY (AKUN ANDA)
+# 1. KONFIGURASI CLOUDINARY
 # -------------------------------------------------------------------------
 cloudinary.config( 
   cloud_name = "fxm61tjv", 
@@ -24,8 +28,7 @@ def upload_image(file_obj, folder_name="solar_bts_healthcheck"):
         try:
             response = cloudinary.uploader.upload(file_obj.getvalue(), folder=folder_name)
             return response.get('secure_url')
-        except Exception:
-            return None
+        except Exception: return None
     return None
 
 def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
@@ -36,7 +39,6 @@ def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
             if url: urls.append(url)
     return urls
 
-# FUNGSI GRID FOTO RAPI (Satu baris lurus tanpa spasi kosong berlebih)
 def tampilkan_grid_foto(url_data, caption=""):
     if not url_data: return
     urls = []
@@ -52,7 +54,160 @@ def tampilkan_grid_foto(url_data, caption=""):
         st.markdown(img_html, unsafe_allow_html=True)
 
 # -------------------------------------------------------------------------
-# 2. SETUP DATABASE: SINKRONISASI KE GOOGLE SHEETS
+# 2. GENERATOR PDF (FORMAT BERITA ACARA RESMI)
+# -------------------------------------------------------------------------
+def optimize_cloudinary_url(url):
+    if not isinstance(url, str): return ""
+    if "upload/v" in url: return url.replace("upload/v", "upload/c_fill,w_300,h_200,q_auto/v")
+    return url
+
+def clean_text(text):
+    if not text: return "-"
+    return str(text).encode('latin-1', 'ignore').decode('latin-1')
+
+def build_pdf(r):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    
+    # --- KOP / JUDUL BERITA ACARA ---
+    pdf.set_font("helvetica", "B", 14)
+    pdf.cell(0, 10, clean_text("BERITA ACARA PREVENTIVE MAINTENANCE"), ln=True, align="C")
+    pdf.set_font("helvetica", "B", 12)
+    pdf.cell(0, 6, clean_text("SITE TELEKOMUNIKASI"), ln=True, align="C")
+    pdf.ln(5)
+    
+    # --- PARAGRAF PEMBUKA ---
+    pdf.set_font("helvetica", "", 10)
+    intro = f"Berdasarkan hasil inspeksi dan pengerjaan lapangan pada tanggal {r.get('timestamp', '-')}, dengan ini diterangkan bahwa tim teknisi telah melaksanakan kegiatan Preventive Maintenance (Pemeliharaan Berkala) pada:"
+    pdf.multi_cell(0, 6, clean_text(intro))
+    pdf.ln(2)
+    
+    # --- DETAIL SITE ---
+    pdf.set_font("helvetica", "B", 10)
+    pdf.cell(40, 6, clean_text("Nama Site / ID"), 0, 0)
+    pdf.cell(0, 6, clean_text(f": {r.get('site_name', '-')}"), 0, 1)
+    pdf.cell(40, 6, clean_text("Regional / NOP"), 0, 0)
+    pdf.cell(0, 6, clean_text(f": {r.get('nop', '-')}"), 0, 1)
+    pdf.cell(40, 6, clean_text("Pelaksana (Tim)"), 0, 0)
+    pdf.cell(0, 6, clean_text(f": {r.get('teknisi', '-')}"), 0, 1)
+    pdf.cell(40, 6, clean_text("Status Akhir"), 0, 0)
+    pdf.cell(0, 6, clean_text(f": {r.get('status', '-')}"), 0, 1)
+    pdf.ln(5)
+    
+    # --- 1. RINCIAN TINDAKAN & KEGIATAN TIM ---
+    pdf.set_font("helvetica", "B", 11)
+    pdf.cell(0, 8, clean_text("1. RINCIAN KEGIATAN & TINDAKAN (ACTION)"), ln=True)
+    pdf.set_font("helvetica", "", 10)
+    action_text = r.get('action', '-')
+    if not action_text.strip(): action_text = "Tidak ada tindakan/catatan khusus yang dilaporkan oleh tim."
+    pdf.multi_cell(0, 6, clean_text("Adapun rincian tindakan dan pekerjaan yang telah diselesaikan oleh tim di lokasi adalah sebagai berikut:\n" + action_text))
+    pdf.ln(2)
+    
+    pdf.set_font("helvetica", "B", 10)
+    pdf.cell(0, 6, clean_text("Penggunaan / Penggantian Sparepart:"), ln=True)
+    pdf.set_font("helvetica", "", 10)
+    pdf.multi_cell(0, 6, clean_text(r.get('sparepart', '-')))
+    pdf.ln(5)
+    
+    # --- 2. HASIL CHECKLIST PARAMETER ---
+    pdf.set_font("helvetica", "B", 11)
+    pdf.cell(0, 8, clean_text("2. HASIL PENGECEKAN PARAMETER SITE"), ln=True)
+    pdf.set_font("helvetica", "", 10)
+    
+    pdf.cell(0, 6, clean_text(f"[v] Fisik & Lingkungan : {r.get('site_cond', '-')} | Fisik Tower: {r.get('tower_cond', '-')}"), ln=True)
+    pdf.cell(0, 6, clean_text(f"[v] Modul Surya (SPS)  : Kondisi Shading {r.get('shading_status', '-')}"), ln=True)
+    pdf.cell(0, 6, clean_text(f"[v] Jaringan Grid PLN  : {r.get('pln_status', '-')}"), ln=True)
+    pdf.cell(0, 6, clean_text(f"[v] Rectifier & Beban  : {r.get('rect_brand', '-')} | Out: {r.get('rect_out_v', '-')}V | Load BTS: {r.get('total_load', '-')}A"), ln=True)
+    pdf.cell(0, 6, clean_text(f"[v] Genset & Level BBM : {r.get('genset_status', '-')} | Ketersediaan BBM: {r.get('fuel_pct', '-')}%"), ln=True)
+    pdf.cell(0, 6, clean_text(f"[v] Sistem Grounding   : Terukur {r.get('earth_ohm', '-')} Ohm"), ln=True)
+    pdf.ln(5)
+    
+    # --- PARAGRAF PENUTUP & TANDA TANGAN ---
+    pdf.multi_cell(0, 6, clean_text("Demikian Berita Acara ini dibuat sebenar-benarnya sesuai dengan kondisi aktual di lapangan untuk dapat dipergunakan sebagaimana mestinya."))
+    pdf.ln(10)
+    
+    # Tata Letak Tanda Tangan
+    pdf.cell(90, 6, clean_text("Mengetahui / Menyetujui,"), 0, 0, "C")
+    pdf.cell(90, 6, clean_text("Dibuat Oleh,"), 0, 1, "C")
+    pdf.ln(20) # Spasi untuk ttd
+    pdf.set_font("helvetica", "B", 10)
+    pdf.cell(90, 6, clean_text("(..........................................)"), 0, 0, "C")
+    pdf.cell(90, 6, clean_text(f"( {r.get('teknisi', 'Tim Teknisi')} )"), 0, 1, "C")
+    pdf.set_font("helvetica", "", 10)
+    pdf.cell(90, 6, clean_text("Koordinator / PIC Area"), 0, 0, "C")
+    pdf.cell(90, 6, clean_text("Pelaksana Lapangan"), 0, 1, "C")
+    
+    # --- 3. LAMPIRAN FOTO DOKUMENTASI ---
+    pdf.add_page()
+    pdf.set_font("helvetica", "B", 12)
+    pdf.cell(0, 10, clean_text("LAMPIRAN DOKUMENTASI FOTO"), ln=True, align="C")
+    pdf.ln(5)
+    
+    def draw_photo_grid(url_list, title):
+        urls = [u for u in url_list if isinstance(u, str) and u.startswith("http")]
+        if not urls: return
+        
+        pdf.set_font("helvetica", "B", 10)
+        pdf.cell(0, 8, clean_text(title), ln=True)
+        
+        img_w = 85
+        img_h = 60
+        margin_x = 5
+        
+        for i in range(0, len(urls), 2): 
+            row_urls = urls[i:i+2]
+            if pdf.get_y() + img_h > 270: pdf.add_page()
+            
+            y_curr = pdf.get_y()
+            for j, u in enumerate(row_urls):
+                opt_url = optimize_cloudinary_url(u)
+                x_curr = 15 + (j * (img_w + margin_x))
+                try:
+                    response = requests.get(opt_url, timeout=7)
+                    if response.status_code == 200:
+                        img = Image.open(BytesIO(response.content))
+                        pdf.image(img, x=x_curr, y=y_curr, w=img_w, h=img_h)
+                    else:
+                        pdf.set_xy(x_curr, y_curr)
+                        pdf.cell(img_w, img_h, clean_text("[Gagal muat]"), border=1, align="C")
+                except Exception:
+                    pdf.set_xy(x_curr, y_curr)
+                    pdf.cell(img_w, img_h, clean_text("[Error URL]"), border=1, align="C")
+            pdf.set_y(y_curr + img_h + 5)
+        pdf.ln(5)
+        
+    fisik_urls = (r.get('url_sites') or []) + (r.get('url_shadings') or []) + (r.get('extras_fisik') or [])
+    draw_photo_grid(fisik_urls, "A. Dokumentasi Fisik & Lingkungan Site")
+    
+    panel_urls = []
+    for p in r.get('panel_data', []):
+        if isinstance(p.get('URL_Before'), list): panel_urls.extend(p.get('URL_Before'))
+        elif p.get('URL_Before'): panel_urls.append(p.get('URL_Before'))
+        panel_urls.extend(p.get('URLs_Before') or [])
+        if isinstance(p.get('URL_After'), list): panel_urls.extend(p.get('URL_After'))
+        elif p.get('URL_After'): panel_urls.append(p.get('URL_After'))
+        panel_urls.extend(p.get('URLs_After') or [])
+    panel_urls.extend(r.get('extras_panel') or [])
+    draw_photo_grid(panel_urls, "B. Dokumentasi Modul Surya (SPS)")
+    
+    elek_urls = (r.get('url_rects') or []) + (r.get('url_gensets') or []) + (r.get('extras_elektrikal') or [])
+    draw_photo_grid(elek_urls, "C. Dokumentasi Rectifier & Mesin Genset")
+    
+    bat_urls = []
+    for b in r.get('battery_data', []): bat_urls.extend(b.get('URL_Fotos') or ( [b.get('URL_Foto')] if b.get('URL_Foto') else [] ))
+    bat_urls.extend(r.get('url_grds') or [])
+    bat_urls.extend(r.get('extras_baterai') or [])
+    draw_photo_grid(bat_urls, "D. Dokumentasi Bank Baterai & Grounding")
+
+    try:
+        return bytes(pdf.output())
+    except Exception:
+        out = pdf.output(dest='S')
+        return out.encode('latin-1', 'ignore') if isinstance(out, str) else out
+
+# -------------------------------------------------------------------------
+# 3. SETUP DATABASE (SINKRONISASI KE GOOGLE SHEETS)
 # -------------------------------------------------------------------------
 st.set_page_config(page_title="Preventive Maintenance BTS", page_icon="⚡", layout="wide")
 
@@ -80,8 +235,7 @@ def fetch_data_from_gsheets():
             db = []
             for row in data[1:]:
                 if len(row) >= 6: 
-                    try:
-                        db.append(json.loads(row[5]))
+                    try: db.append(json.loads(row[5]))
                     except: pass
             return db
     return []
@@ -90,7 +244,7 @@ if 'laporan_db' not in st.session_state:
     st.session_state['laporan_db'] = fetch_data_from_gsheets()
 
 # -------------------------------------------------------------------------
-# 3. NAVIGASI UTAMA
+# 4. NAVIGASI UTAMA
 # -------------------------------------------------------------------------
 st.sidebar.title("Navigasi Operasional")
 st.sidebar.info(f"Database Taut:\n`Report Preventive`\n🔗 [Buka Google Sheets](https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit)")
@@ -106,7 +260,6 @@ if menu == "📝 Form Preventive Check":
     
     tabs = st.tabs(["1. Info Site", "2. SPS Panel", "3. PLN & Rectifier", "4. Genset & BBM", "5. Baterai & Grounding", "6. Datalog & Submit"])
 
-    # TAB 1: INFO SITE
     with tabs[0]:
         c1, c2 = st.columns(2)
         with c1:
@@ -114,7 +267,7 @@ if menu == "📝 Form Preventive Check":
             nop_area = st.selectbox("NOP Area", ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"])
             check_date = st.date_input("Tanggal Pengecekan", value=datetime.date.today())
         with c2:
-            technician_name = st.text_input("Nama Tim Teknisi")
+            technician_name = st.text_input("Nama Pelaksana / Teknisi")
             weather = st.selectbox("Kondisi Cuaca", ["Cerah", "Berawan", "Hujan", "Badai"])
         st.divider()
         sc1, sc2 = st.columns(2)
@@ -124,7 +277,6 @@ if menu == "📝 Form Preventive Check":
         with sc2:
             site_photos = st.file_uploader("Foto View Site (Bisa >1)", accept_multiple_files=True, key="spics")
 
-    # TAB 2: SPS
     with tabs[1]:
         shading_status = st.selectbox("Status Shading?", ["Aman", "Sedikit Shading", "Kritis"])
         shading_photos = st.file_uploader("Foto Shading (Bisa >1)", accept_multiple_files=True, key="shd")
@@ -160,7 +312,6 @@ if menu == "📝 Form Preventive Check":
                         pa = st.file_uploader(f"✨ AFTER (Bisa >1)", accept_multiple_files=True, key=f"spa_{i}")
                     panel_data.append({"tipe": "Seri", "id": f"String #{i+1}", "qty": qty, "voc": voc, "isc": isc, "kondisi": p_cond, "foto_before_objs": pb, "foto_after_objs": pa})
 
-    # TAB 3: PLN & RECTI
     with tabs[2]:
         c1, c2 = st.columns(2)
         with c1:
@@ -174,7 +325,6 @@ if menu == "📝 Form Preventive Check":
             rect_alarm = st.selectbox("Alarm Rectifier", ["No Alarm", "Ada Alarm"])
             rect_photos = st.file_uploader("Foto Rectifier (Bisa >1)", accept_multiple_files=True, key="rect_pics")
 
-    # TAB 4: GENSET & BBM
     with tabs[3]:
         g1, g2 = st.columns(2)
         with g1:
@@ -188,7 +338,6 @@ if menu == "📝 Form Preventive Check":
             st.info(f"📌 **Volume BBM:** {est_fuel:.1f} Liter.")
             genset_photos = st.file_uploader("Foto Genset & BBM (Bisa >1)", accept_multiple_files=True, key="gen_pics")
 
-    # TAB 5: BATERAI & GROUNDING
     with tabs[4]:
         b1, b2 = st.columns(2)
         with b1:
@@ -209,14 +358,13 @@ if menu == "📝 Form Preventive Check":
             grd_cable = st.selectbox("Kabel Grounding", ["Kuat", "Kendor", "Putus"])
             grd_photos = st.file_uploader("Foto Grounding (Bisa >1)", accept_multiple_files=True, key="grd")
 
-    # TAB 6: SUBMIT
     with tabs[5]:
         st.markdown("📂 **Upload Datalog (Semua Format):**")
         datalog_files = st.file_uploader("Upload .csv, .xlsx, .txt, dll", accept_multiple_files=True, key="datalog_all")
         st.divider()
-        action_taken = st.text_area("🔧 Action di Lapangan:")
-        sparepart_needed = st.text_input("📦 Sparepart Diganti:")
-        final_status = st.radio("Status Site:", ["Normal", "Minor Issue", "Major/Critical"])
+        action_taken = st.text_area("🔧 Rincian Pekerjaan & Action di Lapangan:")
+        sparepart_needed = st.text_input("📦 Penggantian Sparepart:")
+        final_status = st.radio("Status Akhir Site:", ["Normal", "Minor Issue", "Major/Critical"])
 
         if st.button("🚀 Upload & Sinkronkan ke Spreadsheet", type="primary"):
             if not site_name:
@@ -290,16 +438,33 @@ elif menu == "📊 Hasil Laporan & Dashboard":
     else:
         for i in range(len(db) - 1, -1, -1):
             r = db[i]
-            wa_text = f"""*REPORT PREVENTIVE* ⚡\n📍 *Site:* {r.get('site_name', '-')} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Teknisi:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*TINDAKAN:*\n{r.get('action', '-')}\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"""
+            wa_text = f"""*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {r.get('site_name', '-')} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"""
             wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
 
             with st.expander(f"📍 {r.get('site_name', 'Unknown')} | {r.get('timestamp', '')} | Status: {r.get('status', '')}"):
+                
+                # --- TOMBOL GENERATE PDF BAST ---
+                if st.checkbox("📄 Buat Berita Acara (PDF)", key=f"prep_pdf_{i}"):
+                    with st.spinner("Mengekstrak Dokumen Berita Acara & Foto..."):
+                        try:
+                            pdf_bytes = build_pdf(r)
+                            st.download_button(
+                                label="📥 Download Berita Acara", 
+                                data=pdf_bytes, 
+                                file_name=f"Berita_Acara_{r.get('site_name', 'Site')}.pdf", 
+                                mime="application/pdf", 
+                                key=f"dl_pdf_{i}"
+                            )
+                        except Exception as e:
+                            st.error(f"Terjadi kesalahan saat menyusun PDF: {e}")
+                
+                st.divider()
                 
                 c_btn1, c_btn2 = st.columns(2)
                 with c_btn1: st.link_button("📱 Kirim Rangkuman ke WhatsApp", wa_url)
                 with c_btn2: st.link_button("📈 Buka Spreadsheet Target", f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit")
                 
-                st.markdown(f"**Teknisi:** {r.get('teknisi', '-')} | **NOP:** {r.get('nop', '-')} | **Load:** {r.get('total_load', '-')} A")
+                st.markdown(f"**Teknisi:** {r.get('teknisi', '-')} | **Load:** {r.get('total_load', '-')} A")
                 st.markdown(f"**Action:** {r.get('action', '-')}")
                 if r.get('sparepart'): st.warning(f"**Sparepart:** {r['sparepart']}")
                 
@@ -331,7 +496,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     st.divider()
                     tampilkan_grid_foto(r.get('extras_elektrikal'), "📸 Tambahan Mesin/Elektrikal")
 
-                # --- TAB 4: BATERAI & GROUNDING (DIBUAT PRESISI & RAPI) ---
                 with ltab4:
                     st.markdown("### 🔋 Bank Baterai")
                     for b in r.get('battery_data', []):
@@ -341,9 +505,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                 st.markdown(f"**{b.get('Baterai', 'Baterai')}**")
                                 st.write(f"🔹 **Voltase:** {b.get('Voltase', '-') } V  |  🌡️ **Suhu:** {b.get('Suhu', '-') } °C")
                                 st.write(f"🔍 **Kondisi Fisik:** {b.get('Kondisi', '-')}")
-                            with bc2:
-                                pass
-                            
                             bat_urls = b.get('URL_Fotos') or b.get('URL_Foto')
                             if bat_urls:
                                 st.markdown("")
