@@ -40,32 +40,27 @@ def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
     return urls
 
 def tampilkan_grid_foto(url_data, caption=""):
-    if not url_data: 
-        return
-    
+    if not url_data: return
     urls = []
-    if isinstance(url_data, str) and url_data.startswith("http"): 
-        urls = [url_data]
-    elif isinstance(url_data, list): 
-        urls = [u for u in url_data if isinstance(u, str) and u.startswith("http")]
+    if isinstance(url_data, str) and url_data.startswith("http"): urls = [url_data]
+    elif isinstance(url_data, list): urls = [u for u in url_data if isinstance(u, str) and u.startswith("http")]
         
     if urls:
-        if caption: 
-            st.markdown(f"*{caption}*")
-        
-        # Trik HTML SATU BARIS LURUS agar Streamlit tidak menambah spasi kosong
+        if caption: st.markdown(f"*{caption}*")
         img_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 15px;">'
         for u in urls:
             img_html += f'<div style="background-color: #1e1e1e; border-radius: 8px; padding: 6px; box-shadow: 0px 4px 6px rgba(0,0,0,0.3); text-align: center;"><a href="{u}" target="_blank"><img src="{u}" style="max-width: 100%; height: auto; max-height: 400px; object-fit: contain; border-radius: 6px;"></a></div>'
         img_html += '</div>'
-        
         st.markdown(img_html, unsafe_allow_html=True)
+
 # -------------------------------------------------------------------------
-# 2. GENERATOR PDF (FORMAT BERITA ACARA RESMI)
+# 2. GENERATOR PDF (FOTO FULL 1 KOLOM RESOLUSI TINGGI TDK TERPOTONG)
 # -------------------------------------------------------------------------
 def optimize_cloudinary_url(url):
+    """Menaikkan resolusi gambar (1200px) dan mencegah crop (c_limit)"""
     if not isinstance(url, str): return ""
-    if "upload/v" in url: return url.replace("upload/v", "upload/c_fill,w_300,h_200,q_auto/v")
+    if "upload/v" in url: 
+        return url.replace("upload/v", "upload/c_limit,w_1200,q_auto:best/v")
     return url
 
 def clean_text(text):
@@ -137,7 +132,7 @@ def build_pdf(r):
     # Tata Letak Tanda Tangan
     pdf.cell(90, 6, clean_text("Mengetahui / Menyetujui,"), 0, 0, "C")
     pdf.cell(90, 6, clean_text("Dibuat Oleh,"), 0, 1, "C")
-    pdf.ln(20) # Spasi untuk ttd
+    pdf.ln(20)
     pdf.set_font("helvetica", "B", 10)
     pdf.cell(90, 6, clean_text("(..........................................)"), 0, 0, "C")
     pdf.cell(90, 6, clean_text(f"( {r.get('teknisi', 'Tim Teknisi')} )"), 0, 1, "C")
@@ -145,64 +140,58 @@ def build_pdf(r):
     pdf.cell(90, 6, clean_text("Koordinator / PIC Area"), 0, 0, "C")
     pdf.cell(90, 6, clean_text("Pelaksana Lapangan"), 0, 1, "C")
     
-    # --- 3. LAMPIRAN FOTO DOKUMENTASI ---
+    # --- 3. LAMPIRAN FOTO DOKUMENTASI (FULL HALAMAN TDK TERPOTONG) ---
     pdf.add_page()
     pdf.set_font("helvetica", "B", 12)
-    pdf.cell(0, 10, clean_text("LAMPIRAN DOKUMENTASI FOTO"), ln=True, align="C")
+    pdf.cell(0, 10, clean_text("LAMPIRAN DOKUMENTASI FOTO (FULL)"), ln=True, align="C")
     pdf.ln(5)
     
     def draw_photo_grid(url_list, title):
         urls = [u for u in url_list if isinstance(u, str) and u.startswith("http")]
         if not urls: return
         
-        pdf.set_font("helvetica", "B", 10)
+        pdf.set_font("helvetica", "B", 11)
         pdf.cell(0, 8, clean_text(title), ln=True)
         
-        img_w = 85  # Lebar kolom foto tetap rapi (2 foto berdampingan)
-        margin_x = 5
+        # Lebar maksimal foto adalah 160mm (hampir memenuhi kertas A4)
+        max_img_w = 160 
         
-        for i in range(0, len(urls), 2): 
-            row_urls = urls[i:i+2]
-            if pdf.get_y() + 70 > 270: pdf.add_page()
-            
-            y_curr = pdf.get_y()
-            max_h_in_row = 0  # Untuk mencatat tinggi maksimum baris ini
-            
-            # Download & hitung ukuran proporsional gambar
-            row_images = []
-            for u in row_urls:
-                opt_url = optimize_cloudinary_url(u)
-                try:
-                    response = requests.get(opt_url, timeout=7)
-                    if response.status_code == 200:
-                        img = Image.open(BytesIO(response.content))
-                        # Hitung tinggi proporsional otomatis berdasarkan lebar w=img_w
-                        w_orig, h_orig = img.size
-                        calc_h = (img_w / w_orig) * h_orig
-                        if calc_h > 75: calc_h = 75 # Batasi maksimal tinggi agar tidak terlalu panjang
-                        if calc_h > max_h_in_row: max_h_in_row = calc_h
-                        row_images.append((img, calc_h))
-                    else:
-                        row_images.append((None, 50))
-                except Exception:
-                    row_images.append((None, 50))
-            
-            if max_h_in_row == 0: max_h_in_row = 50
-            
-            # Render foto ke PDF dengan ukuran asli yang utuh (tidak terpotong)
-            for j, (img, h_val) in enumerate(row_images):
-                x_curr = 15 + (j * (img_w + margin_x))
-                if img:
-                    try:
-                        pdf.image(img, x=x_curr, y=y_curr, w=img_w) # Parameter h dikosongkan agar tampil full proporsional
-                    except:
-                        pdf.set_xy(x_curr, y_curr)
-                        pdf.cell(img_w, h_val, clean_text("[Error Render]"), border=1, align="C")
+        for u in urls:
+            opt_url = optimize_cloudinary_url(u)
+            try:
+                response = requests.get(opt_url, timeout=12)
+                if response.status_code == 200:
+                    img = Image.open(BytesIO(response.content))
+                    w_orig, h_orig = img.size
+                    
+                    # Hitung tinggi proporsional berdasarkan rasio asli
+                    calc_h = (max_img_w / w_orig) * h_orig
+                    img_w_adj = max_img_w
+                    
+                    # Jika gambar format portrait/berdiri yg sangat panjang, batasi tinggi max 240mm agar muat 1 kertas
+                    if calc_h > 240: 
+                        calc_h = 240
+                        img_w_adj = (calc_h / h_orig) * w_orig
+                    
+                    # Cek apakah ruang halaman tersisa cukup. Jika tidak, tambah halaman baru
+                    if pdf.get_y() + calc_h > 275: 
+                        pdf.add_page()
+                    
+                    # Posisi center horisontal (Total lebar A4 210mm)
+                    x_pos = (210 - img_w_adj) / 2
+                    
+                    # Render gambar ke PDF (TANPA crop)
+                    pdf.image(img, x=x_pos, y=pdf.get_y(), w=img_w_adj)
+                    
+                    # Geser koordinat ke bawah foto + jarak 10mm untuk foto selanjutnya
+                    pdf.set_y(pdf.get_y() + calc_h + 10)
                 else:
-                    pdf.set_xy(x_curr, y_curr)
-                    pdf.cell(img_w, 50, clean_text("[Gagal Muat]"), border=1, align="C")
-            
-            pdf.set_y(y_curr + max_h_in_row + 8)
+                    pdf.set_font("helvetica", "I", 10)
+                    pdf.cell(0, 10, clean_text("[Gagal memuat foto dari server]"), ln=True)
+            except Exception:
+                pdf.set_font("helvetica", "I", 10)
+                pdf.cell(0, 10, clean_text("[Error koneksi jaringan]"), ln=True)
+        
         pdf.ln(5)
         
     fisik_urls = (r.get('url_sites') or []) + (r.get('url_shadings') or []) + (r.get('extras_fisik') or [])
@@ -473,7 +462,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 
                 # --- TOMBOL GENERATE PDF BAST ---
                 if st.checkbox("📄 Buat Berita Acara (PDF)", key=f"prep_pdf_{i}"):
-                    with st.spinner("Mengekstrak Dokumen Berita Acara & Foto..."):
+                    with st.spinner("Menyiapkan Resolusi Tinggi Dokumen Berita Acara & Foto..."):
                         try:
                             pdf_bytes = build_pdf(r)
                             st.download_button(
