@@ -54,10 +54,9 @@ def tampilkan_grid_foto(url_data, caption=""):
         st.markdown(img_html, unsafe_allow_html=True)
 
 # -------------------------------------------------------------------------
-# 2. GENERATOR PDF (FOTO FULL 1 KOLOM RESOLUSI TINGGI TDK TERPOTONG)
+# 2. GENERATOR PDF 
 # -------------------------------------------------------------------------
 def optimize_cloudinary_url(url):
-    """Menaikkan resolusi gambar (1200px) dan mencegah crop (c_limit)"""
     if not isinstance(url, str): return ""
     if "upload/v" in url: 
         return url.replace("upload/v", "upload/c_limit,w_1200,q_auto:best/v")
@@ -72,20 +71,17 @@ def build_pdf(r):
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
     
-    # --- KOP / JUDUL BERITA ACARA ---
     pdf.set_font("helvetica", "B", 14)
     pdf.cell(0, 10, clean_text("BERITA ACARA PREVENTIVE MAINTENANCE"), ln=True, align="C")
     pdf.set_font("helvetica", "B", 12)
     pdf.cell(0, 6, clean_text("SITE TELEKOMUNIKASI"), ln=True, align="C")
     pdf.ln(5)
     
-    # --- PARAGRAF PEMBUKA ---
     pdf.set_font("helvetica", "", 10)
     intro = f"Berdasarkan hasil inspeksi dan pengerjaan lapangan pada tanggal {r.get('timestamp', '-')}, dengan ini diterangkan bahwa tim teknisi telah melaksanakan kegiatan Preventive Maintenance (Pemeliharaan Berkala) pada:"
     pdf.multi_cell(0, 6, clean_text(intro))
     pdf.ln(2)
     
-    # --- DETAIL SITE ---
     pdf.set_font("helvetica", "B", 10)
     pdf.cell(40, 6, clean_text("Nama Site / ID"), 0, 0)
     pdf.cell(0, 6, clean_text(f": {r.get('site_name', '-')}"), 0, 1)
@@ -97,7 +93,6 @@ def build_pdf(r):
     pdf.cell(0, 6, clean_text(f": {r.get('status', '-')}"), 0, 1)
     pdf.ln(5)
     
-    # --- 1. RINCIAN TINDAKAN & KEGIATAN TIM ---
     pdf.set_font("helvetica", "B", 11)
     pdf.cell(0, 8, clean_text("1. RINCIAN KEGIATAN & TINDAKAN (ACTION)"), ln=True)
     pdf.set_font("helvetica", "", 10)
@@ -112,7 +107,6 @@ def build_pdf(r):
     pdf.multi_cell(0, 6, clean_text(r.get('sparepart', '-')))
     pdf.ln(5)
     
-    # --- 2. HASIL CHECKLIST PARAMETER ---
     pdf.set_font("helvetica", "B", 11)
     pdf.cell(0, 8, clean_text("2. HASIL PENGECEKAN PARAMETER SITE"), ln=True)
     pdf.set_font("helvetica", "", 10)
@@ -125,11 +119,9 @@ def build_pdf(r):
     pdf.cell(0, 6, clean_text(f"[v] Sistem Grounding   : Terukur {r.get('earth_ohm', '-')} Ohm"), ln=True)
     pdf.ln(5)
     
-    # --- PARAGRAF PENUTUP & TANDA TANGAN ---
     pdf.multi_cell(0, 6, clean_text("Demikian Berita Acara ini dibuat sebenar-benarnya sesuai dengan kondisi aktual di lapangan untuk dapat dipergunakan sebagaimana mestinya."))
     pdf.ln(10)
     
-    # Tata Letak Tanda Tangan
     pdf.cell(90, 6, clean_text("Mengetahui / Menyetujui,"), 0, 0, "C")
     pdf.cell(90, 6, clean_text("Dibuat Oleh,"), 0, 1, "C")
     pdf.ln(20)
@@ -140,7 +132,6 @@ def build_pdf(r):
     pdf.cell(90, 6, clean_text("Koordinator / PIC Area"), 0, 0, "C")
     pdf.cell(90, 6, clean_text("Pelaksana Lapangan"), 0, 1, "C")
     
-    # --- 3. LAMPIRAN FOTO DOKUMENTASI (FULL HALAMAN TDK TERPOTONG) ---
     pdf.add_page()
     pdf.set_font("helvetica", "B", 12)
     pdf.cell(0, 10, clean_text("LAMPIRAN DOKUMENTASI FOTO (FULL)"), ln=True, align="C")
@@ -152,8 +143,6 @@ def build_pdf(r):
         
         pdf.set_font("helvetica", "B", 11)
         pdf.cell(0, 8, clean_text(title), ln=True)
-        
-        # Lebar maksimal foto adalah 160mm (hampir memenuhi kertas A4)
         max_img_w = 160 
         
         for u in urls:
@@ -163,27 +152,18 @@ def build_pdf(r):
                 if response.status_code == 200:
                     img = Image.open(BytesIO(response.content))
                     w_orig, h_orig = img.size
-                    
-                    # Hitung tinggi proporsional berdasarkan rasio asli
                     calc_h = (max_img_w / w_orig) * h_orig
                     img_w_adj = max_img_w
                     
-                    # Jika gambar format portrait/berdiri yg sangat panjang, batasi tinggi max 240mm agar muat 1 kertas
                     if calc_h > 240: 
                         calc_h = 240
                         img_w_adj = (calc_h / h_orig) * w_orig
                     
-                    # Cek apakah ruang halaman tersisa cukup. Jika tidak, tambah halaman baru
                     if pdf.get_y() + calc_h > 275: 
                         pdf.add_page()
                     
-                    # Posisi center horisontal (Total lebar A4 210mm)
                     x_pos = (210 - img_w_adj) / 2
-                    
-                    # Render gambar ke PDF (TANPA crop)
                     pdf.image(img, x=x_pos, y=pdf.get_y(), w=img_w_adj)
-                    
-                    # Geser koordinat ke bawah foto + jarak 10mm untuk foto selanjutnya
                     pdf.set_y(pdf.get_y() + calc_h + 10)
                 else:
                     pdf.set_font("helvetica", "I", 10)
@@ -191,7 +171,6 @@ def build_pdf(r):
             except Exception:
                 pdf.set_font("helvetica", "I", 10)
                 pdf.cell(0, 10, clean_text("[Error koneksi jaringan]"), ln=True)
-        
         pdf.ln(5)
         
     fisik_urls = (r.get('url_sites') or []) + (r.get('url_shadings') or []) + (r.get('extras_fisik') or [])
@@ -539,11 +518,30 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     for dl in dls: st.markdown(f"- [{dl['name']}]({dl['url']})")
 
                 st.divider()
-                st.markdown("### 🛠️ EDIT TEKS & TAMBAH FOTO BEBAS")
+                # --- UPDATE BAGIAN EDIT DI SINI (ADA NAMA SITE, NOP, STATUS) ---
+                st.markdown("### 🛠️ EDIT DATA LENGKAP & TAMBAH FOTO")
                 with st.container(border=True):
-                    new_tek = st.text_input("Edit Teknisi", r.get('teknisi',''), key=f"et_{i}")
-                    new_act = st.text_area("Edit Action", r.get('action',''), key=f"ea_{i}")
-                    new_sp = st.text_input("Edit Sparepart", r.get('sparepart',''), key=f"es_{i}")
+                    c_edit1, c_edit2 = st.columns(2)
+                    
+                    with c_edit1:
+                        new_site = st.text_input("Edit Nama Site / ID", r.get('site_name',''), key=f"esite_{i}")
+                        
+                        nop_options = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
+                        curr_nop = r.get('nop', 'Palangkaraya')
+                        if curr_nop not in nop_options: curr_nop = "Lainnya"
+                        new_nop = st.selectbox("Edit NOP Area", nop_options, index=nop_options.index(curr_nop), key=f"enop_{i}")
+                        
+                        new_tek = st.text_input("Edit Teknisi", r.get('teknisi',''), key=f"et_{i}")
+                        
+                    with c_edit2:
+                        status_options = ["Normal", "Minor Issue", "Major/Critical"]
+                        curr_stat = r.get('status', 'Normal')
+                        if curr_stat not in status_options: curr_stat = "Normal"
+                        new_status = st.selectbox("Edit Status Akhir", status_options, index=status_options.index(curr_stat), key=f"estat_{i}")
+                        
+                        new_sp = st.text_input("Edit Sparepart", r.get('sparepart',''), key=f"es_{i}")
+                        
+                    new_act = st.text_area("Edit Action / Tindakan", r.get('action',''), key=f"ea_{i}")
                     
                     st.markdown("**Tambah Foto Susulan Bebas:**")
                     up_f = st.file_uploader("Fisik / Shading", accept_multiple_files=True, key=f"uf_{i}")
@@ -553,18 +551,28 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 
                     if st.button("💾 Simpan Edit ke Spreadsheet", key=f"btn_{i}", type="primary"):
                         with st.spinner("Sinkronisasi Update ke Spreadsheet..."):
-                            r['teknisi'], r['action'], r['sparepart'] = new_tek, new_act, new_sp
+                            # 1. Update data di memori aplikasi
+                            r['site_name'] = new_site
+                            r['nop'] = new_nop
+                            r['status'] = new_status
+                            r['teknisi'] = new_tek
+                            r['action'] = new_act
+                            r['sparepart'] = new_sp
+                            
                             if up_f: r['extras_fisik'] = r.get('extras_fisik', []) + upload_multiple_images(up_f)
                             if up_p: r['extras_panel'] = r.get('extras_panel', []) + upload_multiple_images(up_p)
                             if up_b: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_b)
                             if up_e: r['extras_elektrikal'] = r.get('extras_elektrikal', []) + upload_multiple_images(up_e)
                             
+                            # 2. Tembak update ke kolom spesifik di Google Sheets
                             sheet = connect_gsheets()
                             if sheet:
-                                row_num = i + 2 
-                                sheet.update_cell(row_num, 4, new_tek)
-                                sheet.update_cell(row_num, 5, r.get('status', ''))
-                                sheet.update_cell(row_num, 6, json.dumps(r))
+                                row_num = i + 2 # Header di baris 1, jadi data mulai baris 2
+                                sheet.update_cell(row_num, 2, new_site)   # Kolom B
+                                sheet.update_cell(row_num, 3, new_nop)    # Kolom C
+                                sheet.update_cell(row_num, 4, new_tek)    # Kolom D
+                                sheet.update_cell(row_num, 5, new_status) # Kolom E
+                                sheet.update_cell(row_num, 6, json.dumps(r)) # Kolom F
                                 st.cache_data.clear() 
-                        st.success("✅ Perubahan Teks & Foto tersimpan permanen di Google Sheets!")
+                        st.success("✅ Perubahan Data, Teks, & Foto tersimpan permanen di Google Sheets!")
                         st.rerun()
