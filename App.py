@@ -14,6 +14,81 @@ from io import BytesIO
 from PIL import Image
 
 # -------------------------------------------------------------------------
+# SETUP HALAMAN & CUSTOM CSS (TAMPILAN PROFESIONAL)
+# -------------------------------------------------------------------------
+st.set_page_config(page_title="PM Dashboard - Okta Pradika", page_icon="⚡", layout="wide")
+
+st.markdown("""
+    <style>
+        /* Mengubah warna teks header utama */
+        h1, h2, h3 {
+            color: #64FFDA !important;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* Modifikasi kotak Expander agar tampak seperti Card Modern */
+        div[data-testid="stExpander"] details {
+            border: 1px solid #233554;
+            border-radius: 10px;
+            background-color: #112240;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        div[data-testid="stExpander"] details:hover {
+            border-color: #64FFDA;
+            box-shadow: 0 6px 12px rgba(100,255,218,0.15);
+        }
+        div[data-testid="stExpander"] summary {
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            color: #CCD6F6 !important;
+            padding: 10px;
+        }
+
+        /* Modifikasi Tab agar lebih elegan */
+        button[role="tab"] {
+            font-weight: 600;
+            color: #8892B0 !important;
+        }
+        button[role="tab"][aria-selected="true"] {
+            color: #64FFDA !important;
+            border-bottom-color: #64FFDA !important;
+        }
+
+        /* Animasi Tombol Utama */
+        .stButton>button {
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s;
+            border: 1px solid #64FFDA;
+        }
+        .stButton>button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(100, 255, 218, 0.4);
+        }
+
+        /* Footer Kustom Okta Pradika */
+        .footer-okta {
+            text-align: center;
+            padding: 25px;
+            margin-top: 50px;
+            color: #8892B0;
+            font-size: 15px;
+            border-top: 1px solid #233554;
+            background-color: #0A192F;
+            border-radius: 10px;
+        }
+        .footer-okta span {
+            color: #64FFDA;
+            font-weight: 800;
+            letter-spacing: 1px;
+            font-size: 16px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# -------------------------------------------------------------------------
 # 1. KONFIGURASI CLOUDINARY
 # -------------------------------------------------------------------------
 cloudinary.config( 
@@ -39,16 +114,14 @@ def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
             if url: urls.append(url)
     return urls
 
-# FUNGSI BARU KHUSUS DATALOG (Mencegah error file .zip / .csv / .xlsx)
 def upload_datalog(file_obj, folder_name="prev_datalog"):
     if file_obj is not None:
         try:
-            # resource_type="raw" sangat penting agar file dokumen tidak ditolak Cloudinary
             response = cloudinary.uploader.upload(
                 file_obj.getvalue(), 
                 folder=folder_name, 
                 resource_type="raw",
-                public_id=file_obj.name # Menyimpan nama asli file
+                public_id=file_obj.name 
             )
             return response.get('secure_url')
         except Exception as e: 
@@ -66,7 +139,7 @@ def tampilkan_grid_foto(url_data, caption=""):
         if caption: st.markdown(f"*{caption}*")
         img_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 15px;">'
         for u in urls:
-            img_html += f'<div style="background-color: #1e1e1e; border-radius: 8px; padding: 6px; box-shadow: 0px 4px 6px rgba(0,0,0,0.3); text-align: center;"><a href="{u}" target="_blank"><img src="{u}" style="max-width: 100%; height: auto; max-height: 400px; object-fit: contain; border-radius: 6px;"></a></div>'
+            img_html += f'<div style="background-color: #0A192F; border: 1px solid #233554; border-radius: 8px; padding: 6px; box-shadow: 0px 4px 6px rgba(0,0,0,0.3); text-align: center;"><a href="{u}" target="_blank"><img src="{u}" style="max-width: 100%; height: auto; max-height: 400px; object-fit: contain; border-radius: 6px;"></a></div>'
         img_html += '</div>'
         st.markdown(img_html, unsafe_allow_html=True)
 
@@ -222,8 +295,6 @@ def build_pdf(r):
 # -------------------------------------------------------------------------
 # 3. SETUP DATABASE (SINKRONISASI KE GOOGLE SHEETS)
 # -------------------------------------------------------------------------
-st.set_page_config(page_title="Preventive Maintenance BTS", page_icon="⚡", layout="wide")
-
 SHEET_ID = "1HvgVicTWwO4RMQI6ZR3Mu3IgGicwjcLZl9mDN1auvJU"
 SHEET_NAME = "Report Preventive"
 
@@ -259,19 +330,22 @@ if 'laporan_db' not in st.session_state:
 # -------------------------------------------------------------------------
 # 4. NAVIGASI UTAMA
 # -------------------------------------------------------------------------
-st.sidebar.title("Navigasi Operasional")
-st.sidebar.info(f"Database Taut:\n`Report Preventive`\n🔗 [Buka Google Sheets](https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit)")
-menu = st.sidebar.radio("Pilih Menu:", ["📝 Form Preventive Check", "📊 Hasil Laporan & Dashboard"])
+st.sidebar.markdown("<h2 style='text-align: center; color: #64FFDA;'>⚡ NAVIGASI</h2>", unsafe_allow_html=True)
+menu = st.sidebar.radio("Pilih Operasional:", ["📝 Form Preventive Check", "📊 Hasil Laporan & Dashboard"])
 st.sidebar.markdown("---")
+st.sidebar.info(f"📂 **Database Taut:**\n\n`Report Preventive`\n\n🔗 [Buka Spreadsheet Target](https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit)")
+st.sidebar.markdown("---")
+# BRANDING DI SIDEBAR
+st.sidebar.markdown("<div style='text-align: center; color: #8892B0; font-size: 13px;'>System & Database Architecture<br><b style='color:#64FFDA;'>Created By Okta Pradika</b></div>", unsafe_allow_html=True)
 
 # =========================================================================
 # MENU 1: FORM PENGECEKAN LENGKAP
 # =========================================================================
 if menu == "📝 Form Preventive Check":
-    st.title("⚡ Form Preventive Maintenance Komprehensif")
-    st.info("Data dan Foto Anda akan LANGSUNG di-tembak masuk ke Google Sheets saat Submit.")
+    st.markdown("<h1>⚡ Form Preventive Maintenance</h1>", unsafe_allow_html=True)
+    st.info("💡 Data dan Lampiran (Foto & Datalog) Anda akan dienkripsi dan dikirim langsung ke Google Sheets & Cloudinary.")
     
-    tabs = st.tabs(["1. Info Site", "2. SPS Panel", "3. PLN & Rectifier", "4. Genset & BBM", "5. Baterai & Grounding", "6. Datalog & Submit"])
+    tabs = st.tabs(["📌 1. Info Site", "☀️ 2. SPS Panel", "🔌 3. PLN & Recti", "⛽ 4. Genset & BBM", "🔋 5. Baterai & Gnd", "📤 6. Upload & Submit"])
 
     with tabs[0]:
         c1, c2 = st.columns(2)
@@ -288,11 +362,11 @@ if menu == "📝 Form Preventive Check":
             site_condition = st.selectbox("Kondisi Halaman", ["Bersih & Aman", "Banyak Rumput", "Genangan Air"])
             tower_condition = st.selectbox("Fisik Tower", ["Aman", "Berkarat", "Rusak"])
         with sc2:
-            site_photos = st.file_uploader("Foto View Site (Bisa >1)", accept_multiple_files=True, key="spics")
+            site_photos = st.file_uploader("📸 Foto View Site (Bisa >1)", accept_multiple_files=True, key="spics")
 
     with tabs[1]:
         shading_status = st.selectbox("Status Shading?", ["Aman", "Sedikit Shading", "Kritis"])
-        shading_photos = st.file_uploader("Foto Shading (Bisa >1)", accept_multiple_files=True, key="shd")
+        shading_photos = st.file_uploader("📸 Foto Shading (Bisa >1)", accept_multiple_files=True, key="shd")
         st.divider()
         
         konfigurasi_panel = st.radio("Metode Pengukuran SPS:", ["Individu (Satuan)", "Seri / String (Grup)"])
@@ -301,7 +375,7 @@ if menu == "📝 Form Preventive Check":
         if konfigurasi_panel == "Individu (Satuan)":
             num_panels = st.number_input("Jumlah Panel", min_value=1, value=24)
             for i in range(int(num_panels)):
-                with st.expander(f"Panel #{i+1}", expanded=(i==0)):
+                with st.expander(f"⚙️ Panel #{i+1}", expanded=(i==0)):
                     c1, c2, c3 = st.columns([1, 1, 1])
                     with c1:
                         voc = st.number_input(f"Voc [V]", value=21.5, key=f"v_{i}")
@@ -313,7 +387,7 @@ if menu == "📝 Form Preventive Check":
         else: 
             num_strings = st.number_input("Jumlah String", min_value=1, value=4)
             for i in range(int(num_strings)):
-                with st.expander(f"String Seri #{i+1}", expanded=(i==0)):
+                with st.expander(f"🔌 String Seri #{i+1}", expanded=(i==0)):
                     c1, c2 = st.columns([1, 1.5])
                     with c1:
                         qty = st.number_input(f"Isi Panel per Seri", value=6, key=f"sq_{i}")
@@ -336,7 +410,7 @@ if menu == "📝 Form Preventive Check":
             rect_out_v = st.number_input("Tegangan Output Rectifier [V]", value=53.5)
             total_load_a = st.number_input("Total Beban BTS [A]", value=18.2)
             rect_alarm = st.selectbox("Alarm Rectifier", ["No Alarm", "Ada Alarm"])
-            rect_photos = st.file_uploader("Foto Rectifier (Bisa >1)", accept_multiple_files=True, key="rect_pics")
+            rect_photos = st.file_uploader("📸 Foto Rectifier (Bisa >1)", accept_multiple_files=True, key="rect_pics")
 
     with tabs[3]:
         g1, g2 = st.columns(2)
@@ -349,7 +423,7 @@ if menu == "📝 Form Preventive Check":
             current_fuel_pct = st.slider("Level BBM [%]", 0, 100, 75)
             est_fuel = (current_fuel_pct / 100.0) * tank_capacity
             st.info(f"📌 **Volume BBM:** {est_fuel:.1f} Liter.")
-            genset_photos = st.file_uploader("Foto Genset & BBM (Bisa >1)", accept_multiple_files=True, key="gen_pics")
+            genset_photos = st.file_uploader("📸 Foto Genset & BBM (Bisa >1)", accept_multiple_files=True, key="gen_pics")
 
     with tabs[4]:
         b1, b2 = st.columns(2)
@@ -357,7 +431,7 @@ if menu == "📝 Form Preventive Check":
             num_bat = st.number_input("Jumlah Baterai", min_value=1, value=4)
             bat_data = []
             for j in range(int(num_bat)):
-                with st.expander(f"Baterai #{j+1}", expanded=(j==0)):
+                with st.expander(f"🔋 Baterai #{j+1}", expanded=(j==0)):
                     bc1, bc2 = st.columns(2)
                     with bc1:
                         bv = st.number_input(f"Voltase [V]", value=12.2, key=f"bv_{j}")
@@ -369,7 +443,7 @@ if menu == "📝 Form Preventive Check":
         with b2:
             earth_resistance = st.number_input("Tahanan Grounding [Ohm]", value=2.1)
             grd_cable = st.selectbox("Kabel Grounding", ["Kuat", "Kendor", "Putus"])
-            grd_photos = st.file_uploader("Foto Grounding (Bisa >1)", accept_multiple_files=True, key="grd")
+            grd_photos = st.file_uploader("📸 Foto Grounding (Bisa >1)", accept_multiple_files=True, key="grd")
 
     with tabs[5]:
         st.markdown("📂 **Upload Datalog (Bisa .csv, .xlsx, .zip, dll):**")
@@ -379,18 +453,17 @@ if menu == "📝 Form Preventive Check":
         sparepart_needed = st.text_input("📦 Penggantian Sparepart:")
         final_status = st.radio("Status Akhir Site:", ["Normal", "Minor Issue", "Major/Critical"])
 
-        if st.button("🚀 Upload & Sinkronkan ke Spreadsheet", type="primary"):
+        if st.button("🚀 UPLOAD & SINKRONKAN DATA", type="primary", use_container_width=True):
             if not site_name:
                 st.error("⚠️ Mohon isi Nama Site!")
             else:
-                with st.spinner("⏳ Mengupload ke Cloudinary dan mengirim data ke Spreadsheet... Mohon tunggu."):
+                with st.spinner("⏳ Sedang memproses dan mengamankan data ke Cloud..."):
                     url_sites = upload_multiple_images(site_photos, "prev_view")
                     url_shadings = upload_multiple_images(shading_photos, "prev_shade")
                     url_rects = upload_multiple_images(rect_photos, "prev_rect")
                     url_gensets = upload_multiple_images(genset_photos, "prev_genset")
                     url_grds = upload_multiple_images(grd_photos, "prev_grd")
                     
-                    # PROSES UPLOAD DATALOG MENGGUNAKAN JALUR KHUSUS RAW
                     datalog_urls = []
                     if datalog_files:
                         for df in datalog_files:
@@ -434,7 +507,7 @@ if menu == "📝 Form Preventive Check":
                         sheet.append_row(row_data)
                         st.cache_data.clear()
                         st.session_state['laporan_db'].append(report_dict)
-                        st.success("✅ BERHASIL! Data telah masuk ke Google Sheets permanen.")
+                        st.success("✅ BERHASIL! Data telah diamankan di Google Sheets.")
                     else:
                         st.error("⚠️ Gagal menyambung ke Spreadsheet, mohon periksa Setting Secret API Anda.")
 
@@ -442,46 +515,61 @@ if menu == "📝 Form Preventive Check":
 # MENU 2: HASIL LAPORAN (DITARIK DARI SPREADSHEET)
 # =========================================================================
 elif menu == "📊 Hasil Laporan & Dashboard":
-    st.title("📊 Dashboard Laporan Terpusat (Spreadsheet)")
-    st.divider()
-
+    st.markdown("<h1>📊 Dashboard Analytics & Report</h1>", unsafe_allow_html=True)
+    
     db = st.session_state['laporan_db']
 
     if not db:
-        st.info("⚠️ Belum ada data di Spreadsheet / Koneksi Gagal.")
+        st.warning("⚠️ Belum ada data di Spreadsheet / Koneksi Sedang Proses.")
     else:
+        # Tampilkan metrik ringkas di atas
+        total_sites = len(db)
+        col_m1, col_m2, col_m3 = st.columns(3)
+        with col_m1: st.metric("Total Site Ter-Inspeksi", total_sites)
+        with col_m2: st.metric("Database Terhubung", "Google Sheets", "Online")
+        with col_m3: st.metric("Cloud Storage", "Cloudinary", "Active")
+        st.divider()
+
         for i in range(len(db) - 1, -1, -1):
             r = db[i]
+            
+            # Format ikon status
+            stat = r.get('status', '')
+            icon = "🟢" if stat == "Normal" else "🟡" if stat == "Minor Issue" else "🔴"
+            
             wa_text = f"""*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {r.get('site_name', '-')} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"""
             wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
 
-            with st.expander(f"📍 {r.get('site_name', 'Unknown')} | {r.get('timestamp', '')} | Status: {r.get('status', '')}"):
+            with st.expander(f"{icon}  |  {r.get('site_name', 'Unknown')}  |  {r.get('timestamp', '')}  |  Status: {stat}"):
                 
-                if st.checkbox("📄 Buat Berita Acara (PDF)", key=f"prep_pdf_{i}"):
-                    with st.spinner("Menyiapkan Resolusi Tinggi Dokumen Berita Acara & Foto..."):
+                # TOMBOL PDF BAST
+                if st.checkbox("📄 Buat Berita Acara (PDF Resmi)", key=f"prep_pdf_{i}"):
+                    with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
                         try:
                             pdf_bytes = build_pdf(r)
                             st.download_button(
-                                label="📥 Download Berita Acara", 
+                                label="📥 Download PDF Berita Acara", 
                                 data=pdf_bytes, 
                                 file_name=f"Berita_Acara_{r.get('site_name', 'Site')}.pdf", 
                                 mime="application/pdf", 
-                                key=f"dl_pdf_{i}"
+                                key=f"dl_pdf_{i}",
+                                type="primary"
                             )
                         except Exception as e:
                             st.error(f"Terjadi kesalahan saat menyusun PDF: {e}")
                 
-                st.divider()
+                st.markdown("<hr style='border: 1px solid #233554; margin: 15px 0;'>", unsafe_allow_html=True)
                 
                 c_btn1, c_btn2 = st.columns(2)
-                with c_btn1: st.link_button("📱 Kirim Rangkuman ke WhatsApp", wa_url)
-                with c_btn2: st.link_button("📈 Buka Spreadsheet Target", f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit")
+                with c_btn1: st.link_button("📱 Share Rangkuman ke WhatsApp", wa_url, use_container_width=True)
+                with c_btn2: st.link_button("📈 Buka Database Spreadsheet Target", f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit", use_container_width=True)
                 
-                st.markdown(f"**Teknisi:** {r.get('teknisi', '-')} | **Load:** {r.get('total_load', '-')} A")
-                st.markdown(f"**Action:** {r.get('action', '-')}")
-                if r.get('sparepart'): st.warning(f"**Sparepart:** {r['sparepart']}")
+                st.markdown(f"**👨‍🔧 Pelaksana (Teknisi):** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **⚡ Beban Load:** {r.get('total_load', '-')} A")
+                st.markdown(f"**🔧 Action Dikerjakan:** {r.get('action', '-')}")
+                if r.get('sparepart'): st.warning(f"**📦 Sparepart Diganti:** {r['sparepart']}")
                 
-                ltab1, ltab2, ltab3, ltab4, ltab5 = st.tabs(["1. Fisik", "2. Panel SPS", "3. Recti & Genset", "4. Baterai & Gnd", "5. File Datalog"])
+                st.markdown("<br>", unsafe_allow_html=True)
+                ltab1, ltab2, ltab3, ltab4, ltab5 = st.tabs(["🏗️ 1. Fisik", "☀️ 2. Panel SPS", "🔌 3. Recti & Genset", "🔋 4. Baterai & Gnd", "📂 5. Datalog"])
                 
                 with ltab1:
                     st.write(f"- Kondisi Site: {r.get('site_cond', '-')} | Tower: {r.get('tower_cond', '-')} | Shading: {r.get('shading_status', '-')}")
@@ -539,9 +627,11 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     else:
                         st.info("Tidak ada file datalog diunggah pada site ini.")
 
-                st.divider()
-                st.markdown("### 🛠️ EDIT DATA LENGKAP & TAMBAH FILE")
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                # BAGIAN EDIT YANG LEBIH RAPI
                 with st.container(border=True):
+                    st.markdown("<h4 style='color: #8892B0;'>🛠️ REVISI DATA & TAMBAH LAMPIRAN</h4>", unsafe_allow_html=True)
                     c_edit1, c_edit2 = st.columns(2)
                     
                     with c_edit1:
@@ -561,15 +651,15 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         
                     new_act = st.text_area("Edit Action / Tindakan", r.get('action',''), key=f"ea_{i}")
                     
-                    st.markdown("**Tambah Lampiran (Foto & Datalog) Susulan:**")
+                    st.markdown("**Tambah Lampiran Susulan (Otomatis Masuk Cloud):**")
                     up_f = st.file_uploader("📸 Fisik / Shading", accept_multiple_files=True, key=f"uf_{i}")
                     up_p = st.file_uploader("📸 Panel Surya", accept_multiple_files=True, key=f"up_{i}")
                     up_b = st.file_uploader("📸 Baterai / Grounding", accept_multiple_files=True, key=f"ub_{i}")
                     up_e = st.file_uploader("📸 Elektrikal / Mesin", accept_multiple_files=True, key=f"ue_{i}")
                     up_dl = st.file_uploader("📂 Datalog (Zip, Csv, xlsx)", accept_multiple_files=True, key=f"udl_{i}")
 
-                    if st.button("💾 Simpan Edit ke Spreadsheet", key=f"btn_{i}", type="primary"):
-                        with st.spinner("Sinkronisasi Update ke Spreadsheet..."):
+                    if st.button("💾 Simpan Perubahan ke Server", key=f"btn_{i}"):
+                        with st.spinner("Mengirim Revisi ke Database Utama..."):
                             r['site_name'], r['nop'], r['status'] = new_site, new_nop, new_status
                             r['teknisi'], r['action'], r['sparepart'] = new_tek, new_act, new_sp
                             
@@ -578,7 +668,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                             if up_b: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_b)
                             if up_e: r['extras_elektrikal'] = r.get('extras_elektrikal', []) + upload_multiple_images(up_e)
                             
-                            # PROSES UPLOAD DATALOG TAMBAHAN DI MENU EDIT
                             if up_dl:
                                 new_datalog = []
                                 for df in up_dl:
@@ -595,5 +684,15 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                 sheet.update_cell(row_num, 5, new_status)
                                 sheet.update_cell(row_num, 6, json.dumps(r))
                                 st.cache_data.clear() 
-                        st.success("✅ Perubahan Data, Foto & Datalog tersimpan permanen di Google Sheets!")
+                        st.success("✅ REVISI BERHASIL! Data & Foto tersimpan permanen.")
                         st.rerun()
+
+# -------------------------------------------------------------------------
+# FOOTER HAK CIPTA OKTA PRADIKA
+# -------------------------------------------------------------------------
+st.markdown("""
+    <div class="footer-okta">
+        🚀 System Application & Database Management<br>
+        <span>Create Data By Okta Pradika</span> © 2026
+    </div>
+""", unsafe_allow_html=True)
