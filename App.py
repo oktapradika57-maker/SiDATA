@@ -39,6 +39,23 @@ def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
             if url: urls.append(url)
     return urls
 
+# FUNGSI BARU KHUSUS DATALOG (Mencegah error file .zip / .csv / .xlsx)
+def upload_datalog(file_obj, folder_name="prev_datalog"):
+    if file_obj is not None:
+        try:
+            # resource_type="raw" sangat penting agar file dokumen tidak ditolak Cloudinary
+            response = cloudinary.uploader.upload(
+                file_obj.getvalue(), 
+                folder=folder_name, 
+                resource_type="raw",
+                public_id=file_obj.name # Menyimpan nama asli file
+            )
+            return response.get('secure_url')
+        except Exception as e: 
+            st.error(f"Gagal upload datalog {file_obj.name}: {e}")
+            return None
+    return None
+
 def tampilkan_grid_foto(url_data, caption=""):
     if not url_data: return
     urls = []
@@ -355,8 +372,8 @@ if menu == "📝 Form Preventive Check":
             grd_photos = st.file_uploader("Foto Grounding (Bisa >1)", accept_multiple_files=True, key="grd")
 
     with tabs[5]:
-        st.markdown("📂 **Upload Datalog (Semua Format):**")
-        datalog_files = st.file_uploader("Upload .csv, .xlsx, .txt, dll", accept_multiple_files=True, key="datalog_all")
+        st.markdown("📂 **Upload Datalog (Bisa .csv, .xlsx, .zip, dll):**")
+        datalog_files = st.file_uploader("Semua file tersimpan utuh", accept_multiple_files=True, key="datalog_all")
         st.divider()
         action_taken = st.text_area("🔧 Rincian Pekerjaan & Action di Lapangan:")
         sparepart_needed = st.text_input("📦 Penggantian Sparepart:")
@@ -373,10 +390,11 @@ if menu == "📝 Form Preventive Check":
                     url_gensets = upload_multiple_images(genset_photos, "prev_genset")
                     url_grds = upload_multiple_images(grd_photos, "prev_grd")
                     
+                    # PROSES UPLOAD DATALOG MENGGUNAKAN JALUR KHUSUS RAW
                     datalog_urls = []
                     if datalog_files:
                         for df in datalog_files:
-                            du = upload_image(df, "prev_datalog")
+                            du = upload_datalog(df, "prev_datalog")
                             if du: datalog_urls.append({"name": df.name, "url": du})
 
                     p_res = []
@@ -439,7 +457,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 
             with st.expander(f"📍 {r.get('site_name', 'Unknown')} | {r.get('timestamp', '')} | Status: {r.get('status', '')}"):
                 
-                # --- TOMBOL GENERATE PDF BAST ---
                 if st.checkbox("📄 Buat Berita Acara (PDF)", key=f"prep_pdf_{i}"):
                     with st.spinner("Menyiapkan Resolusi Tinggi Dokumen Berita Acara & Foto..."):
                         try:
@@ -464,7 +481,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 st.markdown(f"**Action:** {r.get('action', '-')}")
                 if r.get('sparepart'): st.warning(f"**Sparepart:** {r['sparepart']}")
                 
-                ltab1, ltab2, ltab3, ltab4, ltab5 = st.tabs(["1. Fisik", "2. Panel SPS", "3. Recti & Genset", "4. Baterai & Gnd", "5. File"])
+                ltab1, ltab2, ltab3, ltab4, ltab5 = st.tabs(["1. Fisik", "2. Panel SPS", "3. Recti & Genset", "4. Baterai & Gnd", "5. File Datalog"])
                 
                 with ltab1:
                     st.write(f"- Kondisi Site: {r.get('site_cond', '-')} | Tower: {r.get('tower_cond', '-')} | Shading: {r.get('shading_status', '-')}")
@@ -514,23 +531,25 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     tampilkan_grid_foto(r.get('extras_baterai'), "📸 Tambahan Baterai & Grounding")
 
                 with ltab5:
+                    st.markdown("📂 **Datalog Universal yang Tersimpan:**")
                     dls = r.get('datalog_files', [])
-                    for dl in dls: st.markdown(f"- [{dl['name']}]({dl['url']})")
+                    if dls:
+                        for dl in dls:
+                            st.markdown(f"- 🔗 [{dl['name']}]({dl['url']})")
+                    else:
+                        st.info("Tidak ada file datalog diunggah pada site ini.")
 
                 st.divider()
-                # --- UPDATE BAGIAN EDIT DI SINI (ADA NAMA SITE, NOP, STATUS) ---
-                st.markdown("### 🛠️ EDIT DATA LENGKAP & TAMBAH FOTO")
+                st.markdown("### 🛠️ EDIT DATA LENGKAP & TAMBAH FILE")
                 with st.container(border=True):
                     c_edit1, c_edit2 = st.columns(2)
                     
                     with c_edit1:
                         new_site = st.text_input("Edit Nama Site / ID", r.get('site_name',''), key=f"esite_{i}")
-                        
                         nop_options = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
                         curr_nop = r.get('nop', 'Palangkaraya')
                         if curr_nop not in nop_options: curr_nop = "Lainnya"
                         new_nop = st.selectbox("Edit NOP Area", nop_options, index=nop_options.index(curr_nop), key=f"enop_{i}")
-                        
                         new_tek = st.text_input("Edit Teknisi", r.get('teknisi',''), key=f"et_{i}")
                         
                     with c_edit2:
@@ -538,41 +557,43 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         curr_stat = r.get('status', 'Normal')
                         if curr_stat not in status_options: curr_stat = "Normal"
                         new_status = st.selectbox("Edit Status Akhir", status_options, index=status_options.index(curr_stat), key=f"estat_{i}")
-                        
                         new_sp = st.text_input("Edit Sparepart", r.get('sparepart',''), key=f"es_{i}")
                         
                     new_act = st.text_area("Edit Action / Tindakan", r.get('action',''), key=f"ea_{i}")
                     
-                    st.markdown("**Tambah Foto Susulan Bebas:**")
-                    up_f = st.file_uploader("Fisik / Shading", accept_multiple_files=True, key=f"uf_{i}")
-                    up_p = st.file_uploader("Panel Surya", accept_multiple_files=True, key=f"up_{i}")
-                    up_b = st.file_uploader("Baterai / Grounding", accept_multiple_files=True, key=f"ub_{i}")
-                    up_e = st.file_uploader("Elektrikal / Mesin", accept_multiple_files=True, key=f"ue_{i}")
+                    st.markdown("**Tambah Lampiran (Foto & Datalog) Susulan:**")
+                    up_f = st.file_uploader("📸 Fisik / Shading", accept_multiple_files=True, key=f"uf_{i}")
+                    up_p = st.file_uploader("📸 Panel Surya", accept_multiple_files=True, key=f"up_{i}")
+                    up_b = st.file_uploader("📸 Baterai / Grounding", accept_multiple_files=True, key=f"ub_{i}")
+                    up_e = st.file_uploader("📸 Elektrikal / Mesin", accept_multiple_files=True, key=f"ue_{i}")
+                    up_dl = st.file_uploader("📂 Datalog (Zip, Csv, xlsx)", accept_multiple_files=True, key=f"udl_{i}")
 
                     if st.button("💾 Simpan Edit ke Spreadsheet", key=f"btn_{i}", type="primary"):
                         with st.spinner("Sinkronisasi Update ke Spreadsheet..."):
-                            # 1. Update data di memori aplikasi
-                            r['site_name'] = new_site
-                            r['nop'] = new_nop
-                            r['status'] = new_status
-                            r['teknisi'] = new_tek
-                            r['action'] = new_act
-                            r['sparepart'] = new_sp
+                            r['site_name'], r['nop'], r['status'] = new_site, new_nop, new_status
+                            r['teknisi'], r['action'], r['sparepart'] = new_tek, new_act, new_sp
                             
                             if up_f: r['extras_fisik'] = r.get('extras_fisik', []) + upload_multiple_images(up_f)
                             if up_p: r['extras_panel'] = r.get('extras_panel', []) + upload_multiple_images(up_p)
                             if up_b: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_b)
                             if up_e: r['extras_elektrikal'] = r.get('extras_elektrikal', []) + upload_multiple_images(up_e)
                             
-                            # 2. Tembak update ke kolom spesifik di Google Sheets
+                            # PROSES UPLOAD DATALOG TAMBAHAN DI MENU EDIT
+                            if up_dl:
+                                new_datalog = []
+                                for df in up_dl:
+                                    du = upload_datalog(df, "prev_datalog")
+                                    if du: new_datalog.append({"name": df.name, "url": du})
+                                r['datalog_files'] = r.get('datalog_files', []) + new_datalog
+                            
                             sheet = connect_gsheets()
                             if sheet:
-                                row_num = i + 2 # Header di baris 1, jadi data mulai baris 2
-                                sheet.update_cell(row_num, 2, new_site)   # Kolom B
-                                sheet.update_cell(row_num, 3, new_nop)    # Kolom C
-                                sheet.update_cell(row_num, 4, new_tek)    # Kolom D
-                                sheet.update_cell(row_num, 5, new_status) # Kolom E
-                                sheet.update_cell(row_num, 6, json.dumps(r)) # Kolom F
+                                row_num = i + 2 
+                                sheet.update_cell(row_num, 2, new_site)
+                                sheet.update_cell(row_num, 3, new_nop)
+                                sheet.update_cell(row_num, 4, new_tek)
+                                sheet.update_cell(row_num, 5, new_status)
+                                sheet.update_cell(row_num, 6, json.dumps(r))
                                 st.cache_data.clear() 
-                        st.success("✅ Perubahan Data, Teks, & Foto tersimpan permanen di Google Sheets!")
+                        st.success("✅ Perubahan Data, Foto & Datalog tersimpan permanen di Google Sheets!")
                         st.rerun()
