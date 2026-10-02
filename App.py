@@ -462,43 +462,34 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         with col_m3: st.metric("Cloud Storage", "Cloudinary", "Active")
         
         # ---------------------------------------------------------------------
-        # TABEL EXCEL FLAT MENYAMPING (SEPERTI REFERENSI GAMBAR)
+        # TABEL EXCEL FLAT MENYAMPING (PROFESSIONAL CORPORATE FORMAT)
         # ---------------------------------------------------------------------
         st.markdown("### 📥 Ekspor Laporan Rekapitulasi (Flat Database)")
         
         summary_list = []
         for r in db:
-            # Hitung Baterai & Panel
             panel_issues = [p.get('Panel', 'Panel') for p in r.get('panel_data', []) if p.get('kondisi') and p.get('kondisi') != "Baik"]
-            panel_rusak_count = len(panel_issues)
-            panel_rusak_detail = ", ".join(panel_issues) if panel_issues else "Aman (Baik)"
-
             bat_issues = [b.get('Baterai', 'Baterai') for b in r.get('battery_data', []) if b.get('Kondisi') and b.get('Kondisi') != "Normal"]
-            bat_rusak_count = len(bat_issues)
-            bat_rusak_detail = ", ".join(bat_issues) if bat_issues else "Aman (Normal)"
 
-            # Urutan 5 kolom pertama dibuat PERSIS seperti gambar screenshot
             summary_list.append({
                 "Timestamp": r.get('timestamp', '-'),
                 "Nama Site": r.get('site_name', '-'),
                 "NOP": r.get('nop', '-'),
                 "Teknisi": r.get('teknisi', '-'),
                 "Status Akhir": r.get('status', '-'),
-                
-                # Dilanjutkan menyamping untuk detail teknisnya
                 "Kondisi Site": r.get('site_cond', '-'),
                 "Fisik Tower": r.get('tower_cond', '-'),
                 "Shading Panel": r.get('shading_status', '-'),
-                "SPS Rusak (Jml)": panel_rusak_count,
-                "SPS Rusak (Detail)": panel_rusak_detail,
+                "SPS Rusak (Jml)": len(panel_issues),
+                "SPS Rusak (Detail)": ", ".join(panel_issues) if panel_issues else "Aman (Baik)",
                 "Load Beban (A)": r.get('total_load', '-'),
                 "PLN": r.get('pln_status', '-'),
                 "Rectifier (Merek)": r.get('rect_brand', '-'),
                 "Voltase Recti (V)": r.get('rect_out_v', '-'),
                 "Genset": r.get('genset_status', '-'),
                 "Level BBM (%)": r.get('fuel_pct', '-'),
-                "Baterai Rusak (Jml)": bat_rusak_count,
-                "Baterai Rusak (Detail)": bat_rusak_detail,
+                "Baterai Rusak (Jml)": len(bat_issues),
+                "Baterai Rusak (Detail)": ", ".join(bat_issues) if bat_issues else "Aman (Normal)",
                 "Grounding (Ohm)": r.get('earth_ohm', '-'),
                 "Action / Pekerjaan": r.get('action', '-'),
                 "Sparepart Diganti": r.get('sparepart', '-')
@@ -509,40 +500,58 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         try:
             excel_buffer = BytesIO()
             with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-                # Flat database dimulai murni dari A1 tanpa row kosong di atasnya
+                # Menulis Data Murni dari Baris A1 (Tanpa Spasi Kosong)
                 df_export.to_excel(writer, index=False, sheet_name='Database PM')
+                workbook = writer.book
                 worksheet = writer.sheets['Database PM']
                 
-                # Format Header Flat (Cuma Bold standar dan border)
-                header_format = writer.book.add_format({
-                    'bold': True, 'border': 1, 'valign': 'vcenter', 'align': 'left'
+                # Desain Header Biru Gelap Mewah & Profesional
+                header_format = workbook.add_format({
+                    'bold': True, 
+                    'font_color': 'white', 
+                    'bg_color': '#112240',
+                    'border': 1, 
+                    'align': 'center', 
+                    'valign': 'vcenter'
                 })
                 
+                # Timpa (Overwrite) Header Bawaan Pandas dengan Header Mewah
                 for col_num, value in enumerate(df_export.columns.values):
                     worksheet.write(0, col_num, value, header_format)
 
-                # Set Lebar Kolom agar rapi saat dibuka
-                worksheet.set_column('A:A', 20) # Timestamp
-                worksheet.set_column('B:B', 15) # Nama Site
-                worksheet.set_column('C:C', 15) # NOP
-                worksheet.set_column('D:D', 20) # Teknisi
-                worksheet.set_column('E:E', 15) # Status Akhir
-                worksheet.set_column('F:I', 18) 
-                worksheet.set_column('J:J', 25) 
-                worksheet.set_column('K:S', 15)
-                worksheet.set_column('T:U', 40) # Action & Sparepart lebih lebar
+                # Desain Kolom Isi Data (Ada yang di Tengah, Ada Rata Kiri untuk Teks Panjang)
+                cell_center = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
+                cell_left = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
+
+                # Konfigurasi Ukuran Lebar & Desain Tiap Kolom Secara Presisi
+                col_formats = [
+                    (20, cell_center), (18, cell_center), (15, cell_center), (20, cell_center), (15, cell_center), # Time to Status
+                    (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), (25, cell_left),   # Kondisi to SPS Detail
+                    (15, cell_center), (15, cell_center), (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), # Load to BBM
+                    (18, cell_center), (25, cell_left), (15, cell_center), (40, cell_left), (30, cell_left)        # Bat to Sparepart
+                ]
+
+                # Menerapkan Konfigurasi Kolom
+                for i, (w, fmt) in enumerate(col_formats):
+                    worksheet.set_column(i, i, w, fmt)
+
+                # FITUR CANGGIH: Bekukan baris pertama agar tidak hilang saat di-scroll
+                worksheet.freeze_panes(1, 0)
+                
+                # FITUR CANGGIH: Nyalakan Auto-Filter di semua Header Otomatis
+                worksheet.autofilter(0, 0, len(df_export), len(df_export.columns) - 1)
                 
             file_data = excel_buffer.getvalue()
-            file_name = f"Database_PM_Flat_{datetime.date.today()}.xlsx"
+            file_name = f"Database_PM_Master_{datetime.date.today()}.xlsx"
             mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            st.success("Tabel Excel Horizontal berhasil di-generate sesuai struktur standar.")
+            st.success("Tabel Excel Super Rapi siap diunduh! Lengkap dengan Auto-Filter dan Freeze Panes.")
         except Exception:
             file_data = df_export.to_csv(index=False, sep=";").encode('utf-8')
-            file_name = f"Database_PM_Flat_{datetime.date.today()}.csv"
+            file_name = f"Database_PM_Master_{datetime.date.today()}.csv"
             mime_type = "text/csv"
 
         st.download_button(
-            label="📊 Download Database Laporan (Format Tabel Horizontal)",
+            label="📊 Download Database Laporan (Format Master Excel)",
             data=file_data,
             file_name=file_name,
             mime=mime_type,
