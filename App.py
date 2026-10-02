@@ -462,31 +462,31 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         with col_m3: st.metric("Cloud Storage", "Cloudinary", "Active")
         
         # ---------------------------------------------------------------------
-        # TABEL EXCEL MENYAMPING (HORIZONTAL) & EKSTRAKSI DATA OTOMATIS
+        # TABEL EXCEL FLAT MENYAMPING (SEPERTI REFERENSI GAMBAR)
         # ---------------------------------------------------------------------
-        st.markdown("### 📥 Ekspor Laporan Rekapitulasi (Format Tabel Menyamping)")
+        st.markdown("### 📥 Ekspor Laporan Rekapitulasi (Flat Database)")
         
         summary_list = []
-        for idx, r in enumerate(db, 1):
-            # Kalkulasi Panel Bermasalah (Rusak/Kotor)
+        for r in db:
+            # Hitung Baterai & Panel
             panel_issues = [p.get('Panel', 'Panel') for p in r.get('panel_data', []) if p.get('kondisi') and p.get('kondisi') != "Baik"]
             panel_rusak_count = len(panel_issues)
             panel_rusak_detail = ", ".join(panel_issues) if panel_issues else "Aman (Baik)"
 
-            # Kalkulasi Baterai Bermasalah (Bengkak/Korosi)
             bat_issues = [b.get('Baterai', 'Baterai') for b in r.get('battery_data', []) if b.get('Kondisi') and b.get('Kondisi') != "Normal"]
             bat_rusak_count = len(bat_issues)
             bat_rusak_detail = ", ".join(bat_issues) if bat_issues else "Aman (Normal)"
 
-            # Susun secara Horizontal (Menyamping)
+            # Urutan 5 kolom pertama dibuat PERSIS seperti gambar screenshot
             summary_list.append({
-                "No.": idx,
-                "Tanggal Inspeksi": r.get('timestamp', '-'),
-                "Site ID / Nama": r.get('site_name', '-'),
-                "NOP Area": r.get('nop', '-'),
-                "PIC Teknisi": r.get('teknisi', '-'),
+                "Timestamp": r.get('timestamp', '-'),
+                "Nama Site": r.get('site_name', '-'),
+                "NOP": r.get('nop', '-'),
+                "Teknisi": r.get('teknisi', '-'),
                 "Status Akhir": r.get('status', '-'),
-                "Kondisi Lingkungan": r.get('site_cond', '-'),
+                
+                # Dilanjutkan menyamping untuk detail teknisnya
+                "Kondisi Site": r.get('site_cond', '-'),
                 "Fisik Tower": r.get('tower_cond', '-'),
                 "Shading Panel": r.get('shading_status', '-'),
                 "SPS Rusak (Jml)": panel_rusak_count,
@@ -509,52 +509,36 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         try:
             excel_buffer = BytesIO()
             with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-                # Tulis tabel mulai dari baris ke-3 agar atasnya bisa diisi Judul
-                df_export.to_excel(writer, index=False, sheet_name='Database Laporan', startrow=2)
-                workbook  = writer.book
-                worksheet = writer.sheets['Database Laporan']
+                # Flat database dimulai murni dari A1 tanpa row kosong di atasnya
+                df_export.to_excel(writer, index=False, sheet_name='Database PM')
+                worksheet = writer.sheets['Database PM']
                 
-                # Format Header Laporan Utama
-                title_format = workbook.add_format({'bold': True, 'font_size': 14, 'color': '#0A192F'})
-                worksheet.write('A1', 'DATABASE PREVENTIVE MAINTENANCE SITE', title_format)
-                worksheet.write('A2', f'Diekspor pada: {datetime.date.today()}')
-                
-                # Format Kepala Tabel (Kolom)
-                header_format = workbook.add_format({
-                    'bold': True, 'bg_color': '#0A192F', 'font_color': 'white', 
-                    'border': 1, 'align': 'center', 'valign': 'vcenter'
+                # Format Header Flat (Cuma Bold standar dan border)
+                header_format = writer.book.add_format({
+                    'bold': True, 'border': 1, 'valign': 'vcenter', 'align': 'left'
                 })
-                for col_num, value in enumerate(df_export.columns.values):
-                    worksheet.write(2, col_num, value, header_format)
-
-                # Atur lebar kolom yang proporsional ke samping
-                cell_center = workbook.add_format({'align': 'center', 'valign': 'top', 'border': 1})
-                cell_left = workbook.add_format({'align': 'left', 'valign': 'top', 'border': 1, 'text_wrap': True})
-
-                widths = [
-                    5, 20, 20, 15, 18, 15, # No - Status
-                    20, 15, 15, 14, 25,    # Lingkungan - SPS
-                    15, 15, 18, 15, 15, 12, # Load - BBM
-                    16, 25, 15, 40, 25     # Baterai - Sparepart
-                ]
-
-                for i, width in enumerate(widths):
-                    # Kolom angka/status pendek di-center
-                    if i in [0, 3, 5, 8, 9, 11, 12, 14, 16, 17, 19]:
-                        worksheet.set_column(i, i, width, cell_center)
-                    else: # Kolom teks panjang left-align & wrap
-                        worksheet.set_column(i, i, width, cell_left)
                 
-                # Tambahkan Auto-Filter untuk mudah sortir di Excel
-                worksheet.autofilter(2, 0, len(df_export)+2, len(df_export.columns)-1)
+                for col_num, value in enumerate(df_export.columns.values):
+                    worksheet.write(0, col_num, value, header_format)
+
+                # Set Lebar Kolom agar rapi saat dibuka
+                worksheet.set_column('A:A', 20) # Timestamp
+                worksheet.set_column('B:B', 15) # Nama Site
+                worksheet.set_column('C:C', 15) # NOP
+                worksheet.set_column('D:D', 20) # Teknisi
+                worksheet.set_column('E:E', 15) # Status Akhir
+                worksheet.set_column('F:I', 18) 
+                worksheet.set_column('J:J', 25) 
+                worksheet.set_column('K:S', 15)
+                worksheet.set_column('T:U', 40) # Action & Sparepart lebih lebar
                 
             file_data = excel_buffer.getvalue()
-            file_name = f"Database_Laporan_PM_{datetime.date.today()}.xlsx"
+            file_name = f"Database_PM_Flat_{datetime.date.today()}.xlsx"
             mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            st.success("Tabel Excel Horizontal dengan Auto-Filter siap diunduh!")
+            st.success("Tabel Excel Horizontal berhasil di-generate sesuai struktur standar.")
         except Exception:
             file_data = df_export.to_csv(index=False, sep=";").encode('utf-8')
-            file_name = f"Database_Laporan_PM_{datetime.date.today()}.csv"
+            file_name = f"Database_PM_Flat_{datetime.date.today()}.csv"
             mime_type = "text/csv"
 
         st.download_button(
