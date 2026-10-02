@@ -20,13 +20,10 @@ st.set_page_config(page_title="PM Dashboard - Okta Pradika", page_icon="⚡", la
 
 st.markdown("""
     <style>
-        /* Mengubah warna teks header utama */
         h1, h2, h3 {
             color: #64FFDA !important;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        
-        /* Modifikasi kotak Expander agar tampak seperti Card Modern */
         div[data-testid="stExpander"] details {
             border: 1px solid #233554;
             border-radius: 10px;
@@ -45,8 +42,6 @@ st.markdown("""
             color: #CCD6F6 !important;
             padding: 10px;
         }
-
-        /* Modifikasi Tab agar lebih elegan */
         button[role="tab"] {
             font-weight: 600;
             color: #8892B0 !important;
@@ -55,8 +50,6 @@ st.markdown("""
             color: #64FFDA !important;
             border-bottom-color: #64FFDA !important;
         }
-
-        /* Animasi Tombol Utama */
         .stButton>button {
             border-radius: 8px;
             font-weight: bold;
@@ -67,8 +60,6 @@ st.markdown("""
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(100, 255, 218, 0.4);
         }
-
-        /* Footer Kustom Okta Pradika */
         .footer-okta {
             text-align: center;
             padding: 25px;
@@ -335,7 +326,6 @@ menu = st.sidebar.radio("Pilih Operasional:", ["📝 Form Preventive Check", "�
 st.sidebar.markdown("---")
 st.sidebar.info(f"📂 **Database Taut:**\n\n`Report Preventive`\n\n🔗 [Buka Spreadsheet Target](https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit)")
 st.sidebar.markdown("---")
-# BRANDING DI SIDEBAR
 st.sidebar.markdown("<div style='text-align: center; color: #8892B0; font-size: 13px;'>System & Database Architecture<br><b style='color:#64FFDA;'>Created By Okta Pradika</b></div>", unsafe_allow_html=True)
 
 # =========================================================================
@@ -528,8 +518,56 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         with col_m1: st.metric("Total Site Ter-Inspeksi", total_sites)
         with col_m2: st.metric("Database Terhubung", "Google Sheets", "Online")
         with col_m3: st.metric("Cloud Storage", "Cloudinary", "Active")
+        
+        # ---------------------------------------------------------------------
+        # TOMBOL EXPORT SUMMARY KE EXCEL
+        # ---------------------------------------------------------------------
+        st.markdown("### 📥 Ekspor Data Rekapitulasi")
+        summary_list = []
+        for r in db:
+            summary_list.append({
+                "Tanggal": r.get('timestamp', '-'),
+                "Nama Site": r.get('site_name', '-'),
+                "NOP Area": r.get('nop', '-'),
+                "Pelaksana (Teknisi)": r.get('teknisi', '-'),
+                "Status Akhir": r.get('status', '-'),
+                "Action / Tindakan": r.get('action', '-'),
+                "Sparepart Diganti": r.get('sparepart', '-'),
+                "PLN": r.get('pln_status', '-'),
+                "Merek Rectifier": r.get('rect_brand', '-'),
+                "Load Beban (A)": r.get('total_load', '-'),
+                "Output Recti (V)": r.get('rect_out_v', '-'),
+                "Status Genset": r.get('genset_status', '-'),
+                "Level BBM (%)": r.get('fuel_pct', '-'),
+                "Grounding (Ohm)": r.get('earth_ohm', '-')
+            })
+            
+        df_export = pd.DataFrame(summary_list)
+        
+        # Proses Konversi Ke Memori (Excel / CSV fallback)
+        try:
+            excel_buffer = BytesIO()
+            with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+                df_export.to_excel(writer, index=False, sheet_name='Summary Data PM')
+            file_data = excel_buffer.getvalue()
+            file_name = f"Summary_Report_PM_{datetime.date.today()}.xlsx"
+            mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        except Exception:
+            # Fallback otomatis ke CSV jika library engine excel tidak tersedia di Cloud
+            file_data = df_export.to_csv(index=False, sep=";").encode('utf-8')
+            file_name = f"Summary_Report_PM_{datetime.date.today()}.csv"
+            mime_type = "text/csv"
+
+        st.download_button(
+            label="📊 Download Summary Excel (Semua Site)",
+            data=file_data,
+            file_name=file_name,
+            mime=mime_type,
+            use_container_width=True
+        )
         st.divider()
 
+        # Daftar list data per-site
         for i in range(len(db) - 1, -1, -1):
             r = db[i]
             
