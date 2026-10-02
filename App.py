@@ -512,7 +512,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
     if not db:
         st.warning("⚠️ Belum ada data di Spreadsheet / Koneksi Sedang Proses.")
     else:
-        # Tampilkan metrik ringkas di atas
         total_sites = len(db)
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1: st.metric("Total Site Ter-Inspeksi", total_sites)
@@ -520,49 +519,101 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         with col_m3: st.metric("Cloud Storage", "Cloudinary", "Active")
         
         # ---------------------------------------------------------------------
-        # TOMBOL EXPORT SUMMARY KE EXCEL
+        # TOMBOL EXPORT SUMMARY KE EXCEL (PROFESIONAL FORMAT)
         # ---------------------------------------------------------------------
-        st.markdown("### 📥 Ekspor Data Rekapitulasi")
+        st.markdown("### 📥 Ekspor Laporan Rekapitulasi (Management Report)")
+        
+        # Ekstrak data menjadi bentuk temuan naratif
         summary_list = []
-        for r in db:
+        for idx, r in enumerate(db, 1):
+            fisik_info = f"Site: {r.get('site_cond', '-')}\nTower: {r.get('tower_cond', '-')}\nShading: {r.get('shading_status', '-')}"
+            
+            # Cek jika ada panel bermasalah
+            panel_issues = []
+            for p in r.get('panel_data', []):
+                if p.get('kondisi') and p.get('kondisi') != "Baik":
+                    panel_issues.append(f"{p.get('Panel', '-')}: {p.get('kondisi')}")
+            panel_info = ",\n".join(panel_issues) if panel_issues else "Semua Modul Panel Baik"
+            
+            # Cek jika ada baterai bermasalah
+            bat_issues = []
+            for b in r.get('battery_data', []):
+                if b.get('Kondisi') and b.get('Kondisi') != "Normal":
+                    bat_issues.append(f"{b.get('Baterai', '-')}: {b.get('Kondisi')}")
+            bat_info = ",\n".join(bat_issues) if bat_issues else "Semua Bank Baterai Normal"
+            bat_info += f"\n(Gnd: {r.get('earth_ohm', '-')} Ohm)"
+            
+            power_info = f"PLN: {r.get('pln_status', '-')}\nRectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V | Load: {r.get('total_load', '-')}A)\nGenset: {r.get('genset_status', '-')} (BBM: {r.get('fuel_pct', '-')}%)"
+
             summary_list.append({
-                "Tanggal": r.get('timestamp', '-'),
-                "Nama Site": r.get('site_name', '-'),
-                "NOP Area": r.get('nop', '-'),
-                "Pelaksana (Teknisi)": r.get('teknisi', '-'),
-                "Status Akhir": r.get('status', '-'),
+                "No.": idx,
+                "Waktu Inspeksi": r.get('timestamp', '-'),
+                "Nama Site / ID": r.get('site_name', '-'),
+                "Regional (NOP)": r.get('nop', '-'),
+                "Tim Pelaksana": r.get('teknisi', '-'),
+                "Temuan Fisik & Tower": fisik_info,
+                "Temuan Modul Surya": panel_info,
+                "Temuan Baterai & Gnd": bat_info,
+                "Status Kelistrikan": power_info,
                 "Action / Tindakan": r.get('action', '-'),
-                "Sparepart Diganti": r.get('sparepart', '-'),
-                "PLN": r.get('pln_status', '-'),
-                "Merek Rectifier": r.get('rect_brand', '-'),
-                "Load Beban (A)": r.get('total_load', '-'),
-                "Output Recti (V)": r.get('rect_out_v', '-'),
-                "Status Genset": r.get('genset_status', '-'),
-                "Level BBM (%)": r.get('fuel_pct', '-'),
-                "Grounding (Ohm)": r.get('earth_ohm', '-')
+                "Penggunaan Sparepart": r.get('sparepart', '-'),
+                "Status Akhir": r.get('status', '-')
             })
             
         df_export = pd.DataFrame(summary_list)
         
-        # Proses Konversi Ke Memori (Excel / CSV fallback)
         try:
             excel_buffer = BytesIO()
             with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-                df_export.to_excel(writer, index=False, sheet_name='Summary Data PM')
+                df_export.to_excel(writer, index=False, sheet_name='Summary PM', startrow=1)
+                
+                workbook  = writer.book
+                worksheet = writer.sheets['Summary PM']
+                
+                # Format Judul Dokumen
+                title_format = workbook.add_format({'bold': True, 'font_size': 14, 'align': 'center', 'valign': 'vcenter'})
+                worksheet.merge_range('A1:L1', 'REKAPITULASI HASIL PREVENTIVE MAINTENANCE SITE', title_format)
+                
+                # Format Header Tabel
+                header_format = workbook.add_format({
+                    'bold': True, 'text_wrap': True, 'valign': 'top', 'align': 'center',
+                    'fg_color': '#0A192F', 'font_color': 'white', 'border': 1
+                })
+                
+                # Format Isi Cell Standar (Wrap text supaya rapi)
+                cell_format = workbook.add_format({'text_wrap': True, 'valign': 'top', 'border': 1})
+                cell_center = workbook.add_format({'text_wrap': True, 'valign': 'top', 'align': 'center', 'border': 1})
+
+                for col_num, value in enumerate(df_export.columns.values):
+                    worksheet.write(1, col_num, value, header_format)
+
+                # Set Lebar Kolom Otomatis
+                worksheet.set_column('A:A', 5, cell_center)  # No
+                worksheet.set_column('B:B', 20, cell_format) # Waktu
+                worksheet.set_column('C:C', 22, cell_format) # Nama Site
+                worksheet.set_column('D:D', 15, cell_format) # NOP
+                worksheet.set_column('E:E', 20, cell_format) # Tim Pelaksana
+                worksheet.set_column('F:H', 28, cell_format) # Kolom-kolom TEMUAN
+                worksheet.set_column('I:I', 35, cell_format) # Status Kelistrikan
+                worksheet.set_column('J:J', 45, cell_format) # Action / Tindakan
+                worksheet.set_column('K:K', 25, cell_format) # Sparepart
+                worksheet.set_column('L:L', 15, cell_center) # Status Akhir
+                
             file_data = excel_buffer.getvalue()
             file_name = f"Summary_Report_PM_{datetime.date.today()}.xlsx"
             mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            st.success("Tabel Eksekutif (Excel) siap diunduh! Data temuan dan laporan diformat khusus agar siap cetak.")
         except Exception:
-            # Fallback otomatis ke CSV jika library engine excel tidak tersedia di Cloud
             file_data = df_export.to_csv(index=False, sep=";").encode('utf-8')
             file_name = f"Summary_Report_PM_{datetime.date.today()}.csv"
             mime_type = "text/csv"
 
         st.download_button(
-            label="📊 Download Summary Excel (Semua Site)",
+            label="📊 Download Summary Laporan (Format Excel)",
             data=file_data,
             file_name=file_name,
             mime=mime_type,
+            type="primary",
             use_container_width=True
         )
         st.divider()
@@ -667,7 +718,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 
                 st.markdown("<br>", unsafe_allow_html=True)
                 
-                # BAGIAN EDIT YANG LEBIH RAPI
                 with st.container(border=True):
                     st.markdown("<h4 style='color: #8892B0;'>🛠️ REVISI DATA & TAMBAH LAMPIRAN</h4>", unsafe_allow_html=True)
                     c_edit1, c_edit2 = st.columns(2)
