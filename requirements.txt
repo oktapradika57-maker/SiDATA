@@ -6,3 +6,4 @@ gspread
 google-auth
 fpdf2
 requests
+xlsxwriter
