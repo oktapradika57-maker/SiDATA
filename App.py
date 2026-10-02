@@ -500,64 +500,67 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         try:
             excel_buffer = BytesIO()
             with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-                # Menulis Data Murni dari Baris A1 (Tanpa Spasi Kosong)
                 df_export.to_excel(writer, index=False, sheet_name='Database PM')
                 workbook = writer.book
                 worksheet = writer.sheets['Database PM']
                 
-                # Desain Header Biru Gelap Mewah & Profesional
                 header_format = workbook.add_format({
-                    'bold': True, 
-                    'font_color': 'white', 
-                    'bg_color': '#112240',
-                    'border': 1, 
-                    'align': 'center', 
-                    'valign': 'vcenter'
+                    'bold': True, 'font_color': 'white', 'bg_color': '#112240',
+                    'border': 1, 'align': 'center', 'valign': 'vcenter'
                 })
                 
-                # Timpa (Overwrite) Header Bawaan Pandas dengan Header Mewah
                 for col_num, value in enumerate(df_export.columns.values):
                     worksheet.write(0, col_num, value, header_format)
 
-                # Desain Kolom Isi Data (Ada yang di Tengah, Ada Rata Kiri untuk Teks Panjang)
                 cell_center = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
                 cell_left = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
 
-                # Konfigurasi Ukuran Lebar & Desain Tiap Kolom Secara Presisi
                 col_formats = [
-                    (20, cell_center), (18, cell_center), (15, cell_center), (20, cell_center), (15, cell_center), # Time to Status
-                    (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), (25, cell_left),   # Kondisi to SPS Detail
-                    (15, cell_center), (15, cell_center), (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), # Load to BBM
-                    (18, cell_center), (25, cell_left), (15, cell_center), (40, cell_left), (30, cell_left)        # Bat to Sparepart
+                    (20, cell_center), (18, cell_center), (15, cell_center), (20, cell_center), (15, cell_center), 
+                    (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), (25, cell_left),   
+                    (15, cell_center), (15, cell_center), (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), 
+                    (18, cell_center), (25, cell_left), (15, cell_center), (40, cell_left), (30, cell_left)        
                 ]
-
-                # Menerapkan Konfigurasi Kolom
                 for i, (w, fmt) in enumerate(col_formats):
                     worksheet.set_column(i, i, w, fmt)
 
-                # FITUR CANGGIH: Bekukan baris pertama agar tidak hilang saat di-scroll
                 worksheet.freeze_panes(1, 0)
-                
-                # FITUR CANGGIH: Nyalakan Auto-Filter di semua Header Otomatis
                 worksheet.autofilter(0, 0, len(df_export), len(df_export.columns) - 1)
                 
             file_data = excel_buffer.getvalue()
             file_name = f"Database_PM_Master_{datetime.date.today()}.xlsx"
             mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            
+            st.download_button(
+                label="📊 Download Database Laporan (Excel ASLI)",
+                data=file_data,
+                file_name=file_name,
+                mime=mime_type,
+                type="primary",
+                use_container_width=True
+            )
             st.success("Tabel Excel Super Rapi siap diunduh! Lengkap dengan Auto-Filter dan Freeze Panes.")
+            
         except Exception:
-            file_data = df_export.to_csv(index=False, sep=";").encode('utf-8')
-            file_name = f"Database_PM_Master_{datetime.date.today()}.csv"
-            mime_type = "text/csv"
+            # BLOK PERINGATAN JIKA LIBRARY EXCEL BELUM TERINSTAL!
+            st.error("🚨 **SISTEM MENDETEKSI LIBRARY EXCEL BELUM DI-INSTALL!** 🚨\nAplikasi gagal membuat file `.xlsx` yang rapi karena library `xlsxwriter` tidak ditemukan di server/komputer Anda.")
+            st.info("💡 **CARA FIX (Sangat Mudah):**\n1. Jika di komputer lokal, ketik di CMD/Terminal: `pip install xlsxwriter`\n2. Jika di-hosting (Streamlit Cloud/Vercel/dll), tambahkan kata `xlsxwriter` ke dalam file `requirements.txt` Anda.")
+            
+            # Berikan file CSV darurat yang sudah dibersihkan (anti hancur)
+            st.warning("Sementara itu, Anda bisa mendownload versi CSV Darurat di bawah ini:")
+            
+            # Hapus semua karakter "Enter" atau \n agar baris tabel tidak tumpang tindih
+            df_export_safe = df_export.replace(r'\n', ' - ', regex=True).replace(r'\r', '', regex=True)
+            csv_data = df_export_safe.to_csv(index=False, sep=",").encode('utf-8')
+            
+            st.download_button(
+                label="📥 Download Laporan Darurat (Format Raw CSV)",
+                data=csv_data,
+                file_name=f"Database_PM_Darurat_{datetime.date.today()}.csv",
+                mime="text/csv",
+                type="secondary"
+            )
 
-        st.download_button(
-            label="📊 Download Database Laporan (Format Master Excel)",
-            data=file_data,
-            file_name=file_name,
-            mime=mime_type,
-            type="primary",
-            use_container_width=True
-        )
         st.divider()
 
         # Daftar list data per-site
@@ -624,7 +627,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                             bc1, bc2 = st.columns([2, 1])
                             with bc1:
                                 st.markdown(f"**{b.get('Baterai', 'Baterai')}**")
-                                st.write(f"🔹 **Voltase:** {b.get('Voltase', '-') } V  |  🌡️ **Suhu:** {b.get('Suhu', '-') } °C")
+                                st.write(f"🔹 **Voltase:** {b.get('Voltase', '-') } V  |  🌡️️ **Suhu:** {b.get('Suhu', '-') } °C")
                                 st.write(f"🔍 **Kondisi Fisik:** {b.get('Kondisi', '-')}")
                             bat_urls = b.get('URL_Fotos') or b.get('URL_Foto')
                             if bat_urls:
