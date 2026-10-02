@@ -14,68 +14,25 @@ from io import BytesIO
 from PIL import Image
 
 # -------------------------------------------------------------------------
-# SETUP HALAMAN & CUSTOM CSS (TAMPILAN PROFESIONAL)
+# SETUP HALAMAN & CUSTOM CSS
 # -------------------------------------------------------------------------
 st.set_page_config(page_title="PM Dashboard - Okta Pradika", page_icon="⚡", layout="wide")
 
 st.markdown("""
     <style>
-        h1, h2, h3 {
-            color: #64FFDA !important;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        h1, h2, h3 { color: #64FFDA !important; font-family: 'Segoe UI', sans-serif; }
         div[data-testid="stExpander"] details {
-            border: 1px solid #233554;
-            border-radius: 10px;
-            background-color: #112240;
-            margin-bottom: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            transition: all 0.3s ease;
+            border: 1px solid #233554; border-radius: 10px; background-color: #112240;
+            margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); transition: all 0.3s ease;
         }
-        div[data-testid="stExpander"] details:hover {
-            border-color: #64FFDA;
-            box-shadow: 0 6px 12px rgba(100,255,218,0.15);
-        }
-        div[data-testid="stExpander"] summary {
-            font-size: 16px !important;
-            font-weight: 600 !important;
-            color: #CCD6F6 !important;
-            padding: 10px;
-        }
-        button[role="tab"] {
-            font-weight: 600;
-            color: #8892B0 !important;
-        }
-        button[role="tab"][aria-selected="true"] {
-            color: #64FFDA !important;
-            border-bottom-color: #64FFDA !important;
-        }
-        .stButton>button {
-            border-radius: 8px;
-            font-weight: bold;
-            transition: all 0.3s;
-            border: 1px solid #64FFDA;
-        }
-        .stButton>button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(100, 255, 218, 0.4);
-        }
-        .footer-okta {
-            text-align: center;
-            padding: 25px;
-            margin-top: 50px;
-            color: #8892B0;
-            font-size: 15px;
-            border-top: 1px solid #233554;
-            background-color: #0A192F;
-            border-radius: 10px;
-        }
-        .footer-okta span {
-            color: #64FFDA;
-            font-weight: 800;
-            letter-spacing: 1px;
-            font-size: 16px;
-        }
+        div[data-testid="stExpander"] details:hover { border-color: #64FFDA; box-shadow: 0 6px 12px rgba(100,255,218,0.15); }
+        div[data-testid="stExpander"] summary { font-size: 16px !important; font-weight: 600 !important; color: #CCD6F6 !important; padding: 10px; }
+        button[role="tab"] { font-weight: 600; color: #8892B0 !important; }
+        button[role="tab"][aria-selected="true"] { color: #64FFDA !important; border-bottom-color: #64FFDA !important; }
+        .stButton>button { border-radius: 8px; font-weight: bold; transition: all 0.3s; border: 1px solid #64FFDA; }
+        .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(100, 255, 218, 0.4); }
+        .footer-okta { text-align: center; padding: 25px; margin-top: 50px; color: #8892B0; font-size: 15px; border-top: 1px solid #233554; background-color: #0A192F; border-radius: 10px; }
+        .footer-okta span { color: #64FFDA; font-weight: 800; letter-spacing: 1px; font-size: 16px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -108,12 +65,7 @@ def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
 def upload_datalog(file_obj, folder_name="prev_datalog"):
     if file_obj is not None:
         try:
-            response = cloudinary.uploader.upload(
-                file_obj.getvalue(), 
-                folder=folder_name, 
-                resource_type="raw",
-                public_id=file_obj.name 
-            )
+            response = cloudinary.uploader.upload(file_obj.getvalue(), folder=folder_name, resource_type="raw", public_id=file_obj.name)
             return response.get('secure_url')
         except Exception as e: 
             st.error(f"Gagal upload datalog {file_obj.name}: {e}")
@@ -139,8 +91,7 @@ def tampilkan_grid_foto(url_data, caption=""):
 # -------------------------------------------------------------------------
 def optimize_cloudinary_url(url):
     if not isinstance(url, str): return ""
-    if "upload/v" in url: 
-        return url.replace("upload/v", "upload/c_limit,w_1200,q_auto:best/v")
+    if "upload/v" in url: return url.replace("upload/v", "upload/c_limit,w_1200,q_auto:best/v")
     return url
 
 def clean_text(text):
@@ -221,11 +172,9 @@ def build_pdf(r):
     def draw_photo_grid(url_list, title):
         urls = [u for u in url_list if isinstance(u, str) and u.startswith("http")]
         if not urls: return
-        
         pdf.set_font("helvetica", "B", 11)
         pdf.cell(0, 8, clean_text(title), ln=True)
         max_img_w = 160 
-        
         for u in urls:
             opt_url = optimize_cloudinary_url(u)
             try:
@@ -235,16 +184,11 @@ def build_pdf(r):
                     w_orig, h_orig = img.size
                     calc_h = (max_img_w / w_orig) * h_orig
                     img_w_adj = max_img_w
-                    
                     if calc_h > 240: 
                         calc_h = 240
                         img_w_adj = (calc_h / h_orig) * w_orig
-                    
-                    if pdf.get_y() + calc_h > 275: 
-                        pdf.add_page()
-                    
-                    x_pos = (210 - img_w_adj) / 2
-                    pdf.image(img, x=x_pos, y=pdf.get_y(), w=img_w_adj)
+                    if pdf.get_y() + calc_h > 275: pdf.add_page()
+                    pdf.image(img, x=(210 - img_w_adj)/2, y=pdf.get_y(), w=img_w_adj)
                     pdf.set_y(pdf.get_y() + calc_h + 10)
                 else:
                     pdf.set_font("helvetica", "I", 10)
@@ -277,8 +221,7 @@ def build_pdf(r):
     bat_urls.extend(r.get('extras_baterai') or [])
     draw_photo_grid(bat_urls, "D. Dokumentasi Bank Baterai & Grounding")
 
-    try:
-        return bytes(pdf.output())
+    try: return bytes(pdf.output())
     except Exception:
         out = pdf.output(dest='S')
         return out.encode('latin-1', 'ignore') if isinstance(out, str) else out
@@ -519,45 +462,46 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         with col_m3: st.metric("Cloud Storage", "Cloudinary", "Active")
         
         # ---------------------------------------------------------------------
-        # TOMBOL EXPORT SUMMARY KE EXCEL (PROFESIONAL FORMAT)
+        # TABEL EXCEL MENYAMPING (HORIZONTAL) & EKSTRAKSI DATA OTOMATIS
         # ---------------------------------------------------------------------
-        st.markdown("### 📥 Ekspor Laporan Rekapitulasi (Management Report)")
+        st.markdown("### 📥 Ekspor Laporan Rekapitulasi (Format Tabel Menyamping)")
         
-        # Ekstrak data menjadi bentuk temuan naratif
         summary_list = []
         for idx, r in enumerate(db, 1):
-            fisik_info = f"Site: {r.get('site_cond', '-')}\nTower: {r.get('tower_cond', '-')}\nShading: {r.get('shading_status', '-')}"
-            
-            # Cek jika ada panel bermasalah
-            panel_issues = []
-            for p in r.get('panel_data', []):
-                if p.get('kondisi') and p.get('kondisi') != "Baik":
-                    panel_issues.append(f"{p.get('Panel', '-')}: {p.get('kondisi')}")
-            panel_info = ",\n".join(panel_issues) if panel_issues else "Semua Modul Panel Baik"
-            
-            # Cek jika ada baterai bermasalah
-            bat_issues = []
-            for b in r.get('battery_data', []):
-                if b.get('Kondisi') and b.get('Kondisi') != "Normal":
-                    bat_issues.append(f"{b.get('Baterai', '-')}: {b.get('Kondisi')}")
-            bat_info = ",\n".join(bat_issues) if bat_issues else "Semua Bank Baterai Normal"
-            bat_info += f"\n(Gnd: {r.get('earth_ohm', '-')} Ohm)"
-            
-            power_info = f"PLN: {r.get('pln_status', '-')}\nRectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V | Load: {r.get('total_load', '-')}A)\nGenset: {r.get('genset_status', '-')} (BBM: {r.get('fuel_pct', '-')}%)"
+            # Kalkulasi Panel Bermasalah (Rusak/Kotor)
+            panel_issues = [p.get('Panel', 'Panel') for p in r.get('panel_data', []) if p.get('kondisi') and p.get('kondisi') != "Baik"]
+            panel_rusak_count = len(panel_issues)
+            panel_rusak_detail = ", ".join(panel_issues) if panel_issues else "Aman (Baik)"
 
+            # Kalkulasi Baterai Bermasalah (Bengkak/Korosi)
+            bat_issues = [b.get('Baterai', 'Baterai') for b in r.get('battery_data', []) if b.get('Kondisi') and b.get('Kondisi') != "Normal"]
+            bat_rusak_count = len(bat_issues)
+            bat_rusak_detail = ", ".join(bat_issues) if bat_issues else "Aman (Normal)"
+
+            # Susun secara Horizontal (Menyamping)
             summary_list.append({
                 "No.": idx,
-                "Waktu Inspeksi": r.get('timestamp', '-'),
-                "Nama Site / ID": r.get('site_name', '-'),
-                "Regional (NOP)": r.get('nop', '-'),
-                "Tim Pelaksana": r.get('teknisi', '-'),
-                "Temuan Fisik & Tower": fisik_info,
-                "Temuan Modul Surya": panel_info,
-                "Temuan Baterai & Gnd": bat_info,
-                "Status Kelistrikan": power_info,
-                "Action / Tindakan": r.get('action', '-'),
-                "Penggunaan Sparepart": r.get('sparepart', '-'),
-                "Status Akhir": r.get('status', '-')
+                "Tanggal Inspeksi": r.get('timestamp', '-'),
+                "Site ID / Nama": r.get('site_name', '-'),
+                "NOP Area": r.get('nop', '-'),
+                "PIC Teknisi": r.get('teknisi', '-'),
+                "Status Akhir": r.get('status', '-'),
+                "Kondisi Lingkungan": r.get('site_cond', '-'),
+                "Fisik Tower": r.get('tower_cond', '-'),
+                "Shading Panel": r.get('shading_status', '-'),
+                "SPS Rusak (Jml)": panel_rusak_count,
+                "SPS Rusak (Detail)": panel_rusak_detail,
+                "Load Beban (A)": r.get('total_load', '-'),
+                "PLN": r.get('pln_status', '-'),
+                "Rectifier (Merek)": r.get('rect_brand', '-'),
+                "Voltase Recti (V)": r.get('rect_out_v', '-'),
+                "Genset": r.get('genset_status', '-'),
+                "Level BBM (%)": r.get('fuel_pct', '-'),
+                "Baterai Rusak (Jml)": bat_rusak_count,
+                "Baterai Rusak (Detail)": bat_rusak_detail,
+                "Grounding (Ohm)": r.get('earth_ohm', '-'),
+                "Action / Pekerjaan": r.get('action', '-'),
+                "Sparepart Diganti": r.get('sparepart', '-')
             })
             
         df_export = pd.DataFrame(summary_list)
@@ -565,51 +509,56 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         try:
             excel_buffer = BytesIO()
             with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-                df_export.to_excel(writer, index=False, sheet_name='Summary PM', startrow=1)
-                
+                # Tulis tabel mulai dari baris ke-3 agar atasnya bisa diisi Judul
+                df_export.to_excel(writer, index=False, sheet_name='Database Laporan', startrow=2)
                 workbook  = writer.book
-                worksheet = writer.sheets['Summary PM']
+                worksheet = writer.sheets['Database Laporan']
                 
-                # Format Judul Dokumen
-                title_format = workbook.add_format({'bold': True, 'font_size': 14, 'align': 'center', 'valign': 'vcenter'})
-                worksheet.merge_range('A1:L1', 'REKAPITULASI HASIL PREVENTIVE MAINTENANCE SITE', title_format)
+                # Format Header Laporan Utama
+                title_format = workbook.add_format({'bold': True, 'font_size': 14, 'color': '#0A192F'})
+                worksheet.write('A1', 'DATABASE PREVENTIVE MAINTENANCE SITE', title_format)
+                worksheet.write('A2', f'Diekspor pada: {datetime.date.today()}')
                 
-                # Format Header Tabel
+                # Format Kepala Tabel (Kolom)
                 header_format = workbook.add_format({
-                    'bold': True, 'text_wrap': True, 'valign': 'top', 'align': 'center',
-                    'fg_color': '#0A192F', 'font_color': 'white', 'border': 1
+                    'bold': True, 'bg_color': '#0A192F', 'font_color': 'white', 
+                    'border': 1, 'align': 'center', 'valign': 'vcenter'
                 })
-                
-                # Format Isi Cell Standar (Wrap text supaya rapi)
-                cell_format = workbook.add_format({'text_wrap': True, 'valign': 'top', 'border': 1})
-                cell_center = workbook.add_format({'text_wrap': True, 'valign': 'top', 'align': 'center', 'border': 1})
-
                 for col_num, value in enumerate(df_export.columns.values):
-                    worksheet.write(1, col_num, value, header_format)
+                    worksheet.write(2, col_num, value, header_format)
 
-                # Set Lebar Kolom Otomatis
-                worksheet.set_column('A:A', 5, cell_center)  # No
-                worksheet.set_column('B:B', 20, cell_format) # Waktu
-                worksheet.set_column('C:C', 22, cell_format) # Nama Site
-                worksheet.set_column('D:D', 15, cell_format) # NOP
-                worksheet.set_column('E:E', 20, cell_format) # Tim Pelaksana
-                worksheet.set_column('F:H', 28, cell_format) # Kolom-kolom TEMUAN
-                worksheet.set_column('I:I', 35, cell_format) # Status Kelistrikan
-                worksheet.set_column('J:J', 45, cell_format) # Action / Tindakan
-                worksheet.set_column('K:K', 25, cell_format) # Sparepart
-                worksheet.set_column('L:L', 15, cell_center) # Status Akhir
+                # Atur lebar kolom yang proporsional ke samping
+                cell_center = workbook.add_format({'align': 'center', 'valign': 'top', 'border': 1})
+                cell_left = workbook.add_format({'align': 'left', 'valign': 'top', 'border': 1, 'text_wrap': True})
+
+                widths = [
+                    5, 20, 20, 15, 18, 15, # No - Status
+                    20, 15, 15, 14, 25,    # Lingkungan - SPS
+                    15, 15, 18, 15, 15, 12, # Load - BBM
+                    16, 25, 15, 40, 25     # Baterai - Sparepart
+                ]
+
+                for i, width in enumerate(widths):
+                    # Kolom angka/status pendek di-center
+                    if i in [0, 3, 5, 8, 9, 11, 12, 14, 16, 17, 19]:
+                        worksheet.set_column(i, i, width, cell_center)
+                    else: # Kolom teks panjang left-align & wrap
+                        worksheet.set_column(i, i, width, cell_left)
+                
+                # Tambahkan Auto-Filter untuk mudah sortir di Excel
+                worksheet.autofilter(2, 0, len(df_export)+2, len(df_export.columns)-1)
                 
             file_data = excel_buffer.getvalue()
-            file_name = f"Summary_Report_PM_{datetime.date.today()}.xlsx"
+            file_name = f"Database_Laporan_PM_{datetime.date.today()}.xlsx"
             mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            st.success("Tabel Eksekutif (Excel) siap diunduh! Data temuan dan laporan diformat khusus agar siap cetak.")
+            st.success("Tabel Excel Horizontal dengan Auto-Filter siap diunduh!")
         except Exception:
             file_data = df_export.to_csv(index=False, sep=";").encode('utf-8')
-            file_name = f"Summary_Report_PM_{datetime.date.today()}.csv"
+            file_name = f"Database_Laporan_PM_{datetime.date.today()}.csv"
             mime_type = "text/csv"
 
         st.download_button(
-            label="📊 Download Summary Laporan (Format Excel)",
+            label="📊 Download Database Laporan (Format Tabel Horizontal)",
             data=file_data,
             file_name=file_name,
             mime=mime_type,
@@ -621,8 +570,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         # Daftar list data per-site
         for i in range(len(db) - 1, -1, -1):
             r = db[i]
-            
-            # Format ikon status
             stat = r.get('status', '')
             icon = "🟢" if stat == "Normal" else "🟡" if stat == "Minor Issue" else "🔴"
             
@@ -631,24 +578,15 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 
             with st.expander(f"{icon}  |  {r.get('site_name', 'Unknown')}  |  {r.get('timestamp', '')}  |  Status: {stat}"):
                 
-                # TOMBOL PDF BAST
                 if st.checkbox("📄 Buat Berita Acara (PDF Resmi)", key=f"prep_pdf_{i}"):
                     with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
                         try:
                             pdf_bytes = build_pdf(r)
-                            st.download_button(
-                                label="📥 Download PDF Berita Acara", 
-                                data=pdf_bytes, 
-                                file_name=f"Berita_Acara_{r.get('site_name', 'Site')}.pdf", 
-                                mime="application/pdf", 
-                                key=f"dl_pdf_{i}",
-                                type="primary"
-                            )
+                            st.download_button(label="📥 Download PDF Berita Acara", data=pdf_bytes, file_name=f"Berita_Acara_{r.get('site_name', 'Site')}.pdf", mime="application/pdf", key=f"dl_pdf_{i}", type="primary")
                         except Exception as e:
                             st.error(f"Terjadi kesalahan saat menyusun PDF: {e}")
                 
                 st.markdown("<hr style='border: 1px solid #233554; margin: 15px 0;'>", unsafe_allow_html=True)
-                
                 c_btn1, c_btn2 = st.columns(2)
                 with c_btn1: st.link_button("📱 Share Rangkuman ke WhatsApp", wa_url, use_container_width=True)
                 with c_btn2: st.link_button("📈 Buka Database Spreadsheet Target", f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit", use_container_width=True)
@@ -700,7 +638,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                 st.markdown("")
                                 tampilkan_grid_foto(bat_urls, "📸 Dokumentasi Baterai")
                         st.markdown("")
-                    
                     st.markdown("---")
                     st.markdown("### 🌍 Sistem Grounding")
                     st.write(f"⚡ **Tahanan Grounding:** {r.get('earth_ohm', '-')} Ohm")
@@ -711,17 +648,13 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     st.markdown("📂 **Datalog Universal yang Tersimpan:**")
                     dls = r.get('datalog_files', [])
                     if dls:
-                        for dl in dls:
-                            st.markdown(f"- 🔗 [{dl['name']}]({dl['url']})")
-                    else:
-                        st.info("Tidak ada file datalog diunggah pada site ini.")
+                        for dl in dls: st.markdown(f"- 🔗 [{dl['name']}]({dl['url']})")
+                    else: st.info("Tidak ada file datalog diunggah pada site ini.")
 
                 st.markdown("<br>", unsafe_allow_html=True)
-                
                 with st.container(border=True):
                     st.markdown("<h4 style='color: #8892B0;'>🛠️ REVISI DATA & TAMBAH LAMPIRAN</h4>", unsafe_allow_html=True)
                     c_edit1, c_edit2 = st.columns(2)
-                    
                     with c_edit1:
                         new_site = st.text_input("Edit Nama Site / ID", r.get('site_name',''), key=f"esite_{i}")
                         nop_options = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
@@ -729,16 +662,13 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         if curr_nop not in nop_options: curr_nop = "Lainnya"
                         new_nop = st.selectbox("Edit NOP Area", nop_options, index=nop_options.index(curr_nop), key=f"enop_{i}")
                         new_tek = st.text_input("Edit Teknisi", r.get('teknisi',''), key=f"et_{i}")
-                        
                     with c_edit2:
                         status_options = ["Normal", "Minor Issue", "Major/Critical"]
                         curr_stat = r.get('status', 'Normal')
                         if curr_stat not in status_options: curr_stat = "Normal"
                         new_status = st.selectbox("Edit Status Akhir", status_options, index=status_options.index(curr_stat), key=f"estat_{i}")
                         new_sp = st.text_input("Edit Sparepart", r.get('sparepart',''), key=f"es_{i}")
-                        
                     new_act = st.text_area("Edit Action / Tindakan", r.get('action',''), key=f"ea_{i}")
-                    
                     st.markdown("**Tambah Lampiran Susulan (Otomatis Masuk Cloud):**")
                     up_f = st.file_uploader("📸 Fisik / Shading", accept_multiple_files=True, key=f"uf_{i}")
                     up_p = st.file_uploader("📸 Panel Surya", accept_multiple_files=True, key=f"up_{i}")
@@ -748,14 +678,11 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 
                     if st.button("💾 Simpan Perubahan ke Server", key=f"btn_{i}"):
                         with st.spinner("Mengirim Revisi ke Database Utama..."):
-                            r['site_name'], r['nop'], r['status'] = new_site, new_nop, new_status
-                            r['teknisi'], r['action'], r['sparepart'] = new_tek, new_act, new_sp
-                            
+                            r['site_name'], r['nop'], r['status'], r['teknisi'], r['action'], r['sparepart'] = new_site, new_nop, new_status, new_tek, new_act, new_sp
                             if up_f: r['extras_fisik'] = r.get('extras_fisik', []) + upload_multiple_images(up_f)
                             if up_p: r['extras_panel'] = r.get('extras_panel', []) + upload_multiple_images(up_p)
                             if up_b: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_b)
                             if up_e: r['extras_elektrikal'] = r.get('extras_elektrikal', []) + upload_multiple_images(up_e)
-                            
                             if up_dl:
                                 new_datalog = []
                                 for df in up_dl:
