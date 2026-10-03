@@ -523,7 +523,7 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
                         bv = st.number_input(f"Voltase [V]", value=12.2, key=f"bv_{j}")
                         bt = st.number_input(f"Load Charging [A]", value=28.0, key=f"bt_{j}")
                     with bc2:
-                        bc = st.selectbox(f"Kondisi", ["Normal", "Bengkak", "Korosi"], key=f"bc_{j}")
+                        bc = st.selectbox(f"Kondisi", ["Normal", "Bengkak", "Rusak tidak bisa charging", "Korosi"], key=f"bc_{j}")
                         bp = st.file_uploader(f"Foto Bat #{j+1}", accept_multiple_files=True, key=f"bp_{j}")
                     bat_data.append({"id": f"Baterai #{j+1}", "voltase": bv, "suhu": bt, "kondisi": bc, "foto_objs": bp})
         with b2:
