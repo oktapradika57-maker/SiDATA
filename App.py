@@ -33,8 +33,46 @@ st.markdown("""
         .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(100, 255, 218, 0.4); }
         .footer-okta { text-align: center; padding: 25px; margin-top: 50px; color: #8892B0; font-size: 15px; border-top: 1px solid #233554; background-color: #0A192F; border-radius: 10px; }
         .footer-okta span { color: #64FFDA; font-weight: 800; letter-spacing: 1px; font-size: 16px; }
+        .login-box { border: 1px solid #233554; padding: 30px; border-radius: 12px; background-color: #112240; text-align: center; height: 100%; box-shadow: 0 8px 16px rgba(0,0,0,0.4); }
     </style>
 """, unsafe_allow_html=True)
+
+# -------------------------------------------------------------------------
+# SISTEM LOGIN & ROLE AKSES (VIEWER / ADMIN)
+# -------------------------------------------------------------------------
+if 'role' not in st.session_state:
+    st.session_state['role'] = None
+
+if st.session_state['role'] is None:
+    st.markdown("<h1 style='text-align: center; color: #64FFDA; margin-top: 50px;'>⚡ Portal PM Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8892B0; font-size: 18px; margin-bottom: 50px;'>Sistem Pelaporan Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
+    
+    col_v, col_a = st.columns(2)
+    
+    with col_v:
+        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
+        st.markdown("<h3>👁️ Mode Viewer</h3>", unsafe_allow_html=True)
+        st.write("Akses publik untuk memantau hasil laporan, melihat dokumentasi foto, dan mengunduh rekapitulasi data (PDF/Excel).")
+        st.write("")
+        if st.button("Masuk sebagai Viewer", type="secondary", use_container_width=True):
+            st.session_state['role'] = 'Viewer'
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    with col_a:
+        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
+        st.markdown("<h3>🔐 Mode Admin</h3>", unsafe_allow_html=True)
+        st.write("Akses khusus operasional untuk input form laporan baru, revisi data, dan penambahan foto susulan.")
+        admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Masukkan Sandi...")
+        if st.button("Login Admin", type="primary", use_container_width=True):
+            if admin_pass == "KUT2027":
+                st.session_state['role'] = 'Admin'
+                st.rerun()
+            else:
+                st.error("❌ Kata sandi salah!")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    st.stop() # Hentikan eksekusi script agar tidak masuk ke menu utama jika belum memilih
 
 # -------------------------------------------------------------------------
 # 1. KONFIGURASI CLOUDINARY
@@ -265,16 +303,33 @@ if 'laporan_db' not in st.session_state:
 # 4. NAVIGASI UTAMA
 # -------------------------------------------------------------------------
 st.sidebar.markdown("<h2 style='text-align: center; color: #64FFDA;'>⚡ NAVIGASI</h2>", unsafe_allow_html=True)
-menu = st.sidebar.radio("Pilih Operasional:", ["📝 Form Preventive Check", "📊 Hasil Laporan & Dashboard"])
+
+# Tampilan Menu Berdasarkan Role
+if st.session_state['role'] == 'Admin':
+    st.sidebar.markdown("<div style='text-align: center; background-color: #112240; padding: 10px; border-radius: 8px; border: 1px solid #64FFDA;'>Status: <b>🟢 ADMIN</b></div>", unsafe_allow_html=True)
+    menu_options = ["📝 Form Preventive Check", "📊 Hasil Laporan & Dashboard"]
+else:
+    st.sidebar.markdown("<div style='text-align: center; background-color: #112240; padding: 10px; border-radius: 8px; border: 1px solid #8892B0;'>Status: <b>👁️ VIEWER</b></div>", unsafe_allow_html=True)
+    menu_options = ["📊 Hasil Laporan & Dashboard"]
+
+st.sidebar.write("")
+menu = st.sidebar.radio("Pilih Operasional:", menu_options)
+st.sidebar.markdown("---")
+
+# Tombol Logout
+if st.sidebar.button("🚪 Keluar Akun (Log Out)", use_container_width=True):
+    st.session_state['role'] = None
+    st.rerun()
+
 st.sidebar.markdown("---")
 st.sidebar.info(f"📂 **Database Taut:**\n\n`Report Preventive`\n\n🔗 [Buka Spreadsheet Target](https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit)")
 st.sidebar.markdown("---")
 st.sidebar.markdown("<div style='text-align: center; color: #8892B0; font-size: 13px;'>System & Database Architecture<br><b style='color:#64FFDA;'>Created By Okta Pradika</b></div>", unsafe_allow_html=True)
 
 # =========================================================================
-# MENU 1: FORM PENGECEKAN LENGKAP
+# MENU 1: FORM PENGECEKAN LENGKAP (HANYA ADMIN)
 # =========================================================================
-if menu == "📝 Form Preventive Check":
+if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
     st.markdown("<h1>⚡ Form Preventive Maintenance</h1>", unsafe_allow_html=True)
     st.info("💡 Data dan Lampiran (Foto & Datalog) Anda akan dienkripsi dan dikirim langsung ke Google Sheets & Cloudinary.")
     
@@ -539,17 +594,11 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 type="primary",
                 use_container_width=True
             )
-            st.success("Tabel Excel Super Rapi siap diunduh! Lengkap dengan Auto-Filter dan Freeze Panes.")
             
         except Exception:
-            # BLOK PERINGATAN JIKA LIBRARY EXCEL BELUM TERINSTAL!
             st.error("🚨 **SISTEM MENDETEKSI LIBRARY EXCEL BELUM DI-INSTALL!** 🚨\nAplikasi gagal membuat file `.xlsx` yang rapi karena library `xlsxwriter` tidak ditemukan di server/komputer Anda.")
             st.info("💡 **CARA FIX (Sangat Mudah):**\n1. Jika di komputer lokal, ketik di CMD/Terminal: `pip install xlsxwriter`\n2. Jika di-hosting (Streamlit Cloud/Vercel/dll), tambahkan kata `xlsxwriter` ke dalam file `requirements.txt` Anda.")
             
-            # Berikan file CSV darurat yang sudah dibersihkan (anti hancur)
-            st.warning("Sementara itu, Anda bisa mendownload versi CSV Darurat di bawah ini:")
-            
-            # Hapus semua karakter "Enter" atau \n agar baris tabel tidak tumpang tindih
             df_export_safe = df_export.replace(r'\n', ' - ', regex=True).replace(r'\r', '', regex=True)
             csv_data = df_export_safe.to_csv(index=False, sep=",").encode('utf-8')
             
@@ -627,7 +676,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                             bc1, bc2 = st.columns([2, 1])
                             with bc1:
                                 st.markdown(f"**{b.get('Baterai', 'Baterai')}**")
-                                st.write(f"🔹 **Voltase:** {b.get('Voltase', '-') } V  |  🌡️️ **Suhu:** {b.get('Suhu', '-') } °C")
+                                st.write(f"🔹 **Voltase:** {b.get('Voltase', '-') } V  |  🌡 **Suhu:** {b.get('Suhu', '-') } °C")
                                 st.write(f"🔍 **Kondisi Fisik:** {b.get('Kondisi', '-')}")
                             bat_urls = b.get('URL_Fotos') or b.get('URL_Foto')
                             if bat_urls:
@@ -648,55 +697,60 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     else: st.info("Tidak ada file datalog diunggah pada site ini.")
 
                 st.markdown("<br>", unsafe_allow_html=True)
-                with st.container(border=True):
-                    st.markdown("<h4 style='color: #8892B0;'>🛠️ REVISI DATA & TAMBAH LAMPIRAN</h4>", unsafe_allow_html=True)
-                    c_edit1, c_edit2 = st.columns(2)
-                    with c_edit1:
-                        new_site = st.text_input("Edit Nama Site / ID", r.get('site_name',''), key=f"esite_{i}")
-                        nop_options = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
-                        curr_nop = r.get('nop', 'Palangkaraya')
-                        if curr_nop not in nop_options: curr_nop = "Lainnya"
-                        new_nop = st.selectbox("Edit NOP Area", nop_options, index=nop_options.index(curr_nop), key=f"enop_{i}")
-                        new_tek = st.text_input("Edit Teknisi", r.get('teknisi',''), key=f"et_{i}")
-                    with c_edit2:
-                        status_options = ["Normal", "Minor Issue", "Major/Critical"]
-                        curr_stat = r.get('status', 'Normal')
-                        if curr_stat not in status_options: curr_stat = "Normal"
-                        new_status = st.selectbox("Edit Status Akhir", status_options, index=status_options.index(curr_stat), key=f"estat_{i}")
-                        new_sp = st.text_input("Edit Sparepart", r.get('sparepart',''), key=f"es_{i}")
-                    new_act = st.text_area("Edit Action / Tindakan", r.get('action',''), key=f"ea_{i}")
-                    st.markdown("**Tambah Lampiran Susulan (Otomatis Masuk Cloud):**")
-                    up_f = st.file_uploader("📸 Fisik / Shading", accept_multiple_files=True, key=f"uf_{i}")
-                    up_p = st.file_uploader("📸 Panel Surya", accept_multiple_files=True, key=f"up_{i}")
-                    up_b = st.file_uploader("📸 Baterai / Grounding", accept_multiple_files=True, key=f"ub_{i}")
-                    up_e = st.file_uploader("📸 Elektrikal / Mesin", accept_multiple_files=True, key=f"ue_{i}")
-                    up_dl = st.file_uploader("📂 Datalog (Zip, Csv, xlsx)", accept_multiple_files=True, key=f"udl_{i}")
+                
+                # =========================================================
+                # BLOK EDIT DATA: HANYA DITAMPILKAN JIKA ROLE ADALAH ADMIN
+                # =========================================================
+                if st.session_state['role'] == 'Admin':
+                    with st.container(border=True):
+                        st.markdown("<h4 style='color: #8892B0;'>🛠️️ REVISI DATA & TAMBAH LAMPIRAN</h4>", unsafe_allow_html=True)
+                        c_edit1, c_edit2 = st.columns(2)
+                        with c_edit1:
+                            new_site = st.text_input("Edit Nama Site / ID", r.get('site_name',''), key=f"esite_{i}")
+                            nop_options = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
+                            curr_nop = r.get('nop', 'Palangkaraya')
+                            if curr_nop not in nop_options: curr_nop = "Lainnya"
+                            new_nop = st.selectbox("Edit NOP Area", nop_options, index=nop_options.index(curr_nop), key=f"enop_{i}")
+                            new_tek = st.text_input("Edit Teknisi", r.get('teknisi',''), key=f"et_{i}")
+                        with c_edit2:
+                            status_options = ["Normal", "Minor Issue", "Major/Critical"]
+                            curr_stat = r.get('status', 'Normal')
+                            if curr_stat not in status_options: curr_stat = "Normal"
+                            new_status = st.selectbox("Edit Status Akhir", status_options, index=status_options.index(curr_stat), key=f"estat_{i}")
+                            new_sp = st.text_input("Edit Sparepart", r.get('sparepart',''), key=f"es_{i}")
+                        new_act = st.text_area("Edit Action / Tindakan", r.get('action',''), key=f"ea_{i}")
+                        st.markdown("**Tambah Lampiran Susulan (Otomatis Masuk Cloud):**")
+                        up_f = st.file_uploader("📸 Fisik / Shading", accept_multiple_files=True, key=f"uf_{i}")
+                        up_p = st.file_uploader("📸 Panel Surya", accept_multiple_files=True, key=f"up_{i}")
+                        up_b = st.file_uploader("📸 Baterai / Grounding", accept_multiple_files=True, key=f"ub_{i}")
+                        up_e = st.file_uploader("📸 Elektrikal / Mesin", accept_multiple_files=True, key=f"ue_{i}")
+                        up_dl = st.file_uploader("📂 Datalog (Zip, Csv, xlsx)", accept_multiple_files=True, key=f"udl_{i}")
 
-                    if st.button("💾 Simpan Perubahan ke Server", key=f"btn_{i}"):
-                        with st.spinner("Mengirim Revisi ke Database Utama..."):
-                            r['site_name'], r['nop'], r['status'], r['teknisi'], r['action'], r['sparepart'] = new_site, new_nop, new_status, new_tek, new_act, new_sp
-                            if up_f: r['extras_fisik'] = r.get('extras_fisik', []) + upload_multiple_images(up_f)
-                            if up_p: r['extras_panel'] = r.get('extras_panel', []) + upload_multiple_images(up_p)
-                            if up_b: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_b)
-                            if up_e: r['extras_elektrikal'] = r.get('extras_elektrikal', []) + upload_multiple_images(up_e)
-                            if up_dl:
-                                new_datalog = []
-                                for df in up_dl:
-                                    du = upload_datalog(df, "prev_datalog")
-                                    if du: new_datalog.append({"name": df.name, "url": du})
-                                r['datalog_files'] = r.get('datalog_files', []) + new_datalog
-                            
-                            sheet = connect_gsheets()
-                            if sheet:
-                                row_num = i + 2 
-                                sheet.update_cell(row_num, 2, new_site)
-                                sheet.update_cell(row_num, 3, new_nop)
-                                sheet.update_cell(row_num, 4, new_tek)
-                                sheet.update_cell(row_num, 5, new_status)
-                                sheet.update_cell(row_num, 6, json.dumps(r))
-                                st.cache_data.clear() 
-                        st.success("✅ REVISI BERHASIL! Data & Foto tersimpan permanen.")
-                        st.rerun()
+                        if st.button("💾 Simpan Perubahan ke Server", key=f"btn_{i}"):
+                            with st.spinner("Mengirim Revisi ke Database Utama..."):
+                                r['site_name'], r['nop'], r['status'], r['teknisi'], r['action'], r['sparepart'] = new_site, new_nop, new_status, new_tek, new_act, new_sp
+                                if up_f: r['extras_fisik'] = r.get('extras_fisik', []) + upload_multiple_images(up_f)
+                                if up_p: r['extras_panel'] = r.get('extras_panel', []) + upload_multiple_images(up_p)
+                                if up_b: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_b)
+                                if up_e: r['extras_elektrikal'] = r.get('extras_elektrikal', []) + upload_multiple_images(up_e)
+                                if up_dl:
+                                    new_datalog = []
+                                    for df in up_dl:
+                                        du = upload_datalog(df, "prev_datalog")
+                                        if du: new_datalog.append({"name": df.name, "url": du})
+                                    r['datalog_files'] = r.get('datalog_files', []) + new_datalog
+                                
+                                sheet = connect_gsheets()
+                                if sheet:
+                                    row_num = i + 2 
+                                    sheet.update_cell(row_num, 2, new_site)
+                                    sheet.update_cell(row_num, 3, new_nop)
+                                    sheet.update_cell(row_num, 4, new_tek)
+                                    sheet.update_cell(row_num, 5, new_status)
+                                    sheet.update_cell(row_num, 6, json.dumps(r))
+                                    st.cache_data.clear() 
+                            st.success("✅ REVISI BERHASIL! Data & Foto tersimpan permanen.")
+                            st.rerun()
 
 # -------------------------------------------------------------------------
 # FOOTER HAK CIPTA OKTA PRADIKA
