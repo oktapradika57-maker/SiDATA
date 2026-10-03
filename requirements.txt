@@ -7,4 +7,3 @@ google-auth
 fpdf2
 requests
 xlsxwriter
-pip install python-pptx openpyxl
