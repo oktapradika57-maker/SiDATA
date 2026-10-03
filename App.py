@@ -77,7 +77,7 @@ if st.session_state['role'] is None:
         # MENAMPILKAN LOGO DARI REPOSITORI
         # Pastikan file gambar Anda bernama "logo.png". Jika beda, ganti namanya di bawah ini.
         try:
-            st.image("logo.png", use_column_width=True) 
+            st.image("koperasi-jasa-konstruksi-tower-event-organizer-network-monitoring-telekomunikasi-kisel-group-logo-kut (2)", use_column_width=True) 
         except Exception:
             # Jika logo gagal dimuat (file tidak ada), hanya muncul pesan ini (bisa dihapus nanti jika logo sudah pasti aman)
             st.markdown("<p style='text-align:center; color:#8892B0;'><em>(Area Logo Perusahaan)</em></p>", unsafe_allow_html=True)
