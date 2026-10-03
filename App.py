@@ -14,10 +14,19 @@ from io import BytesIO
 from PIL import Image
 import base64
 
+# Mengimpor modul PPTX
+try:
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.dml.color import RGBColor
+    HAS_PPTX = True
+except ImportError:
+    HAS_PPTX = False
+
 # -------------------------------------------------------------------------
 # SETUP HALAMAN & CUSTOM CSS
 # -------------------------------------------------------------------------
-st.set_page_config(page_title="Report SPS", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Report SPS - Okta Pradika", page_icon="⚡", layout="wide")
 
 # Fungsi untuk membaca gambar lokal dan mengubahnya jadi Base64
 def get_base64_of_bin_file(bin_file):
@@ -30,58 +39,84 @@ def get_base64_of_bin_file(bin_file):
 
 # Ubah tulisan "logo.png" ini jika nama file logo Anda di repositori berbeda
 bg_base64 = get_base64_of_bin_file("logo.png")
+watermark_style = ""
 
-st.markdown("""
+if bg_base64:
+    watermark_style = f"""
+        /* Paksa rendering watermark nembus layer container utama Streamlit */
+        [data-testid="stAppViewContainer"]::before {{
+            content: "";
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50vw; height: 50vw;
+            background-image: url("data:image/png;base64,{bg_base64}");
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.35; /* Ketajaman Watermark 35% */
+            z-index: 0;
+            pointer-events: none;
+        }}
+    """
+
+st.markdown(f"""
     <style>
-        h1, h2, h3 { color: #64FFDA !important; font-family: 'Segoe UI', sans-serif; }
+        {watermark_style}
+        
+        /* Mengangkat semua konten ke atas Watermark */
+        .block-container, header, footer {{ position: relative; z-index: 10; }}
+        
+        h1, h2, h3 {{ color: #64FFDA !important; font-family: 'Segoe UI', sans-serif; }}
         
         /* Expander / Dropdown Style */
-        div[data-testid="stExpander"] details {
-            border: 1px solid #233554; border-radius: 10px; background-color: #112240;
+        div[data-testid="stExpander"] details {{
+            border: 1px solid #233554; border-radius: 10px; background-color: rgba(17, 34, 64, 0.9);
             margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); transition: all 0.3s ease;
             position: relative; z-index: 10;
-        }
-        div[data-testid="stExpander"] details:hover { border-color: #64FFDA; box-shadow: 0 6px 12px rgba(100,255,218,0.15); }
-        div[data-testid="stExpander"] summary { font-size: 16px !important; font-weight: 600 !important; color: #CCD6F6 !important; padding: 10px; }
+        }}
+        div[data-testid="stExpander"] details:hover {{ border-color: #64FFDA; box-shadow: 0 6px 12px rgba(100,255,218,0.15); }}
+        div[data-testid="stExpander"] summary {{ font-size: 16px !important; font-weight: 600 !important; color: #CCD6F6 !important; padding: 10px; }}
         
         /* Tabs Style */
-        button[role="tab"] { font-weight: 600; color: #8892B0 !important; }
-        button[role="tab"][aria-selected="true"] { color: #64FFDA !important; border-bottom-color: #64FFDA !important; }
+        button[role="tab"] {{ font-weight: 600; color: #8892B0 !important; }}
+        button[role="tab"][aria-selected="true"] {{ color: #64FFDA !important; border-bottom-color: #64FFDA !important; }}
         
         /* Button Style */
-        .stButton>button { border-radius: 8px; font-weight: bold; transition: all 0.3s; border: 1px solid #64FFDA; background-color: #0A192F !important; position: relative; z-index: 10; }
-        .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(100, 255, 218, 0.4); background-color: #112240 !important; }
+        .stButton>button {{ border-radius: 8px; font-weight: bold; transition: all 0.3s; border: 1px solid #64FFDA; background-color: rgba(10, 25, 47, 0.8) !important; position: relative; z-index: 10; }}
+        .stButton>button:hover {{ transform: translateY(-2px); box-shadow: 0 4px 12px rgba(100, 255, 218, 0.4); background-color: rgba(100, 255, 218, 0.1) !important; }}
         
         /* Footer Style */
-        .footer-okta { text-align: center; padding: 25px; margin-top: 50px; color: #8892B0; font-size: 15px; border-top: 1px solid #233554; background-color: #0A192F; border-radius: 10px; position: relative; z-index: 10; }
-        .footer-okta span { color: #64FFDA; font-weight: 800; letter-spacing: 1px; font-size: 16px; }
+        .footer-okta {{ text-align: center; padding: 25px; margin-top: 50px; color: #8892B0; font-size: 15px; border-top: 1px solid #233554; background-color: rgba(10, 25, 47, 0.9); border-radius: 10px; position: relative; z-index: 10; backdrop-filter: blur(5px); }}
+        .footer-okta span {{ color: #64FFDA; font-weight: 800; letter-spacing: 1px; font-size: 16px; }}
         
         /* Custom Login Box Style */
-        .login-box { 
+        .login-box {{ 
             border: 1px solid #233554; 
             padding: 40px 30px; 
             border-radius: 16px; 
-            background-color: #112240;
+            background-color: rgba(17, 34, 64, 0.85);
+            backdrop-filter: blur(8px);
             text-align: center; 
             height: 100%; 
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             transition: all 0.3s ease;
             position: relative;
-            z-index: 10; /* Berada di atas watermark */
-        }
-        .login-box:hover {
+            z-index: 10;
+        }}
+        .login-box:hover {{
             transform: translateY(-5px);
             border-color: #64FFDA;
             box-shadow: 0 15px 30px rgba(100, 255, 218, 0.15);
-        }
-        .login-title { color: #CCD6F6; font-size: 24px; font-weight: 700; margin-bottom: 15px; position: relative; z-index: 10; }
-        .login-desc { color: #8892B0; font-size: 15px; margin-bottom: 25px; line-height: 1.6; position: relative; z-index: 10; }
+        }}
+        .login-title {{ color: #CCD6F6; font-size: 24px; font-weight: 700; margin-bottom: 15px; position: relative; z-index: 10; }}
+        .login-desc {{ color: #8892B0; font-size: 15px; margin-bottom: 25px; line-height: 1.6; position: relative; z-index: 10; }}
         
         /* Elemen Wrapper agar Z-Index teks berfungsi */
-        .content-wrapper {
+        .content-wrapper {{
             position: relative;
             z-index: 10;
-        }
+        }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -92,35 +127,10 @@ if 'role' not in st.session_state:
     st.session_state['role'] = None
 
 if st.session_state['role'] is None:
-    
-    # --- RENDER LOGO WATERMARK DI BELAKANG ---
-    if bg_base64:
-        st.markdown(
-            f"""
-            <div style="
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                width: 600px;
-                height: 600px;
-                background-image: url('data:image/png;base64,{bg_base64}');
-                background-size: contain;
-                background-repeat: no-repeat;
-                background-position: center;
-                opacity: 0.15; /* Transparansi 15% agar estetik */
-                z-index: 0;
-                pointer-events: none; /* Agar tidak bisa diklik */
-            "></div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    # --- HEADER HALAMAN LOGIN (Berada di atas Watermark) ---
     st.markdown("<div class='content-wrapper'>", unsafe_allow_html=True)
     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
     
-    st.markdown("<h1 style='text-align: center; color: #64FFDA; font-size: 45px;'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #64FFDA; font-size: 45px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #CCD6F6; font-size: 18px; margin-bottom: 50px; letter-spacing: 1px;'>Sistem Pelaporan Terpadu Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
     
     col_v, col_space, col_a = st.columns([4, 1, 4])
@@ -130,7 +140,7 @@ if st.session_state['role'] is None:
             <div class='login-box'>
                 <div style='font-size: 55px; margin-bottom: 15px;'>👁️</div>
                 <div class='login-title'>Mode Viewer</div>
-                <div class='login-desc'>Akses publik untuk memantau hasil laporan, melihat dokumentasi foto, dan mengunduh rekapitulasi data (PDF/Excel) tanpa hak modifikasi.</div>
+                <div class='login-desc'>Akses publik untuk memantau hasil laporan, melihat dokumentasi foto, dan mengunduh rekapitulasi data (PDF/Excel/PPTX) tanpa hak modifikasi.</div>
             </div>
         """, unsafe_allow_html=True)
         st.write("")
@@ -143,7 +153,7 @@ if st.session_state['role'] is None:
             <div class='login-box'>
                 <div style='font-size: 55px; margin-bottom: 15px;'>🔐</div>
                 <div class='login-title'>Mode Admin</div>
-                <div class='login-desc'>Akses khusus operasional untuk input form laporan baru, revisi data lapangan, dan penambahan dokumentasi susulan.</div>
+                <div class='login-desc'>Akses khusus operasional untuk input form laporan baru, revisi data lapangan, penambahan dokumentasi, dan analisa grafik Power.</div>
             </div>
         """, unsafe_allow_html=True)
         admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Masukkan Sandi...", key="pwd_login")
@@ -162,7 +172,7 @@ if st.session_state['role'] is None:
         </div>
     </div> <!-- Tutup content-wrapper -->
     """, unsafe_allow_html=True)
-    st.stop() # Hentikan eksekusi script agar tidak masuk ke menu utama jika belum login
+    st.stop() # Hentikan eksekusi script jika belum login
 
 # -------------------------------------------------------------------------
 # 1. KONFIGURASI CLOUDINARY
@@ -215,7 +225,7 @@ def tampilkan_grid_foto(url_data, caption=""):
         st.markdown(img_html, unsafe_allow_html=True)
 
 # -------------------------------------------------------------------------
-# 2. GENERATOR PDF 
+# 2. GENERATOR PDF & PPTX
 # -------------------------------------------------------------------------
 def optimize_cloudinary_url(url):
     if not isinstance(url, str): return ""
@@ -354,6 +364,59 @@ def build_pdf(r):
         out = pdf.output(dest='S')
         return out.encode('latin-1', 'ignore') if isinstance(out, str) else out
 
+# FUNGSI EXPORT PPTX
+def build_pptx(db_list):
+    prs = Presentation()
+    
+    # Title Slide
+    slide_layout = prs.slide_layouts[0]
+    slide = prs.slides.add_slide(slide_layout)
+    title = slide.shapes.title
+    subtitle = slide.placeholders[1]
+    title.text = "Laporan Lengkap Preventive Maintenance"
+    subtitle.text = f"Total Site Terinspeksi: {len(db_list)}\nGenerated on: {datetime.date.today()}"
+    
+    # Isi Slide Tiap Site
+    for r in db_list:
+        slide_layout = prs.slide_layouts[1]
+        slide = prs.slides.add_slide(slide_layout)
+        
+        title = slide.shapes.title
+        title.text = f"Site: {r.get('site_name', '-')} | Status: {r.get('status', '-')}"
+        
+        content = slide.placeholders[1]
+        tf = content.text_frame
+        tf.text = f"Tanggal: {r.get('timestamp', '-')}"
+        
+        p = tf.add_paragraph()
+        p.text = f"Teknisi Pelaksana: {r.get('teknisi', '-')}"
+        
+        p = tf.add_paragraph()
+        p.text = f"Tegangan Rectifier: {r.get('rect_out_v', '-')} V | Load BTS: {r.get('total_load', '-')} A"
+        
+        p = tf.add_paragraph()
+        p.text = f"Action Pekerjaan: {r.get('action', '-')}"
+        
+        p = tf.add_paragraph()
+        p.text = f"Penggantian Sparepart: {r.get('sparepart', '-')}"
+        
+        # Coba sisipkan 1 gambar preview site (jika ada) ke dalam slide PPT
+        site_urls = r.get('url_sites', [])
+        if site_urls and len(site_urls) > 0:
+            try:
+                # Ambil gambar resolusi rendah agar PPT tidak terlalu berat
+                img_url = site_urls[0].replace("upload/v", "upload/c_limit,w_600,q_auto/v")
+                resp = requests.get(img_url, timeout=5)
+                if resp.status_code == 200:
+                    image_stream = BytesIO(resp.content)
+                    slide.shapes.add_picture(image_stream, Inches(5.5), Inches(2.5), width=Inches(4))
+            except:
+                pass
+                
+    out = BytesIO()
+    prs.save(out)
+    return out.getvalue()
+
 # -------------------------------------------------------------------------
 # 3. SETUP DATABASE (SINKRONISASI KE GOOGLE SHEETS)
 # -------------------------------------------------------------------------
@@ -395,10 +458,10 @@ if 'laporan_db' not in st.session_state:
 st.sidebar.markdown("<h2 style='text-align: center; color: #64FFDA;'>⚡ NAVIGASI</h2>", unsafe_allow_html=True)
 
 if st.session_state['role'] == 'Admin':
-    st.sidebar.markdown("<div style='text-align: center; background-color: #112240; padding: 10px; border-radius: 8px; border: 1px solid #64FFDA;'>Status: <b>🟢 ADMIN</b></div>", unsafe_allow_html=True)
+    st.sidebar.markdown("<div style='text-align: center; background-color: rgba(17,34,64,0.8); padding: 10px; border-radius: 8px; border: 1px solid #64FFDA;'>Status: <b>🟢 ADMIN</b></div>", unsafe_allow_html=True)
     menu_options = ["📝 Form Preventive Check", "📊 Hasil Laporan & Dashboard"]
 else:
-    st.sidebar.markdown("<div style='text-align: center; background-color: #112240; padding: 10px; border-radius: 8px; border: 1px solid #8892B0;'>Status: <b>👁️ VIEWER</b></div>", unsafe_allow_html=True)
+    st.sidebar.markdown("<div style='text-align: center; background-color: rgba(17,34,64,0.8); padding: 10px; border-radius: 8px; border: 1px solid #8892B0;'>Status: <b>👁️ VIEWER</b></div>", unsafe_allow_html=True)
     menu_options = ["📊 Hasil Laporan & Dashboard"]
 
 st.sidebar.write("")
@@ -419,19 +482,11 @@ st.sidebar.markdown("<div style='text-align: center; color: #8892B0; font-size: 
 # =========================================================================
 if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
     
-    # --- RENDER LOGO WATERMARK DI MENU ADMIN ---
-    if bg_base64:
-        st.markdown(
-            f"""
-            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; height: 500px; background-image: url('data:image/png;base64,{bg_base64}'); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.08; z-index: 0; pointer-events: none;"></div>
-            """, unsafe_allow_html=True
-        )
-        
     st.markdown("<div class='content-wrapper'>", unsafe_allow_html=True)
     st.markdown("<h1>⚡ Form Preventive Maintenance</h1>", unsafe_allow_html=True)
     st.info("💡 Data dan Lampiran (Foto & Datalog) Anda akan dienkripsi dan dikirim langsung ke Google Sheets & Cloudinary.")
     
-    tabs = st.tabs(["📌 1. Info Site", "☀️️ 2. SPS Panel", "🔌 3. PLN & Recti", "⛽ 4. Genset & BBM", "🔋 5. Baterai & Gnd", "📤 6. Upload & Submit"])
+    tabs = st.tabs(["📌 1. Info Site", "☀️ 2. SPS Panel", "🔌 3. PLN & Recti", "⛽ 4. Genset & BBM", "🔋 5. Baterai & Gnd", "📤 6. Upload & Submit"])
 
     with tabs[0]:
         c1, c2 = st.columns(2)
@@ -603,14 +658,6 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
 # =========================================================================
 elif menu == "📊 Hasil Laporan & Dashboard":
     
-    # --- RENDER LOGO WATERMARK DI MENU LAPORAN ---
-    if bg_base64:
-        st.markdown(
-            f"""
-            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; height: 500px; background-image: url('data:image/png;base64,{bg_base64}'); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.08; z-index: 0; pointer-events: none;"></div>
-            """, unsafe_allow_html=True
-        )
-        
     st.markdown("<div class='content-wrapper'>", unsafe_allow_html=True)
     st.markdown("<h1>📊 Dashboard Analytics & Report</h1>", unsafe_allow_html=True)
     
@@ -626,9 +673,9 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         with col_m3: st.metric("Cloud Storage", "Cloudinary", "Active")
         
         # ---------------------------------------------------------------------
-        # TABEL EXCEL FLAT MENYAMPING (PROFESSIONAL CORPORATE FORMAT)
+        # TABEL EXCEL FLAT & POWERPOINT
         # ---------------------------------------------------------------------
-        st.markdown("### 📥 Ekspor Laporan Rekapitulasi (Flat Database)")
+        st.markdown("### 📥 Ekspor Laporan Rekapitulasi (Excel & PPTX)")
         
         summary_list = []
         for r in db:
@@ -661,82 +708,67 @@ elif menu == "📊 Hasil Laporan & Dashboard":
             
         df_export = pd.DataFrame(summary_list)
         
-        try:
-            excel_buffer = BytesIO()
-            with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-                df_export.to_excel(writer, index=False, sheet_name='Database PM')
-                workbook = writer.book
-                worksheet = writer.sheets['Database PM']
-                
-                header_format = workbook.add_format({
-                    'bold': True, 'font_color': 'white', 'bg_color': '#112240',
-                    'border': 1, 'align': 'center', 'valign': 'vcenter'
-                })
-                
-                for col_num, value in enumerate(df_export.columns.values):
-                    worksheet.write(0, col_num, value, header_format)
+        col_dl_ex, col_dl_ppt = st.columns(2)
+        with col_dl_ex:
+            try:
+                excel_buffer = BytesIO()
+                with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+                    df_export.to_excel(writer, index=False, sheet_name='Database PM')
+                    workbook = writer.book
+                    worksheet = writer.sheets['Database PM']
+                    
+                    header_format = workbook.add_format({'bold': True, 'font_color': 'white', 'bg_color': '#112240', 'border': 1, 'align': 'center', 'valign': 'vcenter'})
+                    for col_num, value in enumerate(df_export.columns.values):
+                        worksheet.write(0, col_num, value, header_format)
 
-                cell_center = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
-                cell_left = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
+                    cell_center = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
+                    cell_left = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
 
-                col_formats = [
-                    (20, cell_center), (18, cell_center), (15, cell_center), (20, cell_center), (15, cell_center), 
-                    (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), (25, cell_left),   
-                    (15, cell_center), (15, cell_center), (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), 
-                    (18, cell_center), (25, cell_left), (15, cell_center), (40, cell_left), (30, cell_left)        
-                ]
-                for i, (w, fmt) in enumerate(col_formats):
-                    worksheet.set_column(i, i, w, fmt)
+                    col_formats = [
+                        (20, cell_center), (18, cell_center), (15, cell_center), (20, cell_center), (15, cell_center), 
+                        (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), (25, cell_left),   
+                        (15, cell_center), (15, cell_center), (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), 
+                        (18, cell_center), (25, cell_left), (15, cell_center), (40, cell_left), (30, cell_left)        
+                    ]
+                    for i, (w, fmt) in enumerate(col_formats):
+                        worksheet.set_column(i, i, w, fmt)
 
-                worksheet.freeze_panes(1, 0)
-                worksheet.autofilter(0, 0, len(df_export), len(df_export.columns) - 1)
-                
-            file_data = excel_buffer.getvalue()
-            file_name = f"Database_PM_Master_{datetime.date.today()}.xlsx"
-            mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            
-            st.download_button(
-                label="📊 Download Database Laporan (Excel ASLI)",
-                data=file_data,
-                file_name=file_name,
-                mime=mime_type,
-                type="primary",
-                use_container_width=True
-            )
-            
-        except Exception:
-            st.error("🚨 **SISTEM MENDETEKSI LIBRARY EXCEL BELUM DI-INSTALL!** 🚨\nAplikasi gagal membuat file `.xlsx` yang rapi karena library `xlsxwriter` tidak ditemukan di server/komputer Anda.")
-            st.info("💡 **CARA FIX (Sangat Mudah):**\n1. Jika di komputer lokal, ketik di CMD/Terminal: `pip install xlsxwriter`\n2. Jika di-hosting (Streamlit Cloud/Vercel/dll), tambahkan kata `xlsxwriter` ke dalam file `requirements.txt` Anda.")
-            
-            df_export_safe = df_export.replace(r'\n', ' - ', regex=True).replace(r'\r', '', regex=True)
-            csv_data = df_export_safe.to_csv(index=False, sep=",").encode('utf-8')
-            
-            st.download_button(
-                label="📥 Download Laporan Darurat (Format Raw CSV)",
-                data=csv_data,
-                file_name=f"Database_PM_Darurat_{datetime.date.today()}.csv",
-                mime="text/csv",
-                type="secondary"
-            )
+                    worksheet.freeze_panes(1, 0)
+                    worksheet.autofilter(0, 0, len(df_export), len(df_export.columns) - 1)
+                    
+                file_data = excel_buffer.getvalue()
+                st.download_button(label="📊 Download Database Laporan (Excel ASLI)", data=file_data, file_name=f"Database_PM_Master_{datetime.date.today()}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
+            except Exception:
+                csv_data = df_export.to_csv(index=False, sep=",").encode('utf-8')
+                st.download_button(label="📥 Download Laporan Darurat (Raw CSV)", data=csv_data, file_name=f"Database_PM_{datetime.date.today()}.csv", mime="text/csv", type="secondary")
+
+        with col_dl_ppt:
+            if HAS_PPTX:
+                with st.spinner("Menyiapkan PPTX..."):
+                    pptx_data = build_pptx(db)
+                    st.download_button(label="📽 Download Presentasi Report (PPTX)", data=pptx_data, file_name=f"Report_PM_KUT_{datetime.date.today()}.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", type="primary", use_container_width=True)
+            else:
+                st.error("Library `python-pptx` belum ter-install di server.")
 
         st.divider()
 
         # Daftar list data per-site
         for i in range(len(db) - 1, -1, -1):
             r = db[i]
+            site_id = r.get('site_name', 'Unknown')
             stat = r.get('status', '')
             icon = "🟢" if stat == "Normal" else "🟡" if stat == "Minor Issue" else "🔴"
             
-            wa_text = f"""*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {r.get('site_name', '-')} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"""
+            wa_text = f"""*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"""
             wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
 
-            with st.expander(f"{icon}  |  {r.get('site_name', 'Unknown')}  |  {r.get('timestamp', '')}  |  Status: {stat}"):
+            with st.expander(f"{icon}  |  {site_id}  |  {r.get('timestamp', '')}  |  Status: {stat}"):
                 
                 if st.checkbox("📄 Buat Berita Acara (PDF Resmi)", key=f"prep_pdf_{i}"):
                     with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
                         try:
                             pdf_bytes = build_pdf(r)
-                            st.download_button(label="📥 Download PDF Berita Acara", data=pdf_bytes, file_name=f"Berita_Acara_{r.get('site_name', 'Site')}.pdf", mime="application/pdf", key=f"dl_pdf_{i}", type="primary")
+                            st.download_button(label="📥 Download PDF Berita Acara", data=pdf_bytes, file_name=f"Berita_Acara_{site_id}.pdf", mime="application/pdf", key=f"dl_pdf_{i}", type="primary")
                         except Exception as e:
                             st.error(f"Terjadi kesalahan saat menyusun PDF: {e}")
                 
@@ -750,7 +782,8 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 if r.get('sparepart'): st.warning(f"**📦 Sparepart Diganti:** {r['sparepart']}")
                 
                 st.markdown("<br>", unsafe_allow_html=True)
-                ltab1, ltab2, ltab3, ltab4, ltab5 = st.tabs(["🏗️ 1. Fisik", "☀️ 2. Panel SPS", "🔌 3. Recti & Genset", "🔋 4. Baterai & Gnd", "📂 5. Datalog"])
+                # KITA TAMBAHKAN TAB KE-6 DI SINI!
+                ltab1, ltab2, ltab3, ltab4, ltab5, ltab6 = st.tabs(["🏗️ 1. Fisik", "☀️ 2. Panel SPS", "🔌 3. Recti & Genset", "🔋 4. Baterai & Gnd", "📂 5. Datalog", "📈 6. Analisa Power BBU"])
                 
                 with ltab1:
                     st.write(f"- Kondisi Site: {r.get('site_cond', '-')} | Tower: {r.get('tower_cond', '-')} | Shading: {r.get('shading_status', '-')}")
@@ -762,8 +795,8 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     for p in r.get('panel_data', []):
                         st.markdown(f"**{p.get('Panel', '-')}** | Voc: {p.get('Voc','-')}V | Isc: {p.get('Isc','-')}A")
                         cb, ca = st.columns(2)
-                        with cb: tampilkan_grid_foto(p.get('URL_Before') or p.get('URLs_Before'), "📸 BEFORE")
-                        with ca: tampilkan_grid_foto(p.get('URL_After') or p.get('URLs_After'), "✨ AFTER")
+                        with cb: tampilkan_grid_foto(p.get('URL_Before') or p.get('URLs_Before'), "📸 KONDISI PANEL")
+                        with ca: tampilkan_grid_foto(p.get('URL_After') or p.get('URLs_After'), "✨ PENGUKURAN")
                         st.divider()
                     tampilkan_grid_foto(r.get('extras_panel'), "📸 Tambahan Panel")
 
@@ -785,7 +818,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                             bc1, bc2 = st.columns([2, 1])
                             with bc1:
                                 st.markdown(f"**{b.get('Baterai', 'Baterai')}**")
-                                st.write(f"🔹 **Voltase:** {b.get('Voltase', '-') } V  |  🌡 **Suhu:** {b.get('Suhu', '-') } °C")
+                                st.write(f"🔹 **Voltase:** {b.get('Voltase', '-') } V  |  🌡 **Load Charging:** {b.get('Suhu', '-') } A")
                                 st.write(f"🔍 **Kondisi Fisik:** {b.get('Kondisi', '-')}")
                             bat_urls = b.get('URL_Fotos') or b.get('URL_Foto')
                             if bat_urls:
@@ -804,6 +837,49 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     if dls:
                         for dl in dls: st.markdown(f"- 🔗 [{dl['name']}]({dl['url']})")
                     else: st.info("Tidak ada file datalog diunggah pada site ini.")
+
+                # --- TAB 6: GRAFIK ANALISA POWER ---
+                with ltab6:
+                    st.markdown("### ⚡ Grafik Analisa Power & Voltage")
+                    st.info(f"Sistem sedang melacak file data histori **`{site_id}.xlsx`** di repositori...")
+                    
+                    excel_filename = f"{site_id}.xlsx"
+                    if os.path.exists(excel_filename):
+                        try:
+                            # Membaca data excel
+                            df_power = pd.read_excel(excel_filename, engine='openpyxl')
+                            
+                            # Mengecek apakah kolom Begin Time dan MinVoltage ada
+                            if 'Begin Time' in df_power.columns and 'MinVoltageOfBBU(V)' in df_power.columns:
+                                
+                                # Membersihkan Waktu (Mengambil Jam-nya saja)
+                                df_power['Waktu'] = pd.to_datetime(df_power['Begin Time']).dt.strftime('%H:%M')
+                                df_power.set_index('Waktu', inplace=True)
+                                
+                                # Mengambil kolom untuk ditampilkan di Line Chart
+                                chart_cols = ['MaxVoltageOfBBU(V)', 'MinVoltageOfBBU(V)', 'AvgVoltageOfBBU(V)']
+                                chart_data = df_power[chart_cols].copy()
+                                
+                                # Menambahkan Batas (Threshold) 55V sebagai referensi garis
+                                chart_data['Batas Hold (55V)'] = 55.0
+                                
+                                # Render Grafik menggunakan warna spesifik
+                                st.line_chart(chart_data, color=["#64FFDA", "#FF5252", "#FFC107", "#FFFFFF"])
+                                
+                                # Logika Analisa Otomatis
+                                min_voltage = df_power['MinVoltageOfBBU(V)'].min()
+                                if min_voltage < 55.0:
+                                    st.error(f"🚨 **ANALISA DROP VOLTAGE:** Ditemukan tegangan Drop di bawah batas 55V! Tegangan terendah terekam di angka **{min_voltage} V**.")
+                                else:
+                                    st.success(f"✅ **ANALISA STABIL:** Kondisi Power aman. Tegangan berhasil di-hold (tidak jatuh di bawah batas 55V). Tegangan terendah terekam: {min_voltage} V.")
+                            else:
+                                st.warning(f"File '{excel_filename}' ditemukan, tapi struktur kolomnya tidak sesuai format U2000/U2020. Pastikan ada kolom 'Begin Time' dan 'MinVoltageOfBBU(V)'.")
+                                
+                        except Exception as e:
+                            st.error(f"Gagal membaca file {excel_filename}. Pesan Error: {e}")
+                    else:
+                        st.warning(f"File log power **`{excel_filename}`** belum di-upload ke repositori/folder lokal server. Silakan upload file excel dengan nama site tersebut untuk melihat grafik otomatis.")
+
 
                 st.markdown("<br>", unsafe_allow_html=True)
                 
