@@ -21,19 +21,45 @@ st.set_page_config(page_title="PM Dashboard - Okta Pradika", page_icon="⚡", la
 st.markdown("""
     <style>
         h1, h2, h3 { color: #64FFDA !important; font-family: 'Segoe UI', sans-serif; }
+        
+        /* Expander / Dropdown Style */
         div[data-testid="stExpander"] details {
             border: 1px solid #233554; border-radius: 10px; background-color: #112240;
             margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); transition: all 0.3s ease;
         }
         div[data-testid="stExpander"] details:hover { border-color: #64FFDA; box-shadow: 0 6px 12px rgba(100,255,218,0.15); }
         div[data-testid="stExpander"] summary { font-size: 16px !important; font-weight: 600 !important; color: #CCD6F6 !important; padding: 10px; }
+        
+        /* Tabs Style */
         button[role="tab"] { font-weight: 600; color: #8892B0 !important; }
         button[role="tab"][aria-selected="true"] { color: #64FFDA !important; border-bottom-color: #64FFDA !important; }
+        
+        /* Button Style */
         .stButton>button { border-radius: 8px; font-weight: bold; transition: all 0.3s; border: 1px solid #64FFDA; }
         .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(100, 255, 218, 0.4); }
+        
+        /* Footer Style */
         .footer-okta { text-align: center; padding: 25px; margin-top: 50px; color: #8892B0; font-size: 15px; border-top: 1px solid #233554; background-color: #0A192F; border-radius: 10px; }
         .footer-okta span { color: #64FFDA; font-weight: 800; letter-spacing: 1px; font-size: 16px; }
-        .login-box { border: 1px solid #233554; padding: 30px; border-radius: 12px; background-color: #112240; text-align: center; height: 100%; box-shadow: 0 8px 16px rgba(0,0,0,0.4); }
+        
+        /* Custom Login Box Style (Elegan & Corporate) */
+        .login-box { 
+            border: 1px solid #233554; 
+            padding: 40px 30px; 
+            border-radius: 16px; 
+            background-color: #112240; 
+            text-align: center; 
+            height: 100%; 
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+        .login-box:hover {
+            transform: translateY(-5px);
+            border-color: #64FFDA;
+            box-shadow: 0 15px 30px rgba(100, 255, 218, 0.15);
+        }
+        .login-title { color: #CCD6F6; font-size: 22px; font-weight: 700; margin-bottom: 15px; }
+        .login-desc { color: #8892B0; font-size: 14px; margin-bottom: 25px; line-height: 1.5; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -44,35 +70,61 @@ if 'role' not in st.session_state:
     st.session_state['role'] = None
 
 if st.session_state['role'] is None:
-    st.markdown("<h1 style='text-align: center; color: #64FFDA; margin-top: 50px;'>⚡ Portal PM Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #8892B0; font-size: 18px; margin-bottom: 50px;'>Sistem Pelaporan Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
+    # --- HEADER HALAMAN LOGIN ---
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    c_logo1, c_logo2, c_logo3 = st.columns([1, 2, 1])
+    with c_logo2:
+        # MENAMPILKAN LOGO DARI REPOSITORI
+        # Pastikan file gambar Anda bernama "logo.png". Jika beda, ganti namanya di bawah ini.
+        try:
+            st.image("logo.png", use_column_width=True) 
+        except Exception:
+            # Jika logo gagal dimuat (file tidak ada), hanya muncul pesan ini (bisa dihapus nanti jika logo sudah pasti aman)
+            st.markdown("<p style='text-align:center; color:#8892B0;'><em>(Area Logo Perusahaan)</em></p>", unsafe_allow_html=True)
+            
+        st.markdown("<h1 style='text-align: center; color: #64FFDA; font-size: 40px; margin-top: 10px;'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #8892B0; font-size: 16px; margin-bottom: 40px; letter-spacing: 1px;'>Sistem Pelaporan Terpadu Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
     
-    col_v, col_a = st.columns(2)
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_v, col_space, col_a = st.columns([4, 1, 4])
     
     with col_v:
-        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
-        st.markdown("<h3>👁️ Mode Viewer</h3>", unsafe_allow_html=True)
-        st.write("Akses publik untuk memantau hasil laporan, melihat dokumentasi foto, dan mengunduh rekapitulasi data (PDF/Excel).")
+        st.markdown("""
+            <div class='login-box'>
+                <div style='font-size: 50px; margin-bottom: 10px;'>👁️</div>
+                <div class='login-title'>Mode Viewer</div>
+                <div class='login-desc'>Akses publik untuk memantau hasil laporan, melihat dokumentasi foto, dan mengunduh rekapitulasi data (PDF/Excel) tanpa hak modifikasi.</div>
+            </div>
+        """, unsafe_allow_html=True)
         st.write("")
         if st.button("Masuk sebagai Viewer", type="secondary", use_container_width=True):
             st.session_state['role'] = 'Viewer'
             st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-        
+            
     with col_a:
-        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
-        st.markdown("<h3>🔐 Mode Admin</h3>", unsafe_allow_html=True)
-        st.write("Akses khusus operasional untuk input form laporan baru, revisi data, dan penambahan foto susulan.")
+        st.markdown("""
+            <div class='login-box'>
+                <div style='font-size: 50px; margin-bottom: 10px;'>🔐</div>
+                <div class='login-title'>Mode Admin</div>
+                <div class='login-desc'>Akses khusus operasional untuk input form laporan baru, revisi data lapangan, dan penambahan dokumentasi susulan.</div>
+            </div>
+        """, unsafe_allow_html=True)
         admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Masukkan Sandi...")
         if st.button("Login Admin", type="primary", use_container_width=True):
             if admin_pass == "KUT2027":
                 st.session_state['role'] = 'Admin'
                 st.rerun()
             else:
-                st.error("❌ Kata sandi salah!")
-        st.markdown("</div>", unsafe_allow_html=True)
-        
-    st.stop() # Hentikan eksekusi script agar tidak masuk ke menu utama jika belum memilih
+                st.error("❌ Kata sandi salah! Akses ditolak.")
+                
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    st.markdown("""
+        <div style='text-align: center; color: #8892B0; font-size: 13px;'>
+            Secured System Application & Database Management<br>
+            <b style='color:#64FFDA;'>Created By Okta Pradika © 2026</b>
+        </div>
+    """, unsafe_allow_html=True)
+    st.stop() # Hentikan eksekusi script agar tidak masuk ke menu utama jika belum login
 
 # -------------------------------------------------------------------------
 # 1. KONFIGURASI CLOUDINARY
@@ -304,7 +356,6 @@ if 'laporan_db' not in st.session_state:
 # -------------------------------------------------------------------------
 st.sidebar.markdown("<h2 style='text-align: center; color: #64FFDA;'>⚡ NAVIGASI</h2>", unsafe_allow_html=True)
 
-# Tampilan Menu Berdasarkan Role
 if st.session_state['role'] == 'Admin':
     st.sidebar.markdown("<div style='text-align: center; background-color: #112240; padding: 10px; border-radius: 8px; border: 1px solid #64FFDA;'>Status: <b>🟢 ADMIN</b></div>", unsafe_allow_html=True)
     menu_options = ["📝 Form Preventive Check", "📊 Hasil Laporan & Dashboard"]
@@ -316,7 +367,6 @@ st.sidebar.write("")
 menu = st.sidebar.radio("Pilih Operasional:", menu_options)
 st.sidebar.markdown("---")
 
-# Tombol Logout
 if st.sidebar.button("🚪 Keluar Akun (Log Out)", use_container_width=True):
     st.session_state['role'] = None
     st.rerun()
@@ -703,7 +753,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 # =========================================================
                 if st.session_state['role'] == 'Admin':
                     with st.container(border=True):
-                        st.markdown("<h4 style='color: #8892B0;'>🛠️️ REVISI DATA & TAMBAH LAMPIRAN</h4>", unsafe_allow_html=True)
+                        st.markdown("<h4 style='color: #8892B0;'>🛠 REVISI DATA & TAMBAH LAMPIRAN</h4>", unsafe_allow_html=True)
                         c_edit1, c_edit2 = st.columns(2)
                         with c_edit1:
                             new_site = st.text_input("Edit Nama Site / ID", r.get('site_name',''), key=f"esite_{i}")
