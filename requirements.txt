@@ -1,9 +1,11 @@
 streamlit
 pandas
-pillow
 cloudinary
 gspread
 google-auth
-fpdf2
+fpdf
+Pillow
 requests
+openpyxl
+python-pptx
 xlsxwriter
