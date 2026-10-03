@@ -441,7 +441,7 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
             check_date = st.date_input("Tanggal Pengecekan", value=datetime.date.today())
         with c2:
             technician_name = st.text_input("Nama Pelaksana / Teknisi")
-            weather = st.selectbox("Kondisi Cuaca", ["Cerah", "Berawan", "Hujan", "Kabut Asap", "Lembab tidak ada panas" "Badai"])
+            weather = st.selectbox("Kondisi Cuaca", ["Cerah", "Berawan", "Hujan", "Kabut Asap menutup cahaya matahari", "Lembab tidak ada panas", "Badai"])
         st.divider()
         sc1, sc2 = st.columns(2)
         with sc1:
