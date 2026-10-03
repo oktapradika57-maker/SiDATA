@@ -441,7 +441,7 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
             check_date = st.date_input("Tanggal Pengecekan", value=datetime.date.today())
         with c2:
             technician_name = st.text_input("Nama Pelaksana / Teknisi")
-            weather = st.selectbox("Kondisi Cuaca", ["Cerah", "Berawan", "Hujan", "Badai"])
+            weather = st.selectbox("Kondisi Cuaca", ["Cerah", "Berawan", "Hujan", "Kabut Asap", "Lembab tidak ada panas" "Badai"])
         st.divider()
         sc1, sc2 = st.columns(2)
         with sc1:
@@ -467,8 +467,8 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
                         voc = st.number_input(f"Voc [V]", value=21.5, key=f"v_{i}")
                         isc = st.number_input(f"Isc [A]", value=5.2, key=f"i_{i}")
                         p_cond = st.selectbox(f"Fisik", ["Baik", "Kotor", "Retak", "Delaminasi"], key=f"c_{i}")
-                    with c2: pb = st.file_uploader(f"📸 BEFORE", key=f"pb_{i}")
-                    with c3: pa = st.file_uploader(f"✨ AFTER", key=f"pa_{i}")
+                    with c2: pb = st.file_uploader(f"📸 KONDISI PANEL", key=f"pb_{i}")
+                    with c3: pa = st.file_uploader(f"✨ PENGUKURAN", key=f"pa_{i}")
                     panel_data.append({"tipe": "Individu", "id": f"Panel #{i+1}", "voc": voc, "isc": isc, "kondisi": p_cond, "foto_before_obj": pb, "foto_after_obj": pa})
         else: 
             num_strings = st.number_input("Jumlah String", min_value=1, value=4)
@@ -481,8 +481,8 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
                         isc = st.number_input(f"Isc [A]", value=5.2, key=f"si_{i}")
                         p_cond = st.selectbox(f"Kondisi", ["Baik", "Kotor", "Retak"], key=f"sc_{i}")
                     with c2:
-                        pb = st.file_uploader(f"📸 BEFORE (Bisa >1)", accept_multiple_files=True, key=f"spb_{i}")
-                        pa = st.file_uploader(f"✨ AFTER (Bisa >1)", accept_multiple_files=True, key=f"spa_{i}")
+                        pb = st.file_uploader(f"📸 KONDISI PANEL (Bisa >1)", accept_multiple_files=True, key=f"spb_{i}")
+                        pa = st.file_uploader(f"✨ PENGUKURAN (Bisa >1)", accept_multiple_files=True, key=f"spa_{i}")
                     panel_data.append({"tipe": "Seri", "id": f"String #{i+1}", "qty": qty, "voc": voc, "isc": isc, "kondisi": p_cond, "foto_before_objs": pb, "foto_after_objs": pa})
 
     with tabs[2]:
@@ -521,7 +521,7 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
                     bc1, bc2 = st.columns(2)
                     with bc1:
                         bv = st.number_input(f"Voltase [V]", value=12.2, key=f"bv_{j}")
-                        bt = st.number_input(f"Suhu [°C]", value=28.0, key=f"bt_{j}")
+                        bt = st.number_input(f"Load Charging [A]", value=28.0, key=f"bt_{j}")
                     with bc2:
                         bc = st.selectbox(f"Kondisi", ["Normal", "Bengkak", "Korosi"], key=f"bc_{j}")
                         bp = st.file_uploader(f"Foto Bat #{j+1}", accept_multiple_files=True, key=f"bp_{j}")
