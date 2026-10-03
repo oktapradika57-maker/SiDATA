@@ -17,9 +17,9 @@ import base64
 # -------------------------------------------------------------------------
 # SETUP HALAMAN & CUSTOM CSS
 # -------------------------------------------------------------------------
-st.set_page_config(page_title="PM Dashboard - Okta Pradika", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Report SPS", page_icon="⚡", layout="wide")
 
-# Fungsi untuk membaca gambar lokal dan mengubahnya jadi Base64 untuk Background CSS
+# Fungsi untuk membaca gambar lokal dan mengubahnya jadi Base64
 def get_base64_of_bin_file(bin_file):
     try:
         with open(bin_file, 'rb') as f:
@@ -31,75 +31,57 @@ def get_base64_of_bin_file(bin_file):
 # Ubah tulisan "logo.png" ini jika nama file logo Anda di repositori berbeda
 bg_base64 = get_base64_of_bin_file("logo.png")
 
-# Jika logo berhasil dibaca, buat CSS background watermark
-watermark_css = ""
-if bg_base64:
-    watermark_css = f"""
-        .stApp {{
-            background-image: url("data:image/png;base64,{bg_base64}");
-            background-size: 50%; /* Ukuran logo di tengah (bisa disesuaikan 40% - 60%) */
-            background-position: center 30%; /* Posisi di tengah agak ke atas */
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-        }}
-        /* Menambahkan lapisan transparan gelap (overlay) agar teks & kotak tetap terbaca */
-        .stApp::before {{
-            content: "";
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: rgba(10, 25, 47, 0.85); /* Warna dasar dengan opacity 85% */
-            z-index: -1;
-        }}
-    """
-else:
-    # Fallback jika file logo.png tidak ditemukan
-    watermark_css = ".stApp { background-color: #0A192F; }"
-
-st.markdown(f"""
+st.markdown("""
     <style>
-        {watermark_css}
-        
-        h1, h2, h3 {{ color: #64FFDA !important; font-family: 'Segoe UI', sans-serif; }}
+        h1, h2, h3 { color: #64FFDA !important; font-family: 'Segoe UI', sans-serif; }
         
         /* Expander / Dropdown Style */
-        div[data-testid="stExpander"] details {{
-            border: 1px solid #233554; border-radius: 10px; background-color: rgba(17, 34, 64, 0.95);
+        div[data-testid="stExpander"] details {
+            border: 1px solid #233554; border-radius: 10px; background-color: #112240;
             margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); transition: all 0.3s ease;
-        }}
-        div[data-testid="stExpander"] details:hover {{ border-color: #64FFDA; box-shadow: 0 6px 12px rgba(100,255,218,0.15); }}
-        div[data-testid="stExpander"] summary {{ font-size: 16px !important; font-weight: 600 !important; color: #CCD6F6 !important; padding: 10px; }}
+            position: relative; z-index: 10;
+        }
+        div[data-testid="stExpander"] details:hover { border-color: #64FFDA; box-shadow: 0 6px 12px rgba(100,255,218,0.15); }
+        div[data-testid="stExpander"] summary { font-size: 16px !important; font-weight: 600 !important; color: #CCD6F6 !important; padding: 10px; }
         
         /* Tabs Style */
-        button[role="tab"] {{ font-weight: 600; color: #8892B0 !important; }}
-        button[role="tab"][aria-selected="true"] {{ color: #64FFDA !important; border-bottom-color: #64FFDA !important; }}
+        button[role="tab"] { font-weight: 600; color: #8892B0 !important; }
+        button[role="tab"][aria-selected="true"] { color: #64FFDA !important; border-bottom-color: #64FFDA !important; }
         
         /* Button Style */
-        .stButton>button {{ border-radius: 8px; font-weight: bold; transition: all 0.3s; border: 1px solid #64FFDA; background-color: rgba(10, 25, 47, 0.8) !important; }}
-        .stButton>button:hover {{ transform: translateY(-2px); box-shadow: 0 4px 12px rgba(100, 255, 218, 0.4); background-color: rgba(100, 255, 218, 0.1) !important; }}
+        .stButton>button { border-radius: 8px; font-weight: bold; transition: all 0.3s; border: 1px solid #64FFDA; background-color: #0A192F !important; position: relative; z-index: 10; }
+        .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(100, 255, 218, 0.4); background-color: #112240 !important; }
         
         /* Footer Style */
-        .footer-okta {{ text-align: center; padding: 25px; margin-top: 50px; color: #8892B0; font-size: 15px; border-top: 1px solid #233554; background-color: rgba(10, 25, 47, 0.9); border-radius: 10px; backdrop-filter: blur(5px); }}
-        .footer-okta span {{ color: #64FFDA; font-weight: 800; letter-spacing: 1px; font-size: 16px; }}
+        .footer-okta { text-align: center; padding: 25px; margin-top: 50px; color: #8892B0; font-size: 15px; border-top: 1px solid #233554; background-color: #0A192F; border-radius: 10px; position: relative; z-index: 10; }
+        .footer-okta span { color: #64FFDA; font-weight: 800; letter-spacing: 1px; font-size: 16px; }
         
-        /* Custom Login Box Style (Elegan, Corporate, Semi-Transparan) */
-        .login-box {{ 
+        /* Custom Login Box Style */
+        .login-box { 
             border: 1px solid #233554; 
             padding: 40px 30px; 
             border-radius: 16px; 
-            background-color: rgba(17, 34, 64, 0.85); /* Semi transparan agar watermark sedikit tembus */
-            backdrop-filter: blur(8px); /* Efek kaca (Glassmorphism) */
+            background-color: #112240;
             text-align: center; 
             height: 100%; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             transition: all 0.3s ease;
-        }}
-        .login-box:hover {{
+            position: relative;
+            z-index: 10; /* Berada di atas watermark */
+        }
+        .login-box:hover {
             transform: translateY(-5px);
             border-color: #64FFDA;
             box-shadow: 0 15px 30px rgba(100, 255, 218, 0.15);
-        }}
-        .login-title {{ color: #CCD6F6; font-size: 24px; font-weight: 700; margin-bottom: 15px; }}
-        .login-desc {{ color: #8892B0; font-size: 15px; margin-bottom: 25px; line-height: 1.6; }}
+        }
+        .login-title { color: #CCD6F6; font-size: 24px; font-weight: 700; margin-bottom: 15px; position: relative; z-index: 10; }
+        .login-desc { color: #8892B0; font-size: 15px; margin-bottom: 25px; line-height: 1.6; position: relative; z-index: 10; }
+        
+        /* Elemen Wrapper agar Z-Index teks berfungsi */
+        .content-wrapper {
+            position: relative;
+            z-index: 10;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -110,18 +92,43 @@ if 'role' not in st.session_state:
     st.session_state['role'] = None
 
 if st.session_state['role'] is None:
-    # --- HEADER HALAMAN LOGIN (Kini tanpa gambar logo statis, karena sudah jadi watermark) ---
+    
+    # --- RENDER LOGO WATERMARK DI BELAKANG ---
+    if bg_base64:
+        st.markdown(
+            f"""
+            <div style="
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 600px;
+                height: 600px;
+                background-image: url('data:image/png;base64,{bg_base64}');
+                background-size: contain;
+                background-repeat: no-repeat;
+                background-position: center;
+                opacity: 0.15; /* Transparansi 15% agar estetik */
+                z-index: 0;
+                pointer-events: none; /* Agar tidak bisa diklik */
+            "></div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # --- HEADER HALAMAN LOGIN (Berada di atas Watermark) ---
+    st.markdown("<div class='content-wrapper'>", unsafe_allow_html=True)
     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
     
-    st.markdown("<h1 style='text-align: center; color: #64FFDA; font-size: 45px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #CCD6F6; font-size: 18px; margin-bottom: 50px; letter-spacing: 1px; text-shadow: 1px 1px 3px rgba(0,0,0,0.5);'>Sistem Pelaporan Terpadu Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #64FFDA; font-size: 45px;'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #CCD6F6; font-size: 18px; margin-bottom: 50px; letter-spacing: 1px;'>Sistem Pelaporan Terpadu Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
     
     col_v, col_space, col_a = st.columns([4, 1, 4])
     
     with col_v:
         st.markdown("""
             <div class='login-box'>
-                <div style='font-size: 55px; margin-bottom: 15px; text-shadow: 0 4px 8px rgba(0,0,0,0.3);'>👁️</div>
+                <div style='font-size: 55px; margin-bottom: 15px;'>👁️</div>
                 <div class='login-title'>Mode Viewer</div>
                 <div class='login-desc'>Akses publik untuk memantau hasil laporan, melihat dokumentasi foto, dan mengunduh rekapitulasi data (PDF/Excel) tanpa hak modifikasi.</div>
             </div>
@@ -134,7 +141,7 @@ if st.session_state['role'] is None:
     with col_a:
         st.markdown("""
             <div class='login-box'>
-                <div style='font-size: 55px; margin-bottom: 15px; text-shadow: 0 4px 8px rgba(0,0,0,0.3);'>🔐</div>
+                <div style='font-size: 55px; margin-bottom: 15px;'>🔐</div>
                 <div class='login-title'>Mode Admin</div>
                 <div class='login-desc'>Akses khusus operasional untuk input form laporan baru, revisi data lapangan, dan penambahan dokumentasi susulan.</div>
             </div>
@@ -149,10 +156,11 @@ if st.session_state['role'] is None:
                 
     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
     st.markdown("""
-        <div style='text-align: center; color: #8892B0; font-size: 13px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);'>
+        <div style='text-align: center; color: #8892B0; font-size: 13px;'>
             Secured System Application & Database Management<br>
             <b style='color:#64FFDA;'>Created By Okta Pradika © 2026</b>
         </div>
+    </div> <!-- Tutup content-wrapper -->
     """, unsafe_allow_html=True)
     st.stop() # Hentikan eksekusi script agar tidak masuk ke menu utama jika belum login
 
@@ -387,10 +395,10 @@ if 'laporan_db' not in st.session_state:
 st.sidebar.markdown("<h2 style='text-align: center; color: #64FFDA;'>⚡ NAVIGASI</h2>", unsafe_allow_html=True)
 
 if st.session_state['role'] == 'Admin':
-    st.sidebar.markdown("<div style='text-align: center; background-color: rgba(17, 34, 64, 0.8); padding: 10px; border-radius: 8px; border: 1px solid #64FFDA; backdrop-filter: blur(5px);'>Status: <b>🟢 ADMIN</b></div>", unsafe_allow_html=True)
+    st.sidebar.markdown("<div style='text-align: center; background-color: #112240; padding: 10px; border-radius: 8px; border: 1px solid #64FFDA;'>Status: <b>🟢 ADMIN</b></div>", unsafe_allow_html=True)
     menu_options = ["📝 Form Preventive Check", "📊 Hasil Laporan & Dashboard"]
 else:
-    st.sidebar.markdown("<div style='text-align: center; background-color: rgba(17, 34, 64, 0.8); padding: 10px; border-radius: 8px; border: 1px solid #8892B0; backdrop-filter: blur(5px);'>Status: <b>👁️ VIEWER</b></div>", unsafe_allow_html=True)
+    st.sidebar.markdown("<div style='text-align: center; background-color: #112240; padding: 10px; border-radius: 8px; border: 1px solid #8892B0;'>Status: <b>👁️ VIEWER</b></div>", unsafe_allow_html=True)
     menu_options = ["📊 Hasil Laporan & Dashboard"]
 
 st.sidebar.write("")
@@ -410,10 +418,20 @@ st.sidebar.markdown("<div style='text-align: center; color: #8892B0; font-size: 
 # MENU 1: FORM PENGECEKAN LENGKAP (HANYA ADMIN)
 # =========================================================================
 if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
+    
+    # --- RENDER LOGO WATERMARK DI MENU ADMIN ---
+    if bg_base64:
+        st.markdown(
+            f"""
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; height: 500px; background-image: url('data:image/png;base64,{bg_base64}'); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.08; z-index: 0; pointer-events: none;"></div>
+            """, unsafe_allow_html=True
+        )
+        
+    st.markdown("<div class='content-wrapper'>", unsafe_allow_html=True)
     st.markdown("<h1>⚡ Form Preventive Maintenance</h1>", unsafe_allow_html=True)
     st.info("💡 Data dan Lampiran (Foto & Datalog) Anda akan dienkripsi dan dikirim langsung ke Google Sheets & Cloudinary.")
     
-    tabs = st.tabs(["📌 1. Info Site", "☀️ 2. SPS Panel", "🔌 3. PLN & Recti", "⛽ 4. Genset & BBM", "🔋 5. Baterai & Gnd", "📤 6. Upload & Submit"])
+    tabs = st.tabs(["📌 1. Info Site", "☀️️ 2. SPS Panel", "🔌 3. PLN & Recti", "⛽ 4. Genset & BBM", "🔋 5. Baterai & Gnd", "📤 6. Upload & Submit"])
 
     with tabs[0]:
         c1, c2 = st.columns(2)
@@ -578,17 +596,28 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
                         st.success("✅ BERHASIL! Data telah diamankan di Google Sheets.")
                     else:
                         st.error("⚠️ Gagal menyambung ke Spreadsheet, mohon periksa Setting Secret API Anda.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================================
 # MENU 2: HASIL LAPORAN (DITARIK DARI SPREADSHEET)
 # =========================================================================
 elif menu == "📊 Hasil Laporan & Dashboard":
+    
+    # --- RENDER LOGO WATERMARK DI MENU LAPORAN ---
+    if bg_base64:
+        st.markdown(
+            f"""
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; height: 500px; background-image: url('data:image/png;base64,{bg_base64}'); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.08; z-index: 0; pointer-events: none;"></div>
+            """, unsafe_allow_html=True
+        )
+        
+    st.markdown("<div class='content-wrapper'>", unsafe_allow_html=True)
     st.markdown("<h1>📊 Dashboard Analytics & Report</h1>", unsafe_allow_html=True)
     
     db = st.session_state['laporan_db']
 
     if not db:
-        st.warning("⚠️️ Belum ada data di Spreadsheet / Koneksi Sedang Proses.")
+        st.warning("⚠️ Belum ada data di Spreadsheet / Koneksi Sedang Proses.")
     else:
         total_sites = len(db)
         col_m1, col_m2, col_m3 = st.columns(3)
@@ -831,6 +860,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                     st.cache_data.clear() 
                             st.success("✅ REVISI BERHASIL! Data & Foto tersimpan permanen.")
                             st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------------------
 # FOOTER HAK CIPTA OKTA PRADIKA
