@@ -255,6 +255,8 @@ def build_pdf(r):
     pdf.set_font("helvetica", "B", 10)
     pdf.cell(40, 6, clean_text("Nama Site / ID"), 0, 0)
     pdf.cell(0, 6, clean_text(f": {r.get('site_name', '-')}"), 0, 1)
+    pdf.cell(40, 6, clean_text("Kategori Site"), 0, 0)
+    pdf.cell(0, 6, clean_text(f": {r.get('kategori', 'SPS')}"), 0, 1)
     pdf.cell(40, 6, clean_text("Regional / NOP"), 0, 0)
     pdf.cell(0, 6, clean_text(f": {r.get('nop', '-')}"), 0, 1)
     pdf.cell(40, 6, clean_text("Pelaksana (Tim)"), 0, 0)
@@ -389,6 +391,9 @@ def build_pptx(db_list):
         tf.text = f"Tanggal: {r.get('timestamp', '-')}"
         
         p = tf.add_paragraph()
+        p.text = f"Kategori: {r.get('kategori', 'SPS')} | NOP: {r.get('nop', '-')}"
+        
+        p = tf.add_paragraph()
         p.text = f"Teknisi Pelaksana: {r.get('teknisi', '-')}"
         
         p = tf.add_paragraph()
@@ -492,6 +497,8 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
         c1, c2 = st.columns(2)
         with c1:
             site_name = st.text_input("Nama / ID Site", placeholder="Contoh: BTS-PKY-001")
+            # --- TAMBAHAN FILTER KATEGORI SITE ---
+            site_category = st.selectbox("Kategori Site", ["SPS", "Site Reguler"])
             nop_area = st.selectbox("NOP Area", ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"])
             check_date = st.date_input("Tanggal Pengecekan", value=datetime.date.today())
         with c2:
@@ -621,9 +628,10 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
                     b_res = []
                     for b in bat_data: b_res.append({"Baterai": b["id"], "Voltase": b["voltase"], "Suhu": b["suhu"], "Kondisi": b["kondisi"], "URL_Fotos": upload_multiple_images(b["foto_objs"])})
 
+                    # --- SIMPAN VARIABEL KATEGORI ---
                     report_dict = {
                         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "site_name": site_name, "nop": nop_area, "teknisi": technician_name,
+                        "site_name": site_name, "kategori": site_category, "nop": nop_area, "teknisi": technician_name,
                         "status": final_status, "action": action_taken, "sparepart": sparepart_needed,
                         "site_cond": site_condition, "tower_cond": tower_condition, "url_sites": url_sites,
                         "shading_status": shading_status, "url_shadings": url_shadings,
@@ -672,19 +680,42 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         with col_m2: st.metric("Database Terhubung", "Google Sheets", "Online")
         with col_m3: st.metric("Cloud Storage", "Cloudinary", "Active")
         
+        st.markdown("---")
+        
+        # ---------------------------------------------------------------------
+        # FILTER KATEGORI SITE 
+        # ---------------------------------------------------------------------
+        st.markdown("<h4 style='color: #64FFDA;'>🗂️ Filter Kategori Site</h4>", unsafe_allow_html=True)
+        filter_kat = st.radio("Pilih kategori laporan yang ingin ditampilkan:", ["Semua", "SPS", "Site Reguler"], horizontal=True)
+        
+        # Memisahkan index database yang sesuai dengan filter
+        filtered_indices = []
+        for idx, r in enumerate(db):
+            kat = r.get('kategori', 'SPS') # Default ke SPS untuk legacy data
+            if filter_kat == "Semua" or kat == filter_kat:
+                filtered_indices.append(idx)
+                
+        if len(filtered_indices) == 0:
+            st.info(f"Tidak ada data Laporan untuk kategori: {filter_kat}")
+            st.stop()
+
         # ---------------------------------------------------------------------
         # TABEL EXCEL FLAT & POWERPOINT
         # ---------------------------------------------------------------------
         st.markdown("### 📥 Ekspor Laporan Rekapitulasi (Excel & PPTX)")
         
         summary_list = []
-        for r in db:
+        # Hanya ekspor data yang sesuai filter Kategori
+        export_db = [db[idx] for idx in filtered_indices]
+        
+        for r in export_db:
             panel_issues = [p.get('Panel', 'Panel') for p in r.get('panel_data', []) if p.get('kondisi') and p.get('kondisi') != "Baik"]
             bat_issues = [b.get('Baterai', 'Baterai') for b in r.get('battery_data', []) if b.get('Kondisi') and b.get('Kondisi') != "Normal"]
 
             summary_list.append({
                 "Timestamp": r.get('timestamp', '-'),
                 "Nama Site": r.get('site_name', '-'),
+                "Kategori": r.get('kategori', 'SPS'),
                 "NOP": r.get('nop', '-'),
                 "Teknisi": r.get('teknisi', '-'),
                 "Status Akhir": r.get('status', '-'),
@@ -725,7 +756,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     cell_left = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
 
                     col_formats = [
-                        (20, cell_center), (18, cell_center), (15, cell_center), (20, cell_center), (15, cell_center), 
+                        (20, cell_center), (18, cell_center), (15, cell_center), (15, cell_center), (20, cell_center), (15, cell_center), 
                         (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), (25, cell_left),   
                         (15, cell_center), (15, cell_center), (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), 
                         (18, cell_center), (25, cell_left), (15, cell_center), (40, cell_left), (30, cell_left)        
@@ -737,7 +768,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     worksheet.autofilter(0, 0, len(df_export), len(df_export.columns) - 1)
                     
                 file_data = excel_buffer.getvalue()
-                st.download_button(label="📊 Download Database Laporan (Excel ASLI)", data=file_data, file_name=f"Database_PM_Master_{datetime.date.today()}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
+                st.download_button(label=f"📊 Download Excel ({filter_kat})", data=file_data, file_name=f"Database_PM_Master_{datetime.date.today()}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
             except Exception:
                 csv_data = df_export.to_csv(index=False, sep=",").encode('utf-8')
                 st.download_button(label="📥 Download Laporan Darurat (Raw CSV)", data=csv_data, file_name=f"Database_PM_{datetime.date.today()}.csv", mime="text/csv", type="secondary")
@@ -745,24 +776,25 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         with col_dl_ppt:
             if HAS_PPTX:
                 with st.spinner("Menyiapkan PPTX..."):
-                    pptx_data = build_pptx(db)
-                    st.download_button(label="📽 Download Presentasi Report (PPTX)", data=pptx_data, file_name=f"Report_PM_KUT_{datetime.date.today()}.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", type="primary", use_container_width=True)
+                    pptx_data = build_pptx(export_db)
+                    st.download_button(label=f"📽 Download Presentasi Report ({filter_kat})", data=pptx_data, file_name=f"Report_PM_KUT_{datetime.date.today()}.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", type="primary", use_container_width=True)
             else:
                 st.error("Library `python-pptx` belum ter-install di server.")
 
         st.divider()
 
-        # Daftar list data per-site
-        for i in range(len(db) - 1, -1, -1):
+        # Daftar list data per-site (HANYA DARI YANG TER-FILTER)
+        for i in reversed(filtered_indices):
             r = db[i]
             site_id = r.get('site_name', 'Unknown')
+            kategori_site = r.get('kategori', 'SPS')
             stat = r.get('status', '')
             icon = "🟢" if stat == "Normal" else "🟡" if stat == "Minor Issue" else "🔴"
             
-            wa_text = f"""*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"""
+            wa_text = f"""*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({kategori_site} - {r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"""
             wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
 
-            with st.expander(f"{icon}  |  {site_id}  |  {r.get('timestamp', '')}  |  Status: {stat}"):
+            with st.expander(f"{icon}  |  {site_id}  |  {kategori_site}  |  {r.get('timestamp', '')}  |  Status: {stat}"):
                 
                 if st.checkbox("📄 Buat Berita Acara (PDF Resmi)", key=f"prep_pdf_{i}"):
                     with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
@@ -782,7 +814,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 if r.get('sparepart'): st.warning(f"**📦 Sparepart Diganti:** {r['sparepart']}")
                 
                 st.markdown("<br>", unsafe_allow_html=True)
-                # KITA TAMBAHKAN TAB KE-6 DI SINI!
+                
                 ltab1, ltab2, ltab3, ltab4, ltab5, ltab6 = st.tabs(["🏗️ 1. Fisik", "☀️ 2. Panel SPS", "🔌 3. Recti & Genset", "🔋 4. Baterai & Gnd", "📂 5. Datalog", "📈 6. Analisa Power BBU"])
                 
                 with ltab1:
@@ -846,27 +878,17 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     excel_filename = f"{site_id}.xlsx"
                     if os.path.exists(excel_filename):
                         try:
-                            # Membaca data excel
                             df_power = pd.read_excel(excel_filename, engine='openpyxl')
-                            
-                            # Mengecek apakah kolom Begin Time dan MinVoltage ada
                             if 'Begin Time' in df_power.columns and 'MinVoltageOfBBU(V)' in df_power.columns:
-                                
-                                # Membersihkan Waktu (Mengambil Jam-nya saja)
                                 df_power['Waktu'] = pd.to_datetime(df_power['Begin Time']).dt.strftime('%H:%M')
                                 df_power.set_index('Waktu', inplace=True)
                                 
-                                # Mengambil kolom untuk ditampilkan di Line Chart
                                 chart_cols = ['MaxVoltageOfBBU(V)', 'MinVoltageOfBBU(V)', 'AvgVoltageOfBBU(V)']
                                 chart_data = df_power[chart_cols].copy()
-                                
-                                # Menambahkan Batas (Threshold) 55V sebagai referensi garis
                                 chart_data['Batas Hold (55V)'] = 55.0
                                 
-                                # Render Grafik menggunakan warna spesifik
                                 st.line_chart(chart_data, color=["#64FFDA", "#FF5252", "#FFC107", "#FFFFFF"])
                                 
-                                # Logika Analisa Otomatis
                                 min_voltage = df_power['MinVoltageOfBBU(V)'].min()
                                 if min_voltage < 55.0:
                                     st.error(f"🚨 **ANALISA DROP VOLTAGE:** Ditemukan tegangan Drop di bawah batas 55V! Tegangan terendah terekam di angka **{min_voltage} V**.")
@@ -874,7 +896,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                     st.success(f"✅ **ANALISA STABIL:** Kondisi Power aman. Tegangan berhasil di-hold (tidak jatuh di bawah batas 55V). Tegangan terendah terekam: {min_voltage} V.")
                             else:
                                 st.warning(f"File '{excel_filename}' ditemukan, tapi struktur kolomnya tidak sesuai format U2000/U2020. Pastikan ada kolom 'Begin Time' dan 'MinVoltageOfBBU(V)'.")
-                                
                         except Exception as e:
                             st.error(f"Gagal membaca file {excel_filename}. Pesan Error: {e}")
                     else:
@@ -884,7 +905,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 st.markdown("<br>", unsafe_allow_html=True)
                 
                 # =========================================================
-                # BLOK EDIT DATA: HANYA DITAMPILKAN JIKA ROLE ADALAH ADMIN
+                # BLOK EDIT DATA (KHUSUS ADMIN)
                 # =========================================================
                 if st.session_state['role'] == 'Admin':
                     with st.container(border=True):
@@ -892,6 +913,12 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         c_edit1, c_edit2 = st.columns(2)
                         with c_edit1:
                             new_site = st.text_input("Edit Nama Site / ID", r.get('site_name',''), key=f"esite_{i}")
+                            # Menambah Opsi Edit Kategori Site
+                            kat_options = ["SPS", "Site Reguler"]
+                            curr_kat = r.get('kategori', 'SPS')
+                            if curr_kat not in kat_options: curr_kat = "SPS"
+                            new_kat = st.selectbox("Edit Kategori Site", kat_options, index=kat_options.index(curr_kat), key=f"ekat_{i}")
+                            
                             nop_options = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
                             curr_nop = r.get('nop', 'Palangkaraya')
                             if curr_nop not in nop_options: curr_nop = "Lainnya"
@@ -913,7 +940,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 
                         if st.button("💾 Simpan Perubahan ke Server", key=f"btn_{i}"):
                             with st.spinner("Mengirim Revisi ke Database Utama..."):
-                                r['site_name'], r['nop'], r['status'], r['teknisi'], r['action'], r['sparepart'] = new_site, new_nop, new_status, new_tek, new_act, new_sp
+                                r['site_name'], r['kategori'], r['nop'], r['status'], r['teknisi'], r['action'], r['sparepart'] = new_site, new_kat, new_nop, new_status, new_tek, new_act, new_sp
                                 if up_f: r['extras_fisik'] = r.get('extras_fisik', []) + upload_multiple_images(up_f)
                                 if up_p: r['extras_panel'] = r.get('extras_panel', []) + upload_multiple_images(up_p)
                                 if up_b: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_b)
