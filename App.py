@@ -542,7 +542,7 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
     with tabs[2]:
         c1, c2 = st.columns(2)
         with c1:
-            pln_status = st.selectbox("Status PLN", ["Normal", "Padam", "Tidak Ada PLN"])
+            pln_status = st.selectbox("Status PLN", ["Normal", "Padam", "Power Perusahaan", "Tidak Ada PLN"])
             jb_enclosure = st.selectbox("Box DC & Seal", ["Bersih", "Bocor", "Sarang Serangga"])
             jb_spd = st.selectbox("Arrester SPD", ["Normal", "Rusak"])
         with c2:
