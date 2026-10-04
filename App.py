@@ -24,11 +24,10 @@ except ImportError:
     HAS_PPTX = False
 
 # -------------------------------------------------------------------------
-# SETUP HALAMAN & CUSTOM CSS
+# SETUP HALAMAN & FUNGSI LOGO
 # -------------------------------------------------------------------------
 st.set_page_config(page_title="Report SPS - Okta Pradika", page_icon="⚡", layout="wide")
 
-# Fungsi untuk membaca gambar lokal dan mengubahnya jadi Base64
 def get_base64_of_bin_file(bin_file):
     try:
         with open(bin_file, 'rb') as f:
@@ -37,86 +36,79 @@ def get_base64_of_bin_file(bin_file):
     except:
         return None
 
-# Ubah tulisan "logo.png" ini jika nama file logo Anda di repositori berbeda
-bg_base64 = get_base64_of_bin_file("logo.png")
-watermark_style = ""
+# Fungsi untuk memunculkan logo presisi di tengah atas halaman
+def render_header_logo():
+    bg_base64 = get_base64_of_bin_file("logo.png")
+    if bg_base64:
+        st.markdown(
+            f"""
+            <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px;">
+                <img src="data:image/png;base64,{bg_base64}" style="max-height: 120px; width: auto; object-fit: contain;">
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
 
-if bg_base64:
-    watermark_style = f"""
-        /* Paksa rendering watermark nembus layer container utama Streamlit */
-        [data-testid="stAppViewContainer"]::before {{
-            content: "";
-            position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 50vw; height: 50vw;
-            background-image: url("data:image/png;base64,{bg_base64}");
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            opacity: 0.35; /* Ketajaman Watermark 35% */
-            z-index: 0;
-            pointer-events: none;
-        }}
-    """
-
-st.markdown(f"""
+# -------------------------------------------------------------------------
+# CUSTOM CSS (ADAPTIF UNTUK LIGHT MODE & DARK MODE)
+# -------------------------------------------------------------------------
+# Menggunakan var(--text-color) dan var(--background-color) bawaan Streamlit
+st.markdown("""
     <style>
-        {watermark_style}
+        h1, h2, h3 { color: var(--primary-color) !important; font-family: 'Segoe UI', sans-serif; }
         
-        /* Mengangkat semua konten ke atas Watermark */
-        .block-container, header, footer {{ position: relative; z-index: 10; }}
+        /* Expander / Dropdown Style Adaptif */
+        div[data-testid="stExpander"] details {
+            border: 1px solid var(--primary-color); 
+            border-radius: 10px; 
+            background-color: var(--secondary-background-color);
+            margin-bottom: 10px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            transition: all 0.3s ease;
+        }
+        div[data-testid="stExpander"] details:hover { border-color: var(--primary-color); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
+        div[data-testid="stExpander"] summary { font-size: 16px !important; font-weight: 600 !important; color: var(--text-color) !important; padding: 10px; }
         
-        h1, h2, h3 {{ color: #64FFDA !important; font-family: 'Segoe UI', sans-serif; }}
+        /* Button Style Adaptif */
+        .stButton>button { 
+            border-radius: 8px; font-weight: bold; transition: all 0.3s; 
+            border: 1px solid var(--primary-color); 
+            background-color: var(--secondary-background-color) !important; 
+            color: var(--text-color) !important;
+        }
+        .stButton>button:hover { 
+            transform: translateY(-2px); 
+            background-color: var(--primary-color) !important; 
+            color: white !important; 
+        }
         
-        /* Expander / Dropdown Style */
-        div[data-testid="stExpander"] details {{
-            border: 1px solid #233554; border-radius: 10px; background-color: rgba(17, 34, 64, 0.9);
-            margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); transition: all 0.3s ease;
-            position: relative; z-index: 10;
-        }}
-        div[data-testid="stExpander"] details:hover {{ border-color: #64FFDA; box-shadow: 0 6px 12px rgba(100,255,218,0.15); }}
-        div[data-testid="stExpander"] summary {{ font-size: 16px !important; font-weight: 600 !important; color: #CCD6F6 !important; padding: 10px; }}
+        /* Footer Style Adaptif */
+        .footer-okta { 
+            text-align: center; padding: 25px; margin-top: 50px; 
+            color: var(--text-color); font-size: 15px; 
+            border-top: 1px solid var(--primary-color); 
+            background-color: var(--secondary-background-color); 
+            border-radius: 10px; opacity: 0.8;
+        }
+        .footer-okta span { color: var(--primary-color); font-weight: 800; letter-spacing: 1px; font-size: 16px; }
         
-        /* Tabs Style */
-        button[role="tab"] {{ font-weight: 600; color: #8892B0 !important; }}
-        button[role="tab"][aria-selected="true"] {{ color: #64FFDA !important; border-bottom-color: #64FFDA !important; }}
-        
-        /* Button Style */
-        .stButton>button {{ border-radius: 8px; font-weight: bold; transition: all 0.3s; border: 1px solid #64FFDA; background-color: rgba(10, 25, 47, 0.8) !important; position: relative; z-index: 10; }}
-        .stButton>button:hover {{ transform: translateY(-2px); box-shadow: 0 4px 12px rgba(100, 255, 218, 0.4); background-color: rgba(100, 255, 218, 0.1) !important; }}
-        
-        /* Footer Style */
-        .footer-okta {{ text-align: center; padding: 25px; margin-top: 50px; color: #8892B0; font-size: 15px; border-top: 1px solid #233554; background-color: rgba(10, 25, 47, 0.9); border-radius: 10px; position: relative; z-index: 10; backdrop-filter: blur(5px); }}
-        .footer-okta span {{ color: #64FFDA; font-weight: 800; letter-spacing: 1px; font-size: 16px; }}
-        
-        /* Custom Login Box Style */
-        .login-box {{ 
-            border: 1px solid #233554; 
+        /* Custom Login Box Style Adaptif */
+        .login-box { 
+            border: 2px solid var(--primary-color); 
             padding: 40px 30px; 
             border-radius: 16px; 
-            background-color: rgba(17, 34, 64, 0.85);
-            backdrop-filter: blur(8px);
+            background-color: var(--secondary-background-color);
             text-align: center; 
             height: 100%; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
             transition: all 0.3s ease;
-            position: relative;
-            z-index: 10;
-        }}
-        .login-box:hover {{
+        }
+        .login-box:hover {
             transform: translateY(-5px);
-            border-color: #64FFDA;
-            box-shadow: 0 15px 30px rgba(100, 255, 218, 0.15);
-        }}
-        .login-title {{ color: #CCD6F6; font-size: 24px; font-weight: 700; margin-bottom: 15px; position: relative; z-index: 10; }}
-        .login-desc {{ color: #8892B0; font-size: 15px; margin-bottom: 25px; line-height: 1.6; position: relative; z-index: 10; }}
-        
-        /* Elemen Wrapper agar Z-Index teks berfungsi */
-        .content-wrapper {{
-            position: relative;
-            z-index: 10;
-        }}
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        }
+        .login-title { color: var(--text-color); font-size: 24px; font-weight: 700; margin-bottom: 15px; }
+        .login-desc { color: var(--text-color); font-size: 15px; margin-bottom: 25px; line-height: 1.6; opacity: 0.9; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -127,11 +119,11 @@ if 'role' not in st.session_state:
     st.session_state['role'] = None
 
 if st.session_state['role'] is None:
-    st.markdown("<div class='content-wrapper'>", unsafe_allow_html=True)
-    st.markdown("<br><br><br><br>", unsafe_allow_html=True)
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    render_header_logo() # Panggil logo di atas form login
     
-    st.markdown("<h1 style='text-align: center; color: #64FFDA; font-size: 45px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #CCD6F6; font-size: 18px; margin-bottom: 50px; letter-spacing: 1px;'>Sistem Pelaporan Terpadu Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; font-size: 40px;'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 50px; letter-spacing: 1px; opacity: 0.8;'>Sistem Pelaporan Terpadu Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
     
     col_v, col_space, col_a = st.columns([4, 1, 4])
     
@@ -164,15 +156,14 @@ if st.session_state['role'] is None:
             else:
                 st.error("❌ Kata sandi salah! Akses ditolak.")
                 
-    st.markdown("<br><br><br><br>", unsafe_allow_html=True)
+    st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("""
-        <div style='text-align: center; color: #8892B0; font-size: 13px;'>
+        <div style='text-align: center; font-size: 13px; opacity: 0.7;'>
             Secured System Application & Database Management<br>
-            <b style='color:#64FFDA;'>Created By Okta Pradika © 2026</b>
+            <b>Created By Okta Pradika © 2026</b>
         </div>
-    </div> <!-- Tutup content-wrapper -->
     """, unsafe_allow_html=True)
-    st.stop() # Hentikan eksekusi script jika belum login
+    st.stop()
 
 # -------------------------------------------------------------------------
 # 1. KONFIGURASI CLOUDINARY
@@ -220,7 +211,7 @@ def tampilkan_grid_foto(url_data, caption=""):
         if caption: st.markdown(f"*{caption}*")
         img_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 15px;">'
         for u in urls:
-            img_html += f'<div style="background-color: #0A192F; border: 1px solid #233554; border-radius: 8px; padding: 6px; box-shadow: 0px 4px 6px rgba(0,0,0,0.3); text-align: center;"><a href="{u}" target="_blank"><img src="{u}" style="max-width: 100%; height: auto; max-height: 400px; object-fit: contain; border-radius: 6px;"></a></div>'
+            img_html += f'<div style="background-color: var(--secondary-background-color); border: 1px solid var(--primary-color); border-radius: 8px; padding: 6px; text-align: center;"><a href="{u}" target="_blank"><img src="{u}" style="max-width: 100%; height: auto; max-height: 400px; object-fit: contain; border-radius: 6px;"></a></div>'
         img_html += '</div>'
         st.markdown(img_html, unsafe_allow_html=True)
 
@@ -405,11 +396,9 @@ def build_pptx(db_list):
         p = tf.add_paragraph()
         p.text = f"Penggantian Sparepart: {r.get('sparepart', '-')}"
         
-        # Coba sisipkan 1 gambar preview site (jika ada) ke dalam slide PPT
         site_urls = r.get('url_sites', [])
         if site_urls and len(site_urls) > 0:
             try:
-                # Ambil gambar resolusi rendah agar PPT tidak terlalu berat
                 img_url = site_urls[0].replace("upload/v", "upload/c_limit,w_600,q_auto/v")
                 resp = requests.get(img_url, timeout=5)
                 if resp.status_code == 200:
@@ -460,13 +449,13 @@ if 'laporan_db' not in st.session_state:
 # -------------------------------------------------------------------------
 # 4. NAVIGASI UTAMA
 # -------------------------------------------------------------------------
-st.sidebar.markdown("<h2 style='text-align: center; color: #64FFDA;'>⚡ NAVIGASI</h2>", unsafe_allow_html=True)
+st.sidebar.markdown("<h2 style='text-align: center; color: var(--primary-color);'>⚡ NAVIGASI</h2>", unsafe_allow_html=True)
 
 if st.session_state['role'] == 'Admin':
-    st.sidebar.markdown("<div style='text-align: center; background-color: rgba(17,34,64,0.8); padding: 10px; border-radius: 8px; border: 1px solid #64FFDA;'>Status: <b>🟢 ADMIN</b></div>", unsafe_allow_html=True)
+    st.sidebar.markdown("<div style='text-align: center; background-color: var(--secondary-background-color); padding: 10px; border-radius: 8px; border: 1px solid var(--primary-color);'>Status: <b>🟢 ADMIN</b></div>", unsafe_allow_html=True)
     menu_options = ["📝 Form Preventive Check", "📊 Hasil Laporan & Dashboard"]
 else:
-    st.sidebar.markdown("<div style='text-align: center; background-color: rgba(17,34,64,0.8); padding: 10px; border-radius: 8px; border: 1px solid #8892B0;'>Status: <b>👁️ VIEWER</b></div>", unsafe_allow_html=True)
+    st.sidebar.markdown("<div style='text-align: center; background-color: var(--secondary-background-color); padding: 10px; border-radius: 8px; border: 1px solid gray;'>Status: <b>👁️ VIEWER</b></div>", unsafe_allow_html=True)
     menu_options = ["📊 Hasil Laporan & Dashboard"]
 
 st.sidebar.write("")
@@ -480,25 +469,28 @@ if st.sidebar.button("🚪 Keluar Akun (Log Out)", use_container_width=True):
 st.sidebar.markdown("---")
 st.sidebar.info(f"📂 **Database Taut:**\n\n`Report Preventive`\n\n🔗 [Buka Spreadsheet Target](https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit)")
 st.sidebar.markdown("---")
-st.sidebar.markdown("<div style='text-align: center; color: #8892B0; font-size: 13px;'>System & Database Architecture<br><b style='color:#64FFDA;'>Created By Okta Pradika</b></div>", unsafe_allow_html=True)
+st.sidebar.markdown("<div style='text-align: center; font-size: 13px; opacity: 0.7;'>System & Database Architecture<br><b style='color:var(--primary-color);'>Created By Okta Pradika</b></div>", unsafe_allow_html=True)
 
 # =========================================================================
 # MENU 1: FORM PENGECEKAN LENGKAP (HANYA ADMIN)
 # =========================================================================
 if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
     
-    st.markdown("<div class='content-wrapper'>", unsafe_allow_html=True)
-    st.markdown("<h1>⚡ Form Preventive Maintenance</h1>", unsafe_allow_html=True)
+    render_header_logo() # Panggil logo di atas menu form
+    st.markdown("<h1 style='text-align: center;'>⚡ Form Preventive Maintenance</h1>", unsafe_allow_html=True)
     st.info("💡 Data dan Lampiran (Foto & Datalog) Anda akan dienkripsi dan dikirim langsung ke Google Sheets & Cloudinary.")
     
     tabs = st.tabs(["📌 1. Info Site", "☀️ 2. SPS Panel", "🔌 3. PLN & Recti", "⛽ 4. Genset & BBM", "🔋 5. Baterai & Gnd", "📤 6. Upload & Submit"])
 
     with tabs[0]:
+        st.markdown("#### Tentukan Kategori & Identitas Site")
+        # --- INPUT KATEGORI DIPINDAH PALING ATAS AGAR JELAS ---
+        site_category = st.radio("Kategori Site (Wajib Pilih):", ["SPS", "Site Reguler"], horizontal=True)
+        st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
+        
         c1, c2 = st.columns(2)
         with c1:
             site_name = st.text_input("Nama / ID Site", placeholder="Contoh: BTS-PKY-001")
-            # --- TAMBAHAN FILTER KATEGORI SITE ---
-            site_category = st.selectbox("Kategori Site", ["SPS", "Site Reguler"])
             nop_area = st.selectbox("NOP Area", ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"])
             check_date = st.date_input("Tanggal Pengecekan", value=datetime.date.today())
         with c2:
@@ -659,15 +651,14 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
                         st.success("✅ BERHASIL! Data telah diamankan di Google Sheets.")
                     else:
                         st.error("⚠️ Gagal menyambung ke Spreadsheet, mohon periksa Setting Secret API Anda.")
-    st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================================
 # MENU 2: HASIL LAPORAN (DITARIK DARI SPREADSHEET)
 # =========================================================================
 elif menu == "📊 Hasil Laporan & Dashboard":
     
-    st.markdown("<div class='content-wrapper'>", unsafe_allow_html=True)
-    st.markdown("<h1>📊 Dashboard Analytics & Report</h1>", unsafe_allow_html=True)
+    render_header_logo() # Panggil logo di atas laporan
+    st.markdown("<h1 style='text-align: center;'>📊 Dashboard Analytics & Report</h1>", unsafe_allow_html=True)
     
     db = st.session_state['laporan_db']
 
@@ -685,7 +676,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         # ---------------------------------------------------------------------
         # FILTER KATEGORI SITE 
         # ---------------------------------------------------------------------
-        st.markdown("<h4 style='color: #64FFDA;'>🗂️ Filter Kategori Site</h4>", unsafe_allow_html=True)
+        st.markdown("#### 🗂️ Filter Kategori Site", unsafe_allow_html=True)
         filter_kat = st.radio("Pilih kategori laporan yang ingin ditampilkan:", ["Semua", "SPS", "Site Reguler"], horizontal=True)
         
         # Memisahkan index database yang sesuai dengan filter
@@ -804,7 +795,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         except Exception as e:
                             st.error(f"Terjadi kesalahan saat menyusun PDF: {e}")
                 
-                st.markdown("<hr style='border: 1px solid #233554; margin: 15px 0;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='border: 1px solid var(--primary-color); margin: 15px 0;'>", unsafe_allow_html=True)
                 c_btn1, c_btn2 = st.columns(2)
                 with c_btn1: st.link_button("📱 Share Rangkuman ke WhatsApp", wa_url, use_container_width=True)
                 with c_btn2: st.link_button("📈 Buka Database Spreadsheet Target", f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit", use_container_width=True)
@@ -909,7 +900,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 # =========================================================
                 if st.session_state['role'] == 'Admin':
                     with st.container(border=True):
-                        st.markdown("<h4 style='color: #8892B0;'>🛠 REVISI DATA & TAMBAH LAMPIRAN</h4>", unsafe_allow_html=True)
+                        st.markdown("<h4 style='color: var(--primary-color);'>🛠 REVISI DATA & TAMBAH LAMPIRAN</h4>", unsafe_allow_html=True)
                         c_edit1, c_edit2 = st.columns(2)
                         with c_edit1:
                             new_site = st.text_input("Edit Nama Site / ID", r.get('site_name',''), key=f"esite_{i}")
@@ -963,7 +954,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                     st.cache_data.clear() 
                             st.success("✅ REVISI BERHASIL! Data & Foto tersimpan permanen.")
                             st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------------------
 # FOOTER HAK CIPTA OKTA PRADIKA
