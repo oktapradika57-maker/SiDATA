@@ -26,7 +26,7 @@ except ImportError:
 # -------------------------------------------------------------------------
 # SETUP HALAMAN & FUNGSI LOGO
 # -------------------------------------------------------------------------
-st.set_page_config(page_title="TFR Palangkaraya", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Report SPS - Okta Pradika", page_icon="⚡", layout="wide")
 
 def get_base64_of_bin_file(bin_file):
     try:
@@ -211,7 +211,7 @@ def tampilkan_grid_foto(url_data, caption=""):
         st.markdown(img_html, unsafe_allow_html=True)
 
 # -------------------------------------------------------------------------
-# 2. GENERATOR PDF (DIKEMBALIKAN KE KODE ASLI) & PPTX (DIRAPIKAN)
+# 2. GENERATOR PDF & PPTX
 # -------------------------------------------------------------------------
 def optimize_cloudinary_url(url):
     if not isinstance(url, str): return ""
@@ -222,7 +222,6 @@ def clean_text(text):
     if not text: return "-"
     return str(text).encode('latin-1', 'ignore').decode('latin-1')
 
-# --- FUNGSI BUILD PDF DIKEMBALIKAN KE VERSI AWAL 100% ---
 def build_pdf(r):
     pdf = FPDF()
     pdf.add_page()
@@ -356,7 +355,6 @@ def build_pdf(r):
 
 # FUNGSI EXPORT PPTX
 def build_pptx(db_list):
-    # POINT 2: Report PPTX Dirombak dengan Layout yang Rapi
     prs = Presentation()
     
     # Title Slide
@@ -369,13 +367,12 @@ def build_pptx(db_list):
     
     # Isi Slide Tiap Site menggunakan Tabel yang Teratur
     for r in db_list:
-        slide_layout = prs.slide_layouts[5] # Memakai Title Only agar bisa bebas custom Table & Picture
+        slide_layout = prs.slide_layouts[5]
         slide = prs.slides.add_slide(slide_layout)
         
         title = slide.shapes.title
         title.text = f"Site: {r.get('site_name', '-')} | Status: {r.get('status', '-')}"
         
-        # Setup Table di sebelah Kiri
         rows = 6
         cols = 2
         left = Inches(0.5)
@@ -395,16 +392,13 @@ def build_pptx(db_list):
             ("Sparepart Diganti", r.get('sparepart', '-'))
         ]
         
-        # Mengisi tabel dan styling font
         for row_idx, (k, v) in enumerate(table_data):
             table.cell(row_idx, 0).text = k
             table.cell(row_idx, 1).text = str(v)
-            
             for cell in [table.cell(row_idx, 0), table.cell(row_idx, 1)]:
                 for paragraph in cell.text_frame.paragraphs:
                     paragraph.font.size = Pt(13)
         
-        # Tempel Foto Site utama di sebelah Kanan
         site_urls = r.get('url_sites', [])
         if site_urls and len(site_urls) > 0:
             try:
@@ -460,7 +454,6 @@ if 'laporan_db' not in st.session_state:
 # -------------------------------------------------------------------------
 st.sidebar.markdown("<h2 style='text-align: center; color: var(--primary-color);'>⚡ NAVIGASI</h2>", unsafe_allow_html=True)
 
-# POINT 3: Menu Baru -> Monitoring Improvement ditambahkan di Sidebar
 if st.session_state['role'] == 'Admin':
     st.sidebar.markdown("<div style='text-align: center; background-color: var(--secondary-background-color); padding: 10px; border-radius: 8px; border: 1px solid var(--primary-color);'>Status: <b>🟢 ADMIN</b></div>", unsafe_allow_html=True)
     menu_options = ["📝 Form Preventive Check", "📊 Hasil Laporan & Dashboard", "📈 Monitoring Improvement"]
@@ -486,7 +479,7 @@ st.sidebar.markdown("<div style='text-align: center; font-size: 13px; opacity: 0
 # =========================================================================
 if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
     
-    render_header_logo() # Panggil logo di atas menu form
+    render_header_logo()
     st.markdown("<h1 style='text-align: center;'>⚡ Form Preventive Maintenance</h1>", unsafe_allow_html=True)
     st.info("💡 Data dan Lampiran (Foto & Datalog) Anda akan dienkripsi dan dikirim langsung ke Google Sheets & Cloudinary.")
     
@@ -494,7 +487,6 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
 
     with tabs[0]:
         st.markdown("#### Tentukan Kategori & Identitas Site")
-        # --- INPUT KATEGORI DIPINDAH PALING ATAS AGAR JELAS ---
         site_category = st.radio("Kategori Site (Wajib Pilih):", ["SPS", "Site Reguler"], horizontal=True)
         st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
         
@@ -543,7 +535,7 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
                         qty = st.number_input(f"Isi Panel per Seri", value=6, key=f"sq_{i}")
                         voc = st.number_input(f"Total Voc [V]", value=129.0, key=f"sv_{i}")
                         isc = st.number_input(f"Isc [A]", value=5.2, key=f"si_{i}")
-                        p_cond = st.selectbox(f"Kondisi", ["Baik", "Kotor", "Apr Faulty", "Retak"], key=f"sc_{i}")
+                        p_cond = st.selectbox(f"Kondisi", ["Baik", "Kotor", "Retak"], key=f"sc_{i}")
                     with c2:
                         pb = st.file_uploader(f"📸 KONDISI PANEL (Bisa >1)", accept_multiple_files=True, key=f"spb_{i}")
                         pa = st.file_uploader(f"✨ PENGUKURAN (Bisa >1)", accept_multiple_files=True, key=f"spa_{i}")
@@ -667,13 +659,13 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
 # =========================================================================
 elif menu == "📊 Hasil Laporan & Dashboard":
     
-    render_header_logo() # Panggil logo di atas laporan
+    render_header_logo()
     st.markdown("<h1 style='text-align: center;'>📊 Dashboard Analytics & Report</h1>", unsafe_allow_html=True)
     
     db = st.session_state['laporan_db']
 
     if not db:
-        st.warning("⚠️ Belum ada data di Spreadsheet / Koneksi Sedang Proses.")
+        st.warning("⚠️️ Belum ada data di Spreadsheet / Koneksi Sedang Proses.")
     else:
         total_sites = len(db)
         col_m1, col_m2, col_m3 = st.columns(3)
@@ -689,10 +681,9 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         st.markdown("#### 🗂️ Filter Kategori Site", unsafe_allow_html=True)
         filter_kat = st.radio("Pilih kategori laporan yang ingin ditampilkan:", ["Semua", "SPS", "Site Reguler"], horizontal=True)
         
-        # Memisahkan index database yang sesuai dengan filter
         filtered_indices = []
         for idx, r in enumerate(db):
-            kat = r.get('kategori', 'SPS') # Default ke SPS untuk legacy data
+            kat = r.get('kategori', 'SPS')
             if filter_kat == "Semua" or kat == filter_kat:
                 filtered_indices.append(idx)
                 
@@ -706,7 +697,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         st.markdown("### 📥 Ekspor Laporan Rekapitulasi (Excel & PPTX)")
         
         summary_list = []
-        # Hanya ekspor data yang sesuai filter Kategori
         export_db = [db[idx] for idx in filtered_indices]
         
         for r in export_db:
@@ -784,7 +774,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 
         st.divider()
 
-        # Daftar list data per-site (HANYA DARI YANG TER-FILTER)
+        # Daftar list data per-site
         for i in reversed(filtered_indices):
             r = db[i]
             site_id = r.get('site_name', 'Unknown')
@@ -871,7 +861,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         for dl in dls: st.markdown(f"- 🔗 [{dl['name']}]({dl['url']})")
                     else: st.info("Tidak ada file datalog diunggah pada site ini.")
 
-                # --- TAB 6: GRAFIK ANALISA POWER ---
                 with ltab6:
                     st.markdown("### ⚡ Grafik Analisa Power & Voltage")
                     st.info(f"Sistem sedang melacak file data histori **`{site_id}.xlsx`** di repositori...")
@@ -914,7 +903,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         c_edit1, c_edit2 = st.columns(2)
                         with c_edit1:
                             new_site = st.text_input("Edit Nama Site / ID", r.get('site_name',''), key=f"esite_{i}")
-                            # Menambah Opsi Edit Kategori Site
                             kat_options = ["SPS", "Site Reguler"]
                             curr_kat = r.get('kategori', 'SPS')
                             if curr_kat not in kat_options: curr_kat = "SPS"
@@ -968,7 +956,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 # =========================================================================
 # MENU 3: EXCEL LIVE-EDITOR (MONITORING IMPROVEMENT)
 # =========================================================================
-# POINT 3: Halaman Baru untuk Tracking Excel secara Live dan Dashboard
 elif menu == "📈 Monitoring Improvement":
     render_header_logo()
     st.markdown("<h1 style='text-align: center;'>📈 Master Tracker Improvement</h1>", unsafe_allow_html=True)
@@ -978,8 +965,8 @@ elif menu == "📈 Monitoring Improvement":
     if not os.path.exists(file_master):
         st.error(f"❌ File '{file_master}' tidak ditemukan di sistem/server. Pastikan Anda telah meletakkan file tersebut satu folder dengan aplikasi.")
     else:
-        # MEMBAGI HALAMAN MENJADI 2 TAB: GRAFIK DAN EDITOR DATA
-        tab_dashboard, tab_editor = st.tabs(["📊 Dashboard Progress (Kurva S)", "📝 Live Editor Data"])
+        # POINT 4: DIBUAT 3 TAB AGAR DASHBOARD PROGRESS TIM PUNYA TEMPAT KHUSUS
+        tab_dashboard, tab_tim, tab_editor = st.tabs(["📊 Kurva S", "👥 Progress Tim (Done/Berjalan)", "📝 Live Editor Data"])
         
         # --- TAB 1: VISUALISASI DASHBOARD KURVA S ---
         with tab_dashboard:
@@ -987,15 +974,11 @@ elif menu == "📈 Monitoring Improvement":
             st.info("💡 Data grafik ini dibaca secara Real-Time dari **Sheet 'Kurva S'** di file Excel Master Anda.")
             
             try:
-                # Membaca data metrik & tabel dari Sheet Kurva S
                 df_kurva = pd.read_excel(file_master, sheet_name='Kurva S', header=None)
-                
-                # Ekstrak nilai metrik dari Excel (Posisi: baris 6-8, kolom ke-13)
                 total_site = df_kurva.iloc[6, 13] if pd.notna(df_kurva.iloc[6, 13]) else 0
                 minggu_berj = df_kurva.iloc[7, 13] if pd.notna(df_kurva.iloc[7, 13]) else 0
                 site_plan = df_kurva.iloc[8, 13] if pd.notna(df_kurva.iloc[8, 13]) else 0
                 
-                # Tampilkan Metrik Angka yang cantik
                 m1, m2, m3 = st.columns(3)
                 m1.metric(label="Total Site Target", value=f"{int(total_site)} Site")
                 m2.metric(label="Site dengan Plan", value=f"{int(site_plan)} Site")
@@ -1003,97 +986,151 @@ elif menu == "📈 Monitoring Improvement":
                 
                 st.markdown("---")
                 
-                # Ekstrak Tabel S-Curve (Mulai dari baris ke-6 sampai data habis)
-                df_chart = df_kurva.iloc[6:58, :11].copy() # Mengambil dari indeks 6 s/d 58, 11 kolom
+                df_chart = df_kurva.iloc[6:58, :11].copy()
                 df_chart.columns = ['Week', 'Mulai', 'Label', 'Plan_Minggu', 'Plan_Kumulatif', 'Actual_Minggu', 'Actual_Kumulatif', 'Pct_Plan', 'Pct_Actual', 'Gap', 'Achievement']
-                df_chart = df_chart.dropna(subset=['Week', 'Plan_Kumulatif']) # Buang baris kosong
+                df_chart = df_chart.dropna(subset=['Week', 'Plan_Kumulatif'])
                 
-                # Ubah format index agar bagus saat jadi grafik
                 df_chart['Week'] = "W" + df_chart['Week'].astype(str)
                 df_chart.set_index('Week', inplace=True)
                 
                 col_chart, col_table = st.columns([2, 1])
                 with col_chart:
                     st.markdown("**Perbandingan Kumulatif Plan vs Actual**")
-                    # Menggambar grafik S-Curve bawaan Streamlit
                     st.line_chart(df_chart[['Plan_Kumulatif', 'Actual_Kumulatif']], color=["#FF5252", "#64FFDA"])
                     
                 with col_table:
                     st.markdown("**Tabel Gap Mingguan**")
                     st.dataframe(df_chart[['Plan_Kumulatif', 'Actual_Kumulatif', 'Gap']], use_container_width=True)
-                    
             except Exception as e:
                 st.error(f"Gagal memvisualisasikan Grafik S-Curve: {e}")
 
-        # --- TAB 2: EDITOR EXCEL LANGSUNG ---
-        with tab_editor:
-            st.markdown("### 📝 Tabel Master Tracker")
-            st.write("Silakan klik *cell* pada tabel di bawah ini untuk mengedit data secara instan.")
-            
-            sheet_choice = st.selectbox("Pilih Sheet untuk Diedit:", ["Tracker Improvement", "Jadwal Visit SPS"])
+        # --- TAB 2: PROGRESS TIM (DONE VS MASIH BERJALAN) ---
+        with tab_tim:
+            st.markdown("### 👥 Dashboard Eksekusi Lapangan")
+            st.info("💡 Sistem akan membaca Sheet **Tracker Improvement** untuk menghitung berapa site yang sudah Selesai (Done) dan masih dalam pengerjaan (On Progress).")
             
             try:
-                # Membaca data excel mentah via pandas untuk ditampilkan di Data Editor
-                df_raw = pd.read_excel(file_master, sheet_name=sheet_choice, header=None)
-                headers = df_raw.iloc[3].fillna("").astype(str).tolist()
+                # Membaca Sheet Tracker
+                df_track = pd.read_excel(file_master, sheet_name='Tracker Improvement', header=None)
+                headers_track = df_track.iloc[3].fillna("").astype(str).tolist()
+                df_t = df_track.iloc[4:].copy()
+                df_t.columns = headers_track
                 
-                df_data = df_raw.iloc[4:].copy()
-                df_data.columns = headers
-                df_data = df_data.reset_index(drop=True)
+                # Coba cari otomatis kolom yang mengandung kata status / progress / keterangan
+                status_cols = [c for c in headers_track if 'status' in c.lower() or 'progress' in c.lower() or 'keterangan' in c.lower() or 'aktual' in c.lower()]
+                default_idx = headers_track.index(status_cols[0]) if status_cols else 0
                 
-                # Menampilkan Editor Data Interaktif Streamlit
-                edited_df = st.data_editor(
-                    df_data,
-                    use_container_width=True,
-                    num_rows="dynamic",
-                    key=f"editor_{sheet_choice}"
-                )
+                st.markdown("**Pilih kolom pada Excel yang berisi status pengerjaan tim:**")
+                sel_col = st.selectbox("Pilih Kolom Status:", headers_track, index=default_idx)
                 
-                if st.button("💾 Simpan Perubahan & Download Excel Utuh", type="primary"):
-                    state_key = f"editor_{sheet_choice}"
-                    changes = st.session_state[state_key]
+                if sel_col:
+                    # Ambil data kolom tersebut, rapikan teksnya (kapital & buang spasi ujung)
+                    df_t[sel_col] = df_t[sel_col].astype(str).str.strip().str.upper()
+                    # Buang cell yang kosong (NaN)
+                    df_valid = df_t[~df_t[sel_col].isin(['NAN', 'NAT', 'NONE', ''])]
                     
-                    if changes.get("edited_rows") or changes.get("added_rows"):
-                        with st.spinner("Menyuntikkan data baru ke Master Excel (Menjaga Format)..."):
-                            # Menggunakan openpyxl untuk modifikasi cell tertentu saja tanpa sentuh format aslinya
-                            import openpyxl
-                            wb = openpyxl.load_workbook(file_master)
-                            ws = wb[sheet_choice]
-                            
-                            # Terapkan hasil Edit Baris
-                            for row_idx_str, col_changes in changes.get("edited_rows", {}).items():
-                                row_idx = int(row_idx_str)
-                                excel_row = row_idx + 5 
-                                
-                                for col_name, new_val in col_changes.items():
-                                    if col_name in headers:
-                                        col_idx = headers.index(col_name) + 1
-                                        ws.cell(row=excel_row, column=col_idx).value = new_val
-                                        
-                            # Terapkan Baris Baru
-                            for added_row in changes.get("added_rows", []):
-                                excel_row = ws.max_row + 1
-                                for col_name, new_val in added_row.items():
-                                    if col_name in headers:
-                                        col_idx = headers.index(col_name) + 1
-                                        ws.cell(row=excel_row, column=col_idx).value = new_val
-                            
-                            out_buffer = BytesIO()
-                            wb.save(out_buffer)
-                            
-                            st.success("✅ Berhasil! Perubahan telah disuntikkan ke file asli.")
-                            st.download_button(
-                                label=f"📥 Download File Master Terupdate",
-                                data=out_buffer.getvalue(),
-                                file_name=f"Updated_{file_master}",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                type="primary"
-                            )
-                    else:
-                        st.warning("Belum ada sel yang diubah. Klik ganda pada tabel untuk mengubah isinya.")
+                    # Hitung kemunculan masing-masing status
+                    counts = df_valid[sel_col].value_counts().reset_index()
+                    counts.columns = ['Status', 'Jumlah']
+                    
+                    if not counts.empty:
+                        # Keyword cerdas untuk mendeteksi mana yang Selesai dan Berjalan
+                        done_kws = ['DONE', 'SELESAI', 'CLOSE', 'OK', 'COMPLETED']
+                        prog_kws = ['PROGRESS', 'BERJALAN', 'ON GOING', 'OPEN', 'PENDING', 'ON PROGRESS']
                         
+                        # Menjumlahkan angka berdasarkan kecocokan keyword
+                        jml_done = counts[counts['Status'].apply(lambda x: any(k in x for k in done_kws))]['Jumlah'].sum()
+                        jml_prog = counts[counts['Status'].apply(lambda x: any(k in x for k in prog_kws))]['Jumlah'].sum()
+                        jml_lain = counts['Jumlah'].sum() - (jml_done + jml_prog)
+                        
+                        st.markdown("#### 🎯 Hasil Kalkulasi Progress")
+                        c_t1, c_t2, c_t3 = st.columns(3)
+                        c_t1.metric("✅ TOTAL SELESAI (Done)", f"{jml_done} Site")
+                        c_t2.metric("⏳ SEDANG BERJALAN (On Progress)", f"{jml_prog} Site")
+                        c_t3.metric("📝 Lainnya / Belum Mulai", f"{jml_lain} Site")
+                        
+                        st.markdown("#### 📊 Grafik Breakdown Status")
+                        st.bar_chart(counts.set_index('Status'), color="#64FFDA")
+                        
+                        with st.expander("Tampilkan Rekap Tabel Mentah Status", expanded=False):
+                            st.dataframe(counts, use_container_width=True)
+                    else:
+                        st.warning(f"Data pada kolom '{sel_col}' kosong atau seluruhnya terbaca sebagai cell kosong.")
             except Exception as e:
-                st.error(f"Terjadi kendala saat membaca Editor Excel: {e}")
+                st.error(f"Gagal memproses data tracker tim: {e}")
+
+        # --- TAB 3: EDITOR EXCEL LANGSUNG & VIEWER DASHBOARD ---
+        with tab_editor:
+            st.markdown("### 📝 Tabel Master Tracker & Viewer")
+            st.write("Klik ganda (*double click*) pada sel tabel untuk merubah isi data secara instan.")
+            
+            # Menambahkan "Dashboard" ke dalam pilihan sheet yang bisa dibuka
+            sheet_options = ["Tracker Improvement", "Jadwal Visit SPS", "Dashboard", "Kurva S"]
+            sheet_choice = st.selectbox("Pilih Sheet Excel yang Ingin Diedit / Dilihat:", sheet_options)
+            
+            try:
+                df_raw = pd.read_excel(file_master, sheet_name=sheet_choice, header=None)
+                
+                # Jika yang dibuka sheet "Dashboard" asli Excel (yang mungkin formatnya acak), kita coba tampilkan sebisa mungkin
+                if sheet_choice == "Dashboard":
+                    st.info("💡 Karena sheet Dashboard bawaan Excel biasanya berisi desain sel yang di-merge dan banyak bagan, tampilannya di web mungkin terlihat sebagai sekumpulan teks kasar. Gunakan **Tab 👥 Progress Tim** di atas untuk tampilan Dashboard yang jauh lebih rapi.")
+                    st.dataframe(df_raw, use_container_width=True, height=500)
+                
+                else:
+                    headers = df_raw.iloc[3].fillna("").astype(str).tolist()
+                    df_data = df_raw.iloc[4:].copy()
+                    df_data.columns = headers
+                    df_data = df_data.reset_index(drop=True)
+                    
+                    edited_df = st.data_editor(
+                        df_data,
+                        use_container_width=True,
+                        num_rows="dynamic",
+                        key=f"editor_{sheet_choice}"
+                    )
+                    
+                    if st.button("💾 Simpan Perubahan & Download Excel Utuh", type="primary"):
+                        state_key = f"editor_{sheet_choice}"
+                        changes = st.session_state[state_key]
+                        
+                        if changes.get("edited_rows") or changes.get("added_rows"):
+                            with st.spinner("Menyuntikkan data baru ke Master Excel (Menjaga Format)..."):
+                                import openpyxl
+                                wb = openpyxl.load_workbook(file_master)
+                                ws = wb[sheet_choice]
+                                
+                                for row_idx_str, col_changes in changes.get("edited_rows", {}).items():
+                                    row_idx = int(row_idx_str)
+                                    excel_row = row_idx + 5 
+                                    
+                                    for col_name, new_val in col_changes.items():
+                                        if col_name in headers:
+                                            col_idx = headers.index(col_name) + 1
+                                            ws.cell(row=excel_row, column=col_idx).value = new_val
+                                            
+                                for added_row in changes.get("added_rows", []):
+                                    excel_row = ws.max_row + 1
+                                    for col_name, new_val in added_row.items():
+                                        if col_name in headers:
+                                            col_idx = headers.index(col_name) + 1
+                                            ws.cell(row=excel_row, column=col_idx).value = new_val
+                                
+                                out_buffer = BytesIO()
+                                wb.save(out_buffer)
+                                
+                                st.success("✅ Berhasil! Perubahan telah disuntikkan ke file asli.")
+                                st.download_button(
+                                    label=f"📥 Download File Master Terupdate",
+                                    data=out_buffer.getvalue(),
+                                    file_name=f"Updated_{file_master}",
+                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    type="primary"
+                                )
+                        else:
+                            st.warning("Belum ada sel yang diubah. Klik ganda pada tabel untuk mengubah isinya.")
+                            
+            except Exception as e:
+                st.error(f"Terjadi kendala saat membaca sheet {sheet_choice}: {e}")
 
 # -------------------------------------------------------------------------
 # FOOTER HAK CIPTA OKTA PRADIKA
