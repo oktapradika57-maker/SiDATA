@@ -52,12 +52,10 @@ def render_header_logo():
 # -------------------------------------------------------------------------
 # CUSTOM CSS (ADAPTIF UNTUK LIGHT MODE & DARK MODE)
 # -------------------------------------------------------------------------
-# Menggunakan var(--text-color) dan var(--background-color) bawaan Streamlit
 st.markdown("""
     <style>
         h1, h2, h3 { color: var(--primary-color) !important; font-family: 'Segoe UI', sans-serif; }
         
-        /* Expander / Dropdown Style Adaptif */
         div[data-testid="stExpander"] details {
             border: 1px solid var(--primary-color); 
             border-radius: 10px; 
@@ -69,7 +67,6 @@ st.markdown("""
         div[data-testid="stExpander"] details:hover { border-color: var(--primary-color); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
         div[data-testid="stExpander"] summary { font-size: 16px !important; font-weight: 600 !important; color: var(--text-color) !important; padding: 10px; }
         
-        /* Button Style Adaptif */
         .stButton>button { 
             border-radius: 8px; font-weight: bold; transition: all 0.3s; 
             border: 1px solid var(--primary-color); 
@@ -82,7 +79,6 @@ st.markdown("""
             color: white !important; 
         }
         
-        /* Footer Style Adaptif */
         .footer-okta { 
             text-align: center; padding: 25px; margin-top: 50px; 
             color: var(--text-color); font-size: 15px; 
@@ -92,7 +88,6 @@ st.markdown("""
         }
         .footer-okta span { color: var(--primary-color); font-weight: 800; letter-spacing: 1px; font-size: 16px; }
         
-        /* Custom Login Box Style Adaptif */
         .login-box { 
             border: 2px solid var(--primary-color); 
             padding: 40px 30px; 
@@ -120,7 +115,7 @@ if 'role' not in st.session_state:
 
 if st.session_state['role'] is None:
     st.markdown("<br><br>", unsafe_allow_html=True)
-    render_header_logo() # Panggil logo di atas form login
+    render_header_logo() 
     
     st.markdown("<h1 style='text-align: center; font-size: 40px;'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 50px; letter-spacing: 1px; opacity: 0.8;'>Sistem Pelaporan Terpadu Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
@@ -216,18 +211,18 @@ def tampilkan_grid_foto(url_data, caption=""):
         st.markdown(img_html, unsafe_allow_html=True)
 
 # -------------------------------------------------------------------------
-# 2. GENERATOR PDF & PPTX
+# 2. GENERATOR PDF (DIKEMBALIKAN KE KODE ASLI) & PPTX (DIRAPIKAN)
 # -------------------------------------------------------------------------
 def optimize_cloudinary_url(url):
     if not isinstance(url, str): return ""
-    # POINT 1: FPDF Error Handling - Memaksa URL Cloudinary mengkonversi file menjadi ekstensi JPG (f_jpg) secara otomatis.
-    if "upload/v" in url: return url.replace("upload/v", "upload/c_limit,w_800,q_80,f_jpg/v")
+    if "upload/v" in url: return url.replace("upload/v", "upload/c_limit,w_1200,q_auto:best/v")
     return url
 
 def clean_text(text):
     if not text: return "-"
     return str(text).encode('latin-1', 'ignore').decode('latin-1')
 
+# --- FUNGSI BUILD PDF DIKEMBALIKAN KE VERSI AWAL 100% ---
 def build_pdf(r):
     pdf = FPDF()
     pdf.add_page()
@@ -314,10 +309,6 @@ def build_pdf(r):
                 if response.status_code == 200:
                     img = Image.open(BytesIO(response.content))
                     
-                    # POINT 1: FPDF Error Handling - Memastikan gambar selalu berformat RGB untuk mengatasi gambar ber-layer transparansi (PNG alpha channel)
-                    if img.mode in ('RGBA', 'P', 'LA'):
-                        img = img.convert('RGB')
-                        
                     w_orig, h_orig = img.size
                     calc_h = (max_img_w / w_orig) * h_orig
                     img_w_adj = max_img_w
@@ -332,7 +323,7 @@ def build_pdf(r):
                     pdf.cell(0, 10, clean_text("[Gagal memuat foto dari server]"), ln=True)
             except Exception:
                 pdf.set_font("helvetica", "I", 10)
-                pdf.cell(0, 10, clean_text("[Error koneksi jaringan / Format tak dikenali]"), ln=True)
+                pdf.cell(0, 10, clean_text("[Error koneksi jaringan]"), ln=True)
         pdf.ln(5)
         
     fisik_urls = (r.get('url_sites') or []) + (r.get('url_shadings') or []) + (r.get('extras_fisik') or [])
@@ -977,7 +968,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 # =========================================================================
 # MENU 3: EXCEL LIVE-EDITOR (MONITORING IMPROVEMENT)
 # =========================================================================
-# POINT 3: Halaman Baru untuk Tracking Excel secara Live
+# POINT 3: Halaman Baru untuk Tracking Excel secara Live dan Dashboard
 elif menu == "📈 Monitoring Improvement":
     render_header_logo()
     st.markdown("<h1 style='text-align: center;'>📈 Master Tracker Improvement</h1>", unsafe_allow_html=True)
@@ -987,79 +978,122 @@ elif menu == "📈 Monitoring Improvement":
     if not os.path.exists(file_master):
         st.error(f"❌ File '{file_master}' tidak ditemukan di sistem/server. Pastikan Anda telah meletakkan file tersebut satu folder dengan aplikasi.")
     else:
-        st.info("💡 **Tabel Live Editor:** Anda dapat mengedit baris data secara langsung di tabel ini. Klik pada sel yang ingin diubah, lalu tekan **Simpan & Download**. Format asli Excel (warna, rumus) tidak akan rusak!")
+        # MEMBAGI HALAMAN MENJADI 2 TAB: GRAFIK DAN EDITOR DATA
+        tab_dashboard, tab_editor = st.tabs(["📊 Dashboard Progress (Kurva S)", "📝 Live Editor Data"])
         
-        sheet_choice = st.selectbox("Pilih Sheet untuk Dimonitor / Diedit:", ["Tracker Improvement", "Jadwal Visit SPS"])
-        
-        try:
-            # Membaca data excel mentah via pandas untuk ditampilkan di Data Editor
-            df_raw = pd.read_excel(file_master, sheet_name=sheet_choice, header=None)
+        # --- TAB 1: VISUALISASI DASHBOARD KURVA S ---
+        with tab_dashboard:
+            st.markdown("### 📈 S-Curve Target vs Aktual")
+            st.info("💡 Data grafik ini dibaca secara Real-Time dari **Sheet 'Kurva S'** di file Excel Master Anda.")
             
-            # Ekstrak Header yang berada pada baris ke-4 (index ke-3 di pandas)
-            headers = df_raw.iloc[3].fillna("").astype(str).tolist()
-            
-            # Ambil datanya saja (mulai baris ke-5 / index ke-4)
-            df_data = df_raw.iloc[4:].copy()
-            df_data.columns = headers
-            df_data = df_data.reset_index(drop=True)
-            
-            st.markdown(f"**Menampilkan Data dari Sheet: `{sheet_choice}`**")
-            
-            # Menampilkan Editor Data Interaktif Streamlit
-            edited_df = st.data_editor(
-                df_data,
-                use_container_width=True,
-                num_rows="dynamic",
-                key=f"editor_{sheet_choice}"
-            )
-            
-            if st.button("💾 Simpan Perubahan & Download", type="primary"):
-                state_key = f"editor_{sheet_choice}"
-                changes = st.session_state[state_key]
+            try:
+                # Membaca data metrik & tabel dari Sheet Kurva S
+                df_kurva = pd.read_excel(file_master, sheet_name='Kurva S', header=None)
                 
-                if changes.get("edited_rows") or changes.get("added_rows"):
-                    with st.spinner("Menyuntikkan data baru ke Master Excel (Menjaga Format)..."):
-                        # Menggunakan openpyxl untuk modifikasi cell tertentu saja tanpa sentuh format
-                        import openpyxl
-                        wb = openpyxl.load_workbook(file_master)
-                        ws = wb[sheet_choice]
-                        
-                        # Terapkan hasil Edit Baris yang sudah ada
-                        for row_idx_str, col_changes in changes.get("edited_rows", {}).items():
-                            row_idx = int(row_idx_str)
-                            # Offset +5 karena: header di baris ke-4 excel, data mulai baris ke-5, dan excel index dari 1 (bukan 0)
-                            excel_row = row_idx + 5 
-                            
-                            for col_name, new_val in col_changes.items():
-                                if col_name in headers:
-                                    col_idx = headers.index(col_name) + 1
-                                    ws.cell(row=excel_row, column=col_idx).value = new_val
-                                    
-                        # Terapkan jika user menambahkan Baris Baru dari tombol UI
-                        for added_row in changes.get("added_rows", []):
-                            excel_row = ws.max_row + 1
-                            for col_name, new_val in added_row.items():
-                                if col_name in headers:
-                                    col_idx = headers.index(col_name) + 1
-                                    ws.cell(row=excel_row, column=col_idx).value = new_val
-                        
-                        out_buffer = BytesIO()
-                        wb.save(out_buffer)
-                        
-                        st.success("✅ Berhasil! Perubahan telah dimasukkan dengan aman.")
-                        
-                        st.download_button(
-                            label=f"📥 Download File Terupdate",
-                            data=out_buffer.getvalue(),
-                            file_name=f"Updated_{file_master}",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            type="primary"
-                        )
-                else:
-                    st.warning("Belum ada sel yang Anda ketik/ubah. Klik ganda (double-click) pada tabel di atas untuk mengubah isinya.")
+                # Ekstrak nilai metrik dari Excel (Posisi: baris 6-8, kolom ke-13)
+                total_site = df_kurva.iloc[6, 13] if pd.notna(df_kurva.iloc[6, 13]) else 0
+                minggu_berj = df_kurva.iloc[7, 13] if pd.notna(df_kurva.iloc[7, 13]) else 0
+                site_plan = df_kurva.iloc[8, 13] if pd.notna(df_kurva.iloc[8, 13]) else 0
+                
+                # Tampilkan Metrik Angka yang cantik
+                m1, m2, m3 = st.columns(3)
+                m1.metric(label="Total Site Target", value=f"{int(total_site)} Site")
+                m2.metric(label="Site dengan Plan", value=f"{int(site_plan)} Site")
+                m3.metric(label="Minggu Berjalan", value=f"Week {int(minggu_berj)}")
+                
+                st.markdown("---")
+                
+                # Ekstrak Tabel S-Curve (Mulai dari baris ke-6 sampai data habis)
+                df_chart = df_kurva.iloc[6:58, :11].copy() # Mengambil dari indeks 6 s/d 58, 11 kolom
+                df_chart.columns = ['Week', 'Mulai', 'Label', 'Plan_Minggu', 'Plan_Kumulatif', 'Actual_Minggu', 'Actual_Kumulatif', 'Pct_Plan', 'Pct_Actual', 'Gap', 'Achievement']
+                df_chart = df_chart.dropna(subset=['Week', 'Plan_Kumulatif']) # Buang baris kosong
+                
+                # Ubah format index agar bagus saat jadi grafik
+                df_chart['Week'] = "W" + df_chart['Week'].astype(str)
+                df_chart.set_index('Week', inplace=True)
+                
+                col_chart, col_table = st.columns([2, 1])
+                with col_chart:
+                    st.markdown("**Perbandingan Kumulatif Plan vs Actual**")
+                    # Menggambar grafik S-Curve bawaan Streamlit
+                    st.line_chart(df_chart[['Plan_Kumulatif', 'Actual_Kumulatif']], color=["#FF5252", "#64FFDA"])
                     
-        except Exception as e:
-            st.error(f"Terjadi kendala saat membaca/menulis Excel Master: {e}")
+                with col_table:
+                    st.markdown("**Tabel Gap Mingguan**")
+                    st.dataframe(df_chart[['Plan_Kumulatif', 'Actual_Kumulatif', 'Gap']], use_container_width=True)
+                    
+            except Exception as e:
+                st.error(f"Gagal memvisualisasikan Grafik S-Curve: {e}")
+
+        # --- TAB 2: EDITOR EXCEL LANGSUNG ---
+        with tab_editor:
+            st.markdown("### 📝 Tabel Master Tracker")
+            st.write("Silakan klik *cell* pada tabel di bawah ini untuk mengedit data secara instan.")
+            
+            sheet_choice = st.selectbox("Pilih Sheet untuk Diedit:", ["Tracker Improvement", "Jadwal Visit SPS"])
+            
+            try:
+                # Membaca data excel mentah via pandas untuk ditampilkan di Data Editor
+                df_raw = pd.read_excel(file_master, sheet_name=sheet_choice, header=None)
+                headers = df_raw.iloc[3].fillna("").astype(str).tolist()
+                
+                df_data = df_raw.iloc[4:].copy()
+                df_data.columns = headers
+                df_data = df_data.reset_index(drop=True)
+                
+                # Menampilkan Editor Data Interaktif Streamlit
+                edited_df = st.data_editor(
+                    df_data,
+                    use_container_width=True,
+                    num_rows="dynamic",
+                    key=f"editor_{sheet_choice}"
+                )
+                
+                if st.button("💾 Simpan Perubahan & Download Excel Utuh", type="primary"):
+                    state_key = f"editor_{sheet_choice}"
+                    changes = st.session_state[state_key]
+                    
+                    if changes.get("edited_rows") or changes.get("added_rows"):
+                        with st.spinner("Menyuntikkan data baru ke Master Excel (Menjaga Format)..."):
+                            # Menggunakan openpyxl untuk modifikasi cell tertentu saja tanpa sentuh format aslinya
+                            import openpyxl
+                            wb = openpyxl.load_workbook(file_master)
+                            ws = wb[sheet_choice]
+                            
+                            # Terapkan hasil Edit Baris
+                            for row_idx_str, col_changes in changes.get("edited_rows", {}).items():
+                                row_idx = int(row_idx_str)
+                                excel_row = row_idx + 5 
+                                
+                                for col_name, new_val in col_changes.items():
+                                    if col_name in headers:
+                                        col_idx = headers.index(col_name) + 1
+                                        ws.cell(row=excel_row, column=col_idx).value = new_val
+                                        
+                            # Terapkan Baris Baru
+                            for added_row in changes.get("added_rows", []):
+                                excel_row = ws.max_row + 1
+                                for col_name, new_val in added_row.items():
+                                    if col_name in headers:
+                                        col_idx = headers.index(col_name) + 1
+                                        ws.cell(row=excel_row, column=col_idx).value = new_val
+                            
+                            out_buffer = BytesIO()
+                            wb.save(out_buffer)
+                            
+                            st.success("✅ Berhasil! Perubahan telah disuntikkan ke file asli.")
+                            st.download_button(
+                                label=f"📥 Download File Master Terupdate",
+                                data=out_buffer.getvalue(),
+                                file_name=f"Updated_{file_master}",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                type="primary"
+                            )
+                    else:
+                        st.warning("Belum ada sel yang diubah. Klik ganda pada tabel untuk mengubah isinya.")
+                        
+            except Exception as e:
+                st.error(f"Terjadi kendala saat membaca Editor Excel: {e}")
 
 # -------------------------------------------------------------------------
 # FOOTER HAK CIPTA OKTA PRADIKA
