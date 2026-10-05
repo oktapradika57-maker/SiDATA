@@ -543,7 +543,7 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
                         qty = st.number_input(f"Isi Panel per Seri", value=6, key=f"sq_{i}")
                         voc = st.number_input(f"Total Voc [V]", value=129.0, key=f"sv_{i}")
                         isc = st.number_input(f"Isc [A]", value=5.2, key=f"si_{i}")
-                        p_cond = st.selectbox(f"Kondisi", ["Baik", "Kotor", "Retak"], key=f"sc_{i}")
+                        p_cond = st.selectbox(f"Kondisi", ["Baik", "Kotor", "Apr Faulty", "Retak"], key=f"sc_{i}")
                     with c2:
                         pb = st.file_uploader(f"📸 KONDISI PANEL (Bisa >1)", accept_multiple_files=True, key=f"spb_{i}")
                         pa = st.file_uploader(f"✨ PENGUKURAN (Bisa >1)", accept_multiple_files=True, key=f"spa_{i}")
