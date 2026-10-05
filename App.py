@@ -220,7 +220,8 @@ def tampilkan_grid_foto(url_data, caption=""):
 # -------------------------------------------------------------------------
 def optimize_cloudinary_url(url):
     if not isinstance(url, str): return ""
-    if "upload/v" in url: return url.replace("upload/v", "upload/c_limit,w_1200,q_auto:best/v")
+    # POINT 1: FPDF Error Handling - Memaksa URL Cloudinary mengkonversi file menjadi ekstensi JPG (f_jpg) secara otomatis.
+    if "upload/v" in url: return url.replace("upload/v", "upload/c_limit,w_800,q_80,f_jpg/v")
     return url
 
 def clean_text(text):
@@ -312,6 +313,11 @@ def build_pdf(r):
                 response = requests.get(opt_url, timeout=12)
                 if response.status_code == 200:
                     img = Image.open(BytesIO(response.content))
+                    
+                    # POINT 1: FPDF Error Handling - Memastikan gambar selalu berformat RGB untuk mengatasi gambar ber-layer transparansi (PNG alpha channel)
+                    if img.mode in ('RGBA', 'P', 'LA'):
+                        img = img.convert('RGB')
+                        
                     w_orig, h_orig = img.size
                     calc_h = (max_img_w / w_orig) * h_orig
                     img_w_adj = max_img_w
@@ -326,7 +332,7 @@ def build_pdf(r):
                     pdf.cell(0, 10, clean_text("[Gagal memuat foto dari server]"), ln=True)
             except Exception:
                 pdf.set_font("helvetica", "I", 10)
-                pdf.cell(0, 10, clean_text("[Error koneksi jaringan]"), ln=True)
+                pdf.cell(0, 10, clean_text("[Error koneksi jaringan / Format tak dikenali]"), ln=True)
         pdf.ln(5)
         
     fisik_urls = (r.get('url_sites') or []) + (r.get('url_shadings') or []) + (r.get('extras_fisik') or [])
@@ -359,6 +365,7 @@ def build_pdf(r):
 
 # FUNGSI EXPORT PPTX
 def build_pptx(db_list):
+    # POINT 2: Report PPTX Dirombak dengan Layout yang Rapi
     prs = Presentation()
     
     # Title Slide
@@ -369,41 +376,52 @@ def build_pptx(db_list):
     title.text = "Laporan Lengkap Preventive Maintenance"
     subtitle.text = f"Total Site Terinspeksi: {len(db_list)}\nGenerated on: {datetime.date.today()}"
     
-    # Isi Slide Tiap Site
+    # Isi Slide Tiap Site menggunakan Tabel yang Teratur
     for r in db_list:
-        slide_layout = prs.slide_layouts[1]
+        slide_layout = prs.slide_layouts[5] # Memakai Title Only agar bisa bebas custom Table & Picture
         slide = prs.slides.add_slide(slide_layout)
         
         title = slide.shapes.title
         title.text = f"Site: {r.get('site_name', '-')} | Status: {r.get('status', '-')}"
         
-        content = slide.placeholders[1]
-        tf = content.text_frame
-        tf.text = f"Tanggal: {r.get('timestamp', '-')}"
+        # Setup Table di sebelah Kiri
+        rows = 6
+        cols = 2
+        left = Inches(0.5)
+        top = Inches(1.5)
+        width = Inches(4.5)
+        height = Inches(3.0)
         
-        p = tf.add_paragraph()
-        p.text = f"Kategori: {r.get('kategori', 'SPS')} | NOP: {r.get('nop', '-')}"
+        table_shape = slide.shapes.add_table(rows, cols, left, top, width, height)
+        table = table_shape.table
         
-        p = tf.add_paragraph()
-        p.text = f"Teknisi Pelaksana: {r.get('teknisi', '-')}"
+        table_data = [
+            ("Tanggal", r.get('timestamp', '-')),
+            ("Kategori / NOP", f"{r.get('kategori', 'SPS')} / {r.get('nop', '-')}"),
+            ("Teknisi", r.get('teknisi', '-')),
+            ("Tegangan / Load", f"{r.get('rect_out_v', '-')} V / {r.get('total_load', '-')} A"),
+            ("Action Lapangan", r.get('action', '-')),
+            ("Sparepart Diganti", r.get('sparepart', '-'))
+        ]
         
-        p = tf.add_paragraph()
-        p.text = f"Tegangan Rectifier: {r.get('rect_out_v', '-')} V | Load BTS: {r.get('total_load', '-')} A"
+        # Mengisi tabel dan styling font
+        for row_idx, (k, v) in enumerate(table_data):
+            table.cell(row_idx, 0).text = k
+            table.cell(row_idx, 1).text = str(v)
+            
+            for cell in [table.cell(row_idx, 0), table.cell(row_idx, 1)]:
+                for paragraph in cell.text_frame.paragraphs:
+                    paragraph.font.size = Pt(13)
         
-        p = tf.add_paragraph()
-        p.text = f"Action Pekerjaan: {r.get('action', '-')}"
-        
-        p = tf.add_paragraph()
-        p.text = f"Penggantian Sparepart: {r.get('sparepart', '-')}"
-        
+        # Tempel Foto Site utama di sebelah Kanan
         site_urls = r.get('url_sites', [])
         if site_urls and len(site_urls) > 0:
             try:
-                img_url = site_urls[0].replace("upload/v", "upload/c_limit,w_600,q_auto/v")
+                img_url = site_urls[0].replace("upload/v", "upload/c_limit,w_500,q_80,f_jpg/v")
                 resp = requests.get(img_url, timeout=5)
                 if resp.status_code == 200:
                     image_stream = BytesIO(resp.content)
-                    slide.shapes.add_picture(image_stream, Inches(5.5), Inches(2.5), width=Inches(4))
+                    slide.shapes.add_picture(image_stream, Inches(5.3), Inches(1.5), width=Inches(4.2))
             except:
                 pass
                 
@@ -451,12 +469,13 @@ if 'laporan_db' not in st.session_state:
 # -------------------------------------------------------------------------
 st.sidebar.markdown("<h2 style='text-align: center; color: var(--primary-color);'>⚡ NAVIGASI</h2>", unsafe_allow_html=True)
 
+# POINT 3: Menu Baru -> Monitoring Improvement ditambahkan di Sidebar
 if st.session_state['role'] == 'Admin':
     st.sidebar.markdown("<div style='text-align: center; background-color: var(--secondary-background-color); padding: 10px; border-radius: 8px; border: 1px solid var(--primary-color);'>Status: <b>🟢 ADMIN</b></div>", unsafe_allow_html=True)
-    menu_options = ["📝 Form Preventive Check", "📊 Hasil Laporan & Dashboard"]
+    menu_options = ["📝 Form Preventive Check", "📊 Hasil Laporan & Dashboard", "📈 Monitoring Improvement"]
 else:
     st.sidebar.markdown("<div style='text-align: center; background-color: var(--secondary-background-color); padding: 10px; border-radius: 8px; border: 1px solid gray;'>Status: <b>👁️ VIEWER</b></div>", unsafe_allow_html=True)
-    menu_options = ["📊 Hasil Laporan & Dashboard"]
+    menu_options = ["📊 Hasil Laporan & Dashboard", "📈 Monitoring Improvement"]
 
 st.sidebar.write("")
 menu = st.sidebar.radio("Pilih Operasional:", menu_options)
@@ -954,6 +973,93 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                     st.cache_data.clear() 
                             st.success("✅ REVISI BERHASIL! Data & Foto tersimpan permanen.")
                             st.rerun()
+
+# =========================================================================
+# MENU 3: EXCEL LIVE-EDITOR (MONITORING IMPROVEMENT)
+# =========================================================================
+# POINT 3: Halaman Baru untuk Tracking Excel secara Live
+elif menu == "📈 Monitoring Improvement":
+    render_header_logo()
+    st.markdown("<h1 style='text-align: center;'>📈 Master Tracker Improvement</h1>", unsafe_allow_html=True)
+    
+    file_master = "Monitoring_Availability_Improvement_Visit_SPS_NOP_PLK.xlsx"
+    
+    if not os.path.exists(file_master):
+        st.error(f"❌ File '{file_master}' tidak ditemukan di sistem/server. Pastikan Anda telah meletakkan file tersebut satu folder dengan aplikasi.")
+    else:
+        st.info("💡 **Tabel Live Editor:** Anda dapat mengedit baris data secara langsung di tabel ini. Klik pada sel yang ingin diubah, lalu tekan **Simpan & Download**. Format asli Excel (warna, rumus) tidak akan rusak!")
+        
+        sheet_choice = st.selectbox("Pilih Sheet untuk Dimonitor / Diedit:", ["Tracker Improvement", "Jadwal Visit SPS"])
+        
+        try:
+            # Membaca data excel mentah via pandas untuk ditampilkan di Data Editor
+            df_raw = pd.read_excel(file_master, sheet_name=sheet_choice, header=None)
+            
+            # Ekstrak Header yang berada pada baris ke-4 (index ke-3 di pandas)
+            headers = df_raw.iloc[3].fillna("").astype(str).tolist()
+            
+            # Ambil datanya saja (mulai baris ke-5 / index ke-4)
+            df_data = df_raw.iloc[4:].copy()
+            df_data.columns = headers
+            df_data = df_data.reset_index(drop=True)
+            
+            st.markdown(f"**Menampilkan Data dari Sheet: `{sheet_choice}`**")
+            
+            # Menampilkan Editor Data Interaktif Streamlit
+            edited_df = st.data_editor(
+                df_data,
+                use_container_width=True,
+                num_rows="dynamic",
+                key=f"editor_{sheet_choice}"
+            )
+            
+            if st.button("💾 Simpan Perubahan & Download", type="primary"):
+                state_key = f"editor_{sheet_choice}"
+                changes = st.session_state[state_key]
+                
+                if changes.get("edited_rows") or changes.get("added_rows"):
+                    with st.spinner("Menyuntikkan data baru ke Master Excel (Menjaga Format)..."):
+                        # Menggunakan openpyxl untuk modifikasi cell tertentu saja tanpa sentuh format
+                        import openpyxl
+                        wb = openpyxl.load_workbook(file_master)
+                        ws = wb[sheet_choice]
+                        
+                        # Terapkan hasil Edit Baris yang sudah ada
+                        for row_idx_str, col_changes in changes.get("edited_rows", {}).items():
+                            row_idx = int(row_idx_str)
+                            # Offset +5 karena: header di baris ke-4 excel, data mulai baris ke-5, dan excel index dari 1 (bukan 0)
+                            excel_row = row_idx + 5 
+                            
+                            for col_name, new_val in col_changes.items():
+                                if col_name in headers:
+                                    col_idx = headers.index(col_name) + 1
+                                    ws.cell(row=excel_row, column=col_idx).value = new_val
+                                    
+                        # Terapkan jika user menambahkan Baris Baru dari tombol UI
+                        for added_row in changes.get("added_rows", []):
+                            excel_row = ws.max_row + 1
+                            for col_name, new_val in added_row.items():
+                                if col_name in headers:
+                                    col_idx = headers.index(col_name) + 1
+                                    ws.cell(row=excel_row, column=col_idx).value = new_val
+                        
+                        out_buffer = BytesIO()
+                        wb.save(out_buffer)
+                        
+                        st.success("✅ Berhasil! Perubahan telah dimasukkan dengan aman.")
+                        
+                        st.download_button(
+                            label=f"📥 Download File Terupdate",
+                            data=out_buffer.getvalue(),
+                            file_name=f"Updated_{file_master}",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            type="primary"
+                        )
+                else:
+                    st.warning("Belum ada sel yang Anda ketik/ubah. Klik ganda (double-click) pada tabel di atas untuk mengubah isinya.")
+                    
+        except Exception as e:
+            st.error(f"Terjadi kendala saat membaca/menulis Excel Master: {e}")
 
 # -------------------------------------------------------------------------
 # FOOTER HAK CIPTA OKTA PRADIKA
