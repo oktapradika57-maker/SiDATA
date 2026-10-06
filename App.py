@@ -27,7 +27,7 @@ except ImportError:
 # -------------------------------------------------------------------------
 # SETUP HALAMAN & FUNGSI LOGO
 # -------------------------------------------------------------------------
-st.set_page_config(page_title="Report SPS - Okta Pradika", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Report Task", page_icon="⚡", layout="wide")
 
 def get_base64_of_bin_file(bin_file):
     try:
