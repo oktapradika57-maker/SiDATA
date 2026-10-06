@@ -282,20 +282,22 @@ def build_pdf(r):
     pdf.ln(10)
     
     # -------------------------------------------------------------
-    # PENAMBAHAN TANDA TANGAN OKTA PRADIKA & PELAKSANA LAPANGAN
+    # PENAMBAHAN TANDA TANGAN TUNGGAL (OKTA PRADIKA)
     # -------------------------------------------------------------
-    pdf.cell(90, 6, clean_text("Mengetahui / Menyetujui,"), 0, 0, "C")
-    pdf.cell(90, 6, clean_text("Dibuat Oleh,"), 0, 1, "C")
+    pdf.set_font("helvetica", "", 10)
+    # Membuat cell kosong 90px di kiri, agar posisi teks bergeser ke kanan
+    pdf.cell(90, 6, "", 0, 0) 
+    pdf.cell(90, 6, clean_text("Data dibuat oleh,"), 0, 1, "C")
     
-    # Inject Gambar Tanda Tangan Okta (Khusus Kolom Koordinator)
+    # Inject Gambar Tanda Tangan Okta
     try:
         fd, ttd_path = tempfile.mkstemp(suffix=".png")
         os.close(fd)
         with open(ttd_path, "wb") as f:
             f.write(base64.b64decode(TTD_OKTA_B64))
         
-        # Posisi x=45 (tengah kolom pertama), y diatur turun sedikit dari teks
-        pdf.image(ttd_path, x=45, y=pdf.get_y() + 2, w=30)
+        # Posisi gambar tanda tangan digeser ke sisi kanan kertas (x=135)
+        pdf.image(ttd_path, x=135, y=pdf.get_y() + 2, w=30)
         os.remove(ttd_path)
     except Exception:
         pass
@@ -303,13 +305,12 @@ def build_pdf(r):
     pdf.ln(22) # Spasi yang pas untuk tinggi tanda tangan
     
     pdf.set_font("helvetica", "B", 10)
-    # Kolom kiri diisi digital, kolom kanan disiapkan kosong titik-titik untuk manual
-    pdf.cell(90, 6, clean_text("(          Okta Pradika          )"), 0, 0, "C")
-    pdf.cell(90, 6, clean_text("(..........................................)"), 0, 1, "C")
+    pdf.cell(90, 6, "", 0, 0) 
+    pdf.cell(90, 6, clean_text("(          Okta Pradika          )"), 0, 1, "C")
     
     pdf.set_font("helvetica", "", 10)
-    pdf.cell(90, 6, clean_text("Koordinator / PIC Area"), 0, 0, "C")
-    pdf.cell(90, 6, clean_text("Pelaksana Lapangan"), 0, 1, "C")
+    pdf.cell(90, 6, "", 0, 0) 
+    pdf.cell(90, 6, clean_text("Koordinator KUT Palangkaraya"), 0, 1, "C")
     
     # =========================================================================
     
