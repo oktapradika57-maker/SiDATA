@@ -13,6 +13,7 @@ import requests
 from io import BytesIO
 from PIL import Image
 import base64
+import tempfile # TAMBAHAN PENTING UNTUK FIX PDF
 
 # Mengimpor modul PPTX
 try:
@@ -26,7 +27,7 @@ except ImportError:
 # -------------------------------------------------------------------------
 # SETUP HALAMAN & FUNGSI LOGO
 # -------------------------------------------------------------------------
-st.set_page_config(page_title="TFR PLK", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Report SPS - Okta Pradika", page_icon="⚡", layout="wide")
 
 def get_base64_of_bin_file(bin_file):
     try:
@@ -213,11 +214,6 @@ def tampilkan_grid_foto(url_data, caption=""):
 # -------------------------------------------------------------------------
 # 2. GENERATOR PDF & PPTX
 # -------------------------------------------------------------------------
-def optimize_cloudinary_url(url):
-    if not isinstance(url, str): return ""
-    if "upload/v" in url: return url.replace("upload/v", "upload/c_limit,w_1200,q_auto:best/v")
-    return url
-
 def clean_text(text):
     if not text: return "-"
     return str(text).encode('latin-1', 'ignore').decode('latin-1')
@@ -302,11 +298,25 @@ def build_pdf(r):
         pdf.cell(0, 8, clean_text(title), ln=True)
         max_img_w = 160 
         for u in urls:
-            opt_url = optimize_cloudinary_url(u)
+            # PENTING: Memaksa Cloudinary convert ke JPG agar format stabil & ukuran ideal
+            opt_url = u
+            if "upload/v" in opt_url:
+                opt_url = opt_url.replace("upload/v", "upload/c_limit,w_800,f_jpg/v")
+
             try:
                 response = requests.get(opt_url, timeout=12)
                 if response.status_code == 200:
                     img = Image.open(BytesIO(response.content))
+                    
+                    # PASTIKAN Format RGB agar tidak crash di PDF jika gambar transparent/PNG
+                    if img.mode in ('RGBA', 'P', 'LA'):
+                        img = img.convert('RGB')
+                        
+                    # FIX TERPENTING: Simpan sebagai file fisik Temp. 
+                    # FPDF versi lama HANYA BISA membaca file path (string), BUKAN object memori!
+                    fd, temp_path = tempfile.mkstemp(suffix=".jpg")
+                    os.close(fd)
+                    img.save(temp_path, format="JPEG", quality=85)
                     
                     w_orig, h_orig = img.size
                     calc_h = (max_img_w / w_orig) * h_orig
@@ -314,15 +324,23 @@ def build_pdf(r):
                     if calc_h > 240: 
                         calc_h = 240
                         img_w_adj = (calc_h / h_orig) * w_orig
-                    if pdf.get_y() + calc_h > 275: pdf.add_page()
-                    pdf.image(img, x=(210 - img_w_adj)/2, y=pdf.get_y(), w=img_w_adj)
+                    
+                    if pdf.get_y() + calc_h > 275: 
+                        pdf.add_page()
+                        
+                    # Inject gambar dari file fisik sementara
+                    pdf.image(temp_path, x=(210 - img_w_adj)/2, y=pdf.get_y(), w=img_w_adj)
                     pdf.set_y(pdf.get_y() + calc_h + 10)
+                    
+                    # Langsung hapus file dari server setelah dimasukkan ke PDF
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
                 else:
                     pdf.set_font("helvetica", "I", 10)
-                    pdf.cell(0, 10, clean_text("[Gagal memuat foto dari server]"), ln=True)
-            except Exception:
+                    pdf.cell(0, 10, clean_text(f"[Gagal muat gambar (HTTP {response.status_code})]"), ln=True)
+            except Exception as e:
                 pdf.set_font("helvetica", "I", 10)
-                pdf.cell(0, 10, clean_text("[Error koneksi jaringan]"), ln=True)
+                pdf.cell(0, 10, clean_text(f"[Error koneksi/format sistem: {str(e)[:40]}]"), ln=True)
         pdf.ln(5)
         
     fisik_urls = (r.get('url_sites') or []) + (r.get('url_shadings') or []) + (r.get('extras_fisik') or [])
@@ -665,7 +683,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
     db = st.session_state['laporan_db']
 
     if not db:
-        st.warning("⚠️️ Belum ada data di Spreadsheet / Koneksi Sedang Proses.")
+        st.warning("⚠ Belum ada data di Spreadsheet / Koneksi Sedang Proses.")
     else:
         total_sites = len(db)
         col_m1, col_m2, col_m3 = st.columns(3)
@@ -965,7 +983,6 @@ elif menu == "📈 Monitoring Improvement":
     if not os.path.exists(file_master):
         st.error(f"❌ File '{file_master}' tidak ditemukan di sistem/server. Pastikan Anda telah meletakkan file tersebut satu folder dengan aplikasi.")
     else:
-        # POINT 4: DIBUAT 3 TAB AGAR DASHBOARD PROGRESS TIM PUNYA TEMPAT KHUSUS
         tab_dashboard, tab_tim, tab_editor = st.tabs(["📊 Kurva S", "👥 Progress Tim (Done/Berjalan)", "📝 Live Editor Data"])
         
         # --- TAB 1: VISUALISASI DASHBOARD KURVA S ---
@@ -1064,14 +1081,12 @@ elif menu == "📈 Monitoring Improvement":
             st.markdown("### 📝 Tabel Master Tracker & Viewer")
             st.write("Klik ganda (*double click*) pada sel tabel untuk merubah isi data secara instan.")
             
-            # Menambahkan "Dashboard" ke dalam pilihan sheet yang bisa dibuka
             sheet_options = ["Tracker Improvement", "Jadwal Visit SPS", "Dashboard", "Kurva S"]
             sheet_choice = st.selectbox("Pilih Sheet Excel yang Ingin Diedit / Dilihat:", sheet_options)
             
             try:
                 df_raw = pd.read_excel(file_master, sheet_name=sheet_choice, header=None)
                 
-                # Jika yang dibuka sheet "Dashboard" asli Excel (yang mungkin formatnya acak), kita coba tampilkan sebisa mungkin
                 if sheet_choice == "Dashboard":
                     st.info("💡 Karena sheet Dashboard bawaan Excel biasanya berisi desain sel yang di-merge dan banyak bagan, tampilannya di web mungkin terlihat sebagai sekumpulan teks kasar. Gunakan **Tab 👥 Progress Tim** di atas untuk tampilan Dashboard yang jauh lebih rapi.")
                     st.dataframe(df_raw, use_container_width=True, height=500)
