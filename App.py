@@ -543,6 +543,20 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
             site_photos = st.file_uploader("📸 Foto View Site (Bisa >1)", accept_multiple_files=True, key="spics")
 
     with tabs[1]:
+        # --- PENAMBAHAN MENU DATA PANEL & SCC MANUAL (SESUAI PERMINTAAN) ---
+        st.markdown("### 📝 Kelengkapan Data SPS & SCC")
+        c_pnl1, c_pnl2, c_pnl3 = st.columns(3)
+        with c_pnl1: status_panel = st.selectbox("Status Panel", ["Normal", "Kotor", "Retak / Pecah", "Terbakar", "Kritis / Kosong"])
+        with c_pnl2: jml_panel_rusak = st.number_input("Jumlah Panel Rusak", min_value=0, value=0)
+        with c_pnl3: merk_panel = st.text_input("Type Merk Panel", placeholder="Contoh: Canadian Solar 550Wp")
+
+        c_scc1, c_scc2, c_scc3 = st.columns(3)
+        with c_scc1: status_scc = st.selectbox("Status SCC", ["Normal", "Alarm", "Rusak", "Tidak Ada"])
+        with c_scc2: jml_scc_nok = st.number_input("Jumlah SCC NOK", min_value=0, value=0)
+        with c_scc3: merk_scc = st.text_input("Type/Merk SCC", placeholder="Contoh: Huawei / Shoto")
+        st.divider()
+        # -----------------------------------------------------------------
+
         shading_status = st.selectbox("Status Shading?", ["Aman", "Sedikit Shading", "Kritis"])
         shading_photos = st.file_uploader("📸 Foto Shading (Bisa >1)", accept_multiple_files=True, key="shd")
         st.divider()
@@ -578,6 +592,14 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
                     panel_data.append({"tipe": "Seri", "id": f"String #{i+1}", "qty": qty, "voc": voc, "isc": isc, "kondisi": p_cond, "foto_before_objs": pb, "foto_after_objs": pa})
 
     with tabs[2]:
+        # --- PENAMBAHAN MENU KELENGKAPAN PLN (SESUAI PERMINTAAN) ---
+        st.markdown("### 🔌 Pengecekan Jaringan PLN & PSB")
+        c_psb1, c_psb2 = st.columns(2)
+        with c_psb1: possibility_psb = st.selectbox("Possibility PSB (PLN)", ["Bisa Dilakukan", "Sulit / Terlalu Jauh", "Sudah Tersambung", "Tidak Memungkinkan"])
+        with c_psb2: jarak_pln = st.text_input("Estimasi Jarak tower ke jaringan PLN", placeholder="Contoh: 150 Meter / 2 KM")
+        st.divider()
+        # -----------------------------------------------------------
+
         c1, c2 = st.columns(2)
         with c1:
             pln_status = st.selectbox("Status PLN", ["Normal", "Padam", "Power Perusahaan", "Tidak Ada PLN"])
@@ -604,9 +626,18 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
             genset_photos = st.file_uploader("📸 Foto Genset & BBM (Bisa >1)", accept_multiple_files=True, key="gen_pics")
 
     with tabs[4]:
+        # --- PENAMBAHAN MENU DATA BATERAI MANUAL (SESUAI PERMINTAAN) ---
+        st.markdown("### 📝 Kelengkapan Data Baterai")
+        c_batm1, c_batm2, c_batm3 = st.columns(3)
+        with c_batm1: status_battery = st.selectbox("Status Total Baterai", ["Normal", "Degradasi (Drop)", "Rusak / Menggelembung", "Kritis / Hilang"])
+        with c_batm2: jml_bat_rusak = st.number_input("Jumlah Baterai Rusak", min_value=0, value=0)
+        with c_batm3: tipe_battery = st.text_input("Type / Merk Baterai", placeholder="Contoh: VRLA Shoto 100Ah")
+        st.divider()
+        # ---------------------------------------------------------------
+
         b1, b2 = st.columns(2)
         with b1:
-            num_bat = st.number_input("Jumlah Baterai", min_value=1, value=4)
+            num_bat = st.number_input("Jumlah Baterai (Pengukuran)", min_value=1, value=4)
             bat_data = []
             for j in range(int(num_bat)):
                 with st.expander(f"🔋 Baterai #{j+1}", expanded=(j==0)):
@@ -629,6 +660,7 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
         st.divider()
         action_taken = st.text_area("🔧 Rincian Pekerjaan & Action di Lapangan:")
         sparepart_needed = st.text_input("📦 Penggantian Sparepart:")
+        remark = st.text_area("📝 Remark / Catatan Khusus Laporan:") # TAMBAHAN REMARK
         final_status = st.radio("Status Akhir Site:", ["Normal", "Minor Issue", "Major/Critical"])
 
         if st.button("🚀 UPLOAD & SINKRONKAN DATA", type="primary", use_container_width=True):
@@ -662,6 +694,13 @@ if menu == "📝 Form Preventive Check" and st.session_state['role'] == 'Admin':
                         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "site_name": site_name, "kategori": site_category, "nop": nop_area, "teknisi": technician_name,
                         "status": final_status, "action": action_taken, "sparepart": sparepart_needed,
+                        
+                        # INJEKSI DATA BARU KE DICTIONARY PENYIMPANAN
+                        "status_panel": status_panel, "jml_panel_rusak": jml_panel_rusak, "merk_panel": merk_panel,
+                        "status_scc": status_scc, "jml_scc_nok": jml_scc_nok, "merk_scc": merk_scc,
+                        "status_battery": status_battery, "jml_bat_rusak": jml_bat_rusak, "tipe_battery": tipe_battery,
+                        "possibility_psb": possibility_psb, "jarak_pln": jarak_pln, "remark": remark,
+                        
                         "site_cond": site_condition, "tower_cond": tower_condition, "url_sites": url_sites,
                         "shading_status": shading_status, "url_shadings": url_shadings,
                         "panel_data": p_res,
@@ -727,7 +766,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
             st.stop()
 
         # ---------------------------------------------------------------------
-        # TABEL EXCEL FLAT & POWERPOINT
+        # TABEL EXCEL FLAT & POWERPOINT DENGAN TAMBAHAN HEADER BARU
         # ---------------------------------------------------------------------
         st.markdown("### 📥 Ekspor Laporan Rekapitulasi (Excel & PPTX)")
         
@@ -748,7 +787,22 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 "Kondisi Site": r.get('site_cond', '-'),
                 "Fisik Tower": r.get('tower_cond', '-'),
                 "Shading Panel": r.get('shading_status', '-'),
-                "SPS Rusak (Jml)": len(panel_issues),
+                
+                # --- HEADER BARU YANG DISUNTIKKAN KE EXCEL ---
+                "Status Panel": r.get('status_panel', '-'),
+                "Jumlah Panel Rusak": r.get('jml_panel_rusak', 0),
+                "Type Merk Panel": r.get('merk_panel', '-'),
+                "Status Battery": r.get('status_battery', '-'),
+                "Jumlah battery Rusak": r.get('jml_bat_rusak', 0),
+                "Type Battery": r.get('tipe_battery', '-'),
+                "status SCC": r.get('status_scc', '-'),
+                "Jumlah SCC NOK": r.get('jml_scc_nok', 0),
+                "Type/Merk SCC": r.get('merk_scc', '-'),
+                "Possibility PSB": r.get('possibility_psb', '-'),
+                "Estimasi Jarak tower ke jaringan PLN": r.get('jarak_pln', '-'),
+                "Remark": r.get('remark', '-'),
+                # ---------------------------------------------
+                
                 "SPS Rusak (Detail)": ", ".join(panel_issues) if panel_issues else "Aman (Baik)",
                 "Load Beban (A)": r.get('total_load', '-'),
                 "PLN": r.get('pln_status', '-'),
@@ -756,7 +810,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 "Voltase Recti (V)": r.get('rect_out_v', '-'),
                 "Genset": r.get('genset_status', '-'),
                 "Level BBM (%)": r.get('fuel_pct', '-'),
-                "Baterai Rusak (Jml)": len(bat_issues),
                 "Baterai Rusak (Detail)": ", ".join(bat_issues) if bat_issues else "Aman (Normal)",
                 "Grounding (Ohm)": r.get('earth_ohm', '-'),
                 "Action / Pekerjaan": r.get('action', '-'),
@@ -781,14 +834,12 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     cell_center = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
                     cell_left = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
 
-                    col_formats = [
-                        (20, cell_center), (18, cell_center), (15, cell_center), (15, cell_center), (20, cell_center), (15, cell_center), 
-                        (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), (25, cell_left),   
-                        (15, cell_center), (15, cell_center), (18, cell_center), (15, cell_center), (15, cell_center), (15, cell_center), 
-                        (18, cell_center), (25, cell_left), (15, cell_center), (40, cell_left), (30, cell_left)        
-                    ]
-                    for i, (w, fmt) in enumerate(col_formats):
-                        worksheet.set_column(i, i, w, fmt)
+                    # LOGIKA LEBAR KOLOM EXCEL OTOMATIS BERDASARKAN NAMA KOLOM
+                    for i, col_name in enumerate(df_export.columns):
+                        if col_name in ["Action / Pekerjaan", "Remark", "Possibility PSB", "Estimasi Jarak tower ke jaringan PLN", "Type Merk Panel", "Type Battery", "SPS Rusak (Detail)", "Baterai Rusak (Detail)", "Sparepart Diganti"]:
+                            worksheet.set_column(i, i, 35, cell_left)
+                        else:
+                            worksheet.set_column(i, i, 18, cell_center)
 
                     worksheet.freeze_panes(1, 0)
                     worksheet.autofilter(0, 0, len(df_export), len(df_export.columns) - 1)
@@ -838,6 +889,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 st.markdown(f"**👨‍🔧 Pelaksana (Teknisi):** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **⚡ Beban Load:** {r.get('total_load', '-')} A")
                 st.markdown(f"**🔧 Action Dikerjakan:** {r.get('action', '-')}")
                 if r.get('sparepart'): st.warning(f"**📦 Sparepart Diganti:** {r['sparepart']}")
+                if r.get('remark'): st.info(f"**📝 Remark:** {r['remark']}")
                 
                 st.markdown("<br>", unsafe_allow_html=True)
                 
@@ -850,6 +902,8 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     tampilkan_grid_foto(r.get('extras_fisik'), "📸 Tambahan")
 
                 with ltab2:
+                    st.write(f"**Status Panel:** {r.get('status_panel', '-')} ({r.get('jml_panel_rusak', 0)} Rusak) | **Merk Panel:** {r.get('merk_panel', '-')}")
+                    st.write(f"**Status SCC:** {r.get('status_scc', '-')} ({r.get('jml_scc_nok', 0)} Rusak) | **Merk SCC:** {r.get('merk_scc', '-')}")
                     for p in r.get('panel_data', []):
                         st.markdown(f"**{p.get('Panel', '-')}** | Voc: {p.get('Voc','-')}V | Isc: {p.get('Isc','-')}A")
                         cb, ca = st.columns(2)
@@ -862,6 +916,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     c_p1, c_p2 = st.columns(2)
                     with c_p1:
                         st.write(f"**PLN:** {r.get('pln_status', '-')} | **Rectifier:** {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)")
+                        st.write(f"**Possibility PSB:** {r.get('possibility_psb', '-')} | **Jarak PLN:** {r.get('jarak_pln', '-')}")
                         tampilkan_grid_foto(r.get('url_rects'), "📸 Rectifier")
                     with c_p2:
                         st.write(f"**Genset:** {r.get('genset_status', '-')} | **BBM:** {r.get('fuel_pct', '-')}%")
@@ -871,6 +926,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 
                 with ltab4:
                     st.markdown("### 🔋 Bank Baterai")
+                    st.write(f"**Status Baterai Keseluruhan:** {r.get('status_battery', '-')} ({r.get('jml_bat_rusak', 0)} Rusak) | **Merk Baterai:** {r.get('tipe_battery', '-')}")
                     for b in r.get('battery_data', []):
                         with st.container(border=True):
                             bc1, bc2 = st.columns([2, 1])
