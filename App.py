@@ -352,7 +352,7 @@ def build_pptx(db_list):
     return out.getvalue()
 
 # -------------------------------------------------------------------------
-# SETUP DATABASE GOOGLE SHEETS
+# SETUP DATABASE GOOGLE SHEETS DENGAN AUTO-CORRECTOR KATEGORI 
 # -------------------------------------------------------------------------
 SHEET_ID = "1HvgVicTWwO4RMQI6ZR3Mu3IgGicwjcLZl9mDN1auvJU"
 
@@ -370,7 +370,7 @@ def connect_gsheets(sheet_name="Report Preventive"):
 def fetch_data_from_gsheets():
     all_data = []
     
-    # 1. Mengambil data asli Report Preventive (Mencakup data SPS/SiUPDATE)
+    # 1. Mengambil data asli Report Preventive (Mencakup data SPS)
     sheet_prev = connect_gsheets("Report Preventive")
     if sheet_prev:
         data = sheet_prev.get_all_values()
@@ -378,6 +378,11 @@ def fetch_data_from_gsheets():
             if len(row) >= 6: 
                 try: 
                     item = json.loads(row[5])
+                    
+                    # ---> PATCH PERBAIKAN: JIKA ADA DATA LAMA YANG TERSIMPAN "SiUPDATE", UBAH JADI "SPS" <---
+                    if item.get('kategori') == 'SiUPDATE':
+                        item['kategori'] = 'SPS'
+                        
                     item['_sheet'] = "Report Preventive"
                     item['_row'] = idx + 2  # Menyimpan baris asli untuk fungsi edit admin
                     all_data.append(item)
