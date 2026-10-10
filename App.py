@@ -160,7 +160,7 @@ def tampilkan_grid_foto(url_data, caption=""):
         st.markdown(img_html, unsafe_allow_html=True)
 
 # -------------------------------------------------------------------------
-# TANDA TANGAN & PDF/PPTX GENERATOR (Bawaan Asli Palangkaraya)
+# TANDA TANGAN & PDF/PPTX GENERATOR (100% ASLI)
 # -------------------------------------------------------------------------
 TTD_OKTA_B64 = "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"
 
@@ -169,7 +169,6 @@ def clean_text(text):
     return str(text).encode('latin-1', 'ignore').decode('latin-1')
 
 def build_pdf(r):
-    # PDF ASLI PALANGKARAYA (Tanpa Perubahan)
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -371,7 +370,7 @@ def connect_gsheets(sheet_name="Report Preventive"):
 def fetch_data_from_gsheets():
     all_data = []
     
-    # 1. Mengambil data asli Report Preventive (Palangkaraya & SiUPDATE)
+    # 1. Mengambil data asli Report Preventive (Mencakup data SPS/SiUPDATE)
     sheet_prev = connect_gsheets("Report Preventive")
     if sheet_prev:
         data = sheet_prev.get_all_values()
@@ -520,17 +519,19 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
     
     if menu == "📸 Form Pelaporan (Lapangan)":
         st.markdown("<h1 style='text-align: center;'>📸 Form Pelaporan (Tim Lapangan)</h1>", unsafe_allow_html=True)
-        st.info("Pilih NOP Area untuk menyesuaikan format laporan (Pangkalan Bun memiliki format khusus berbasis teks).")
+        st.info("Sistem ini adalah Form Pelaporan standar. Jika Anda memilih NOP Pangkalan Bun, form akan otomatis menyesuaikan menjadi format khusus tanpa lampiran.")
+        
+        # Penamaan SiUPDATE hanya di judul menu sidebar. Inputan sama 100% dengan Admin.
         nop_pilihan = st.selectbox("📍 Pilih NOP Area Lapangan Anda:", ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"])
-        standar_form = "Pangkalan Bun" if nop_pilihan == "Pangkalan Bun" else "SiUPDATE"
+        standar_form = "Pangkalan Bun" if nop_pilihan == "Pangkalan Bun" else "Standar"
     else:
         st.markdown("<h1 style='text-align: center;'>⚡ Form Preventive Maintenance</h1>", unsafe_allow_html=True)
-        standar_form = "Admin_Full"
+        standar_form = "Standar"
 
     # -------------------------------------------------------------------------
-    # BLOK A: FORM ASLI PALANGKARAYA & SIUPDATE (TIDAK ADA YANG DIRUBAH)
+    # BLOK A: FORM STANDAR (PALANGKARAYA / DLL) 100% ASLI TIDAK BERUBAH
     # -------------------------------------------------------------------------
-    if standar_form in ["Admin_Full", "SiUPDATE"]:
+    if standar_form == "Standar":
         
         st.info("💡 Data dan Lampiran (Foto & Datalog) Anda akan dienkripsi dan dikirim langsung ke Google Sheets & Cloudinary.")
         
@@ -544,11 +545,11 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
             c1, c2 = st.columns(2)
             with c1:
                 site_name = st.text_input("Nama / ID Site", placeholder="Contoh: BTS-PKY-001")
-                if standar_form == "SiUPDATE":
-                    nop_area = nop_pilihan
-                    st.text_input("NOP Area", value=nop_pilihan, disabled=True)
-                else:
-                    nop_area = st.selectbox("NOP Area", ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"])
+                # Kolom Asli NOP Area (Tidak dipaksa kunci agar bentuknya sama dengan aslinya)
+                opsi_nop = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
+                default_nop_idx = opsi_nop.index(nop_pilihan) if menu == "📸 Form Pelaporan (Lapangan)" else 0
+                nop_area = st.selectbox("NOP Area", opsi_nop, index=default_nop_idx)
+                
                 check_date = st.date_input("Tanggal Pengecekan", value=datetime.date.today())
             with c2:
                 technician_name = st.text_input("Nama Pelaksana / Teknisi")
@@ -672,9 +673,6 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
             datalog_files = st.file_uploader("Semua file tersimpan utuh", accept_multiple_files=True, key="datalog_all")
             st.divider()
             
-            if standar_form == "SiUPDATE":
-                kategori_update = st.selectbox("Kategori Update", ["Progress Perbaikan Fisik / Tower", "Update Modul Surya (SPS)", "Kondisi Bank Baterai", "Mesin Genset / Rectifier", "Lainnya"], key="upd_kat")
-            
             action_taken = st.text_area("🔧 Rincian Pekerjaan & Action di Lapangan:")
             sparepart_needed = st.text_input("📦 Penggantian Sparepart:")
             remark = st.text_area("📝 Remark / Catatan Khusus Laporan:")
@@ -710,7 +708,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                         report_dict = {
                             "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "site_name": site_name, 
-                            "kategori": "SiUPDATE" if standar_form == "SiUPDATE" else site_category, 
+                            "kategori": site_category, # INI YANG TERPENTING! KEMBALI KE SPS/SITE REGULER
                             "nop": nop_area, 
                             "teknisi": technician_name,
                             "status": final_status, 
@@ -936,7 +934,8 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         st.markdown("---")
         
         st.markdown("#### 🗂️ Filter Kategori Site", unsafe_allow_html=True)
-        filter_kat = st.radio("Pilih kategori laporan yang ingin ditampilkan:", ["Semua", "SPS", "Site Reguler", "SiUPDATE", "Pangkalan Bun"], horizontal=True)
+        # Filter Asli dengan Tambahan 1 Pangkalan Bun
+        filter_kat = st.radio("Pilih kategori laporan yang ingin ditampilkan:", ["Semua", "SPS", "Site Reguler", "Pangkalan Bun"], horizontal=True)
         
         filtered_indices = []
         for idx, r in enumerate(db):
@@ -949,7 +948,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
             st.stop()
 
         # ---------------------------------------------------------------------
-        # TABEL EXCEL FLAT & POWERPOINT (PERSIS KEMBALI SEPERTI ASLINYA)
+        # TABEL EXCEL FLAT & POWERPOINT (100% ASLI TIDAK DIRUBAH)
         # ---------------------------------------------------------------------
         st.markdown("### 📥 Ekspor Laporan Rekapitulasi (Excel & PPTX)")
         
@@ -1059,8 +1058,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
             # FORMAT WHATSAPP
             if kategori_site == "Pangkalan Bun":
                 wa_text = generate_wa_pbu(r)
-            elif kategori_site == "SiUPDATE":
-                wa_text = f"*SiUPDATE - PROGRESS MANDIRI* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n\n*UPDATE:*\n{r.get('action', '-')}"
             else:
                 wa_text = f"*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({kategori_site} - {r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"
             
@@ -1068,8 +1065,8 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 
             with st.expander(f"{icon}  |  {site_id}  |  {kategori_site}  |  {r.get('timestamp', '')}  |  Status: {stat}"):
                 
-                # PDF Hanya Muncul Jika Bukan Dari SiUPDATE
-                if kategori_site != "SiUPDATE":
+                # PDF Hanya untuk Format Asli
+                if kategori_site != "Pangkalan Bun":
                     if st.checkbox("📄 Buat Berita Acara (PDF Resmi)", key=f"prep_pdf_{i}"):
                         with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
                             try:
@@ -1084,7 +1081,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 with c_btn2: st.link_button("📈 Buka Database Spreadsheet Target", f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit", use_container_width=True)
                 
                 # =========================================================================
-                # TAMPILAN PANGKALAN BUN
+                # TAMPILAN PANGKALAN BUN (ISOLASI)
                 # =========================================================================
                 if kategori_site == "Pangkalan Bun":
                     st.markdown("### 📋 SITE VISIT REPORT (Pangkalan Bun)")
@@ -1114,29 +1111,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         if r.get('pb_act_osa'): st.write(f"- OSA Impact: {', '.join(r.get('pb_act_osa'))}")
 
                 # =========================================================================
-                # TAMPILAN SiUPDATE
-                # =========================================================================
-                elif kategori_site == "SiUPDATE":
-                    st.markdown(f"**👨‍🔧 Pelaksana / Tim:** {r.get('teknisi', '-')}")
-                    st.markdown(f"**📌 Kategori Update:** {r.get('kategori_update', '-')}")
-                    st.markdown(f"**🔧 Deskripsi Update:** {r.get('action', '-')}")
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    tampilkan_grid_foto(r.get('url_sites'), "📸 Dokumentasi Foto SiUPDATE")
-                    
-                    if st.session_state['role'] == 'Admin':
-                        with st.container(border=True):
-                            st.markdown("#### 🛠 Edit Keterangan SiUPDATE")
-                            new_act_upd = st.text_area("Update Keterangan", r.get('action',''), key=f"upd_ea_{i}")
-                            if st.button("💾 Simpan Perubahan Catatan SiUPDATE", key=f"upd_btn_{i}"):
-                                r['action'] = new_act_upd
-                                sheet = connect_gsheets(r.get('_sheet', 'Report Preventive'))
-                                if sheet:
-                                    sheet.update_cell(r.get('_row', i + 2), 6, json.dumps(r))
-                                    st.cache_data.clear()
-                                    st.rerun()
-
-                # =========================================================================
-                # TAMPILAN TAB PREVENTIVE PALANGKARAYA 100% ASLI !!!
+                # TAMPILAN TAB PREVENTIVE PALANGKARAYA 100% ASLI TIDAK DIRUBAH
                 # =========================================================================
                 else:
                     st.markdown(f"**👨‍🔧 Pelaksana (Teknisi):** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **⚡ Beban Load:** {r.get('total_load', '-')} A")
