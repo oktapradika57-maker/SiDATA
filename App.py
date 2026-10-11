@@ -50,7 +50,7 @@ def render_header_logo():
         )
 
 # -------------------------------------------------------------------------
-# CUSTOM CSS
+# CUSTOM CSS (Global)
 # -------------------------------------------------------------------------
 st.markdown("""
     <style>
@@ -60,8 +60,24 @@ st.markdown("""
         }
         div[data-testid="stExpander"] details:hover { border-color: var(--primary-color); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
         div[data-testid="stExpander"] summary { font-size: 16px !important; font-weight: 600 !important; color: var(--text-color) !important; padding: 10px; }
-        .stButton>button { border-radius: 8px; font-weight: bold; transition: all 0.3s; border: 1px solid var(--primary-color); background-color: var(--secondary-background-color) !important; color: var(--text-color) !important; }
-        .stButton>button:hover { transform: translateY(-2px); background-color: var(--primary-color) !important; color: white !important; }
+        
+        /* 
+           PERBAIKAN CSS BUTTON GLOBAL:
+           Menghapus paksaan background redup agar warna asli tombol (Primary/Secondary) bisa muncul.
+           Menambahkan ketebalan huruf (font-weight: 800) untuk seluruh tombol aplikasi.
+        */
+        .stButton>button { 
+            border-radius: 8px; 
+            font-weight: 800 !important; 
+            transition: all 0.3s; 
+            border: 1px solid var(--primary-color); 
+        }
+        .stButton>button:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2); 
+            filter: brightness(1.1);
+        }
+        
         .footer-okta { text-align: center; padding: 25px; margin-top: 50px; color: var(--text-color); font-size: 15px; border-top: 1px solid var(--primary-color); background-color: var(--secondary-background-color); border-radius: 10px; opacity: 0.8; }
         .footer-okta span { color: var(--primary-color); font-weight: 800; letter-spacing: 1px; font-size: 16px; }
         .login-box { border: 2px solid var(--primary-color); padding: 40px 30px; border-radius: 16px; background-color: var(--secondary-background-color); text-align: center; height: 100%; box-shadow: 0 10px 20px rgba(0,0,0,0.05); transition: all 0.3s ease; }
@@ -77,6 +93,39 @@ st.markdown("""
 if 'role' not in st.session_state: st.session_state['role'] = None
 
 if st.session_state['role'] is None:
+    
+    # CSS KHUSUS HALAMAN LOGIN: Membuat Tombol Super Besar, Sangat Tebal, dan Mencolok
+    st.markdown("""
+        <style>
+        div.stButton > button {
+            min-height: 75px !important;
+            font-size: 20px !important;
+            font-weight: 900 !important; /* KETEBALAN MAKSIMAL */
+            text-transform: uppercase;
+            border-radius: 12px !important;
+            letter-spacing: 1px;
+        }
+        /* Warnai tombol jenis Primary (Pangkalan Bun & Login Admin) jadi Merah Menyala */
+        button[kind="primary"] {
+            background-color: #FF3333 !important;
+            color: #FFFFFF !important;
+            border: 2px solid #CC0000 !important;
+            box-shadow: 0 6px 12px rgba(255, 51, 51, 0.4);
+        }
+        /* Warnai tombol jenis Secondary (Palangkaraya) jadi Biru Menyala */
+        button[kind="secondary"] {
+            background-color: #007BFF !important;
+            color: #FFFFFF !important;
+            border: 2px solid #0056b3 !important;
+            box-shadow: 0 6px 12px rgba(0, 123, 255, 0.4);
+        }
+        div.stButton > button:hover {
+            transform: scale(1.03) !important;
+            filter: brightness(1.2) !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
     st.markdown("<br><br>", unsafe_allow_html=True)
     render_header_logo() 
     st.markdown("<h1 style='text-align: center; font-size: 40px;'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
@@ -93,12 +142,12 @@ if st.session_state['role'] is None:
         
         c_btn1, c_btn2 = st.columns(2)
         with c_btn1:
-            if st.button("📍 Masuk Pangkalan Bun", type="primary", use_container_width=True):
+            if st.button("🔴 MASUK PANGKALAN BUN", type="primary", use_container_width=True):
                 st.session_state['role'] = 'Lapangan'
                 st.session_state['area_lapangan'] = 'Pangkalan Bun'
                 st.rerun()
         with c_btn2:
-            if st.button("📍 Masuk Palangkaraya", type="secondary", use_container_width=True):
+            if st.button("🔵 MASUK PALANGKARAYA", type="secondary", use_container_width=True):
                 st.session_state['role'] = 'Lapangan'
                 st.session_state['area_lapangan'] = 'Palangkaraya'
                 st.rerun()
@@ -114,7 +163,7 @@ if st.session_state['role'] is None:
             </div>
         """, unsafe_allow_html=True)
         admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Masukkan Sandi...", key="pwd_login")
-        if st.button("Login Admin", type="primary", use_container_width=True):
+        if st.button("🔓 LOGIN ADMIN", type="primary", use_container_width=True):
             if admin_pass == "KUT2027":
                 st.session_state['role'] = 'Admin'
                 st.rerun()
@@ -778,7 +827,6 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
             st.markdown("### 📌 INFORMASI SITE")
             c1, c2 = st.columns(2)
             with c1:
-                # ---------------- PERUBAHAN KE FME NAME ---------------- 
                 pb_te = st.text_input("FME NAME")
                 pb_sid = st.text_input("Site ID")
                 pb_sname = st.text_input("Site Name")
