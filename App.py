@@ -1657,7 +1657,7 @@ elif menu == "⚡ Dapot Power Hasil PMS":
                     pilihan_sites = all_visited_sites
 
                 with c_f2:
-                     format_opsi = {s: f"{s} ({visit_counts.get(s, 0)}x Kunjungan)" for s in pilihan_sites}
+                    format_opsi = {s: f"{s} ({visit_counts.get(s, 0)}x Kunjungan)" for s in pilihan_sites}
                     selected_site = st.selectbox(
                         "Pilih Site ID untuk Melihat Grafik & KPI:",
                         options=pilihan_sites,
