@@ -11,6 +11,7 @@ from google.oauth2.service_account import Credentials
 from fpdf import FPDF
 import requests
 from io import BytesIO
+import io
 from PIL import Image
 import base64
 import tempfile 
@@ -61,11 +62,6 @@ st.markdown("""
         div[data-testid="stExpander"] details:hover { border-color: var(--primary-color); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
         div[data-testid="stExpander"] summary { font-size: 16px !important; font-weight: 600 !important; color: var(--text-color) !important; padding: 10px; }
         
-        /* 
-           PERBAIKAN CSS BUTTON GLOBAL:
-           Menghapus paksaan background redup agar warna asli tombol (Primary/Secondary) bisa muncul.
-           Menambahkan ketebalan huruf (font-weight: 800) untuk seluruh tombol aplikasi.
-        */
         .stButton>button { 
             border-radius: 8px; 
             font-weight: 800 !important; 
@@ -94,25 +90,22 @@ if 'role' not in st.session_state: st.session_state['role'] = None
 
 if st.session_state['role'] is None:
     
-    # CSS KHUSUS HALAMAN LOGIN: Membuat Tombol Super Besar, Sangat Tebal, dan Mencolok
     st.markdown("""
         <style>
         div.stButton > button {
             min-height: 75px !important;
             font-size: 20px !important;
-            font-weight: 900 !important; /* KETEBALAN MAKSIMAL */
+            font-weight: 900 !important;
             text-transform: uppercase;
             border-radius: 12px !important;
             letter-spacing: 1px;
         }
-        /* Warnai tombol jenis Primary (Pangkalan Bun & Login Admin) jadi Merah Menyala */
         button[kind="primary"] {
             background-color: #FF3333 !important;
             color: #FFFFFF !important;
             border: 2px solid #CC0000 !important;
             box-shadow: 0 6px 12px rgba(255, 51, 51, 0.4);
         }
-        /* Warnai tombol jenis Secondary (Palangkaraya) jadi Biru Menyala */
         button[kind="secondary"] {
             background-color: #007BFF !important;
             color: #FFFFFF !important;
@@ -175,7 +168,7 @@ if st.session_state['role'] is None:
     st.stop()
 
 # -------------------------------------------------------------------------
-# KONFIGURASI CLOUDINARY
+# KONFIGURASI UPLOAD CLOUDINARY & GOOGLE DRIVE API
 # -------------------------------------------------------------------------
 cloudinary.config( cloud_name = "fxm61tjv", api_key = "624877324969231", api_secret = "LIFO6pfEg9fOM3nbsY8FBbVTpSI", secure = True )
 
@@ -202,6 +195,52 @@ def upload_datalog(file_obj, folder_name="prev_datalog"):
             return response.get('secure_url')
         except Exception as e: return None
     return None
+
+# =========================================================================
+# FUNGSI UPLOAD GOOGLE DRIVE KHUSUS PANGKALAN BUN
+# =========================================================================
+def upload_foto_ke_drive(file_obj, folder_id="1LARvNqbQMA4Ln8TKzheHuVpoE9pFW-ni"):
+    if file_obj is None: return None
+    try:
+        from googleapiclient.discovery import build
+        from googleapiclient.http import MediaIoBaseUpload
+        
+        creds_json = st.secrets["gcp_json"]
+        creds_dict = json.loads(creds_json)
+        scopes = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"]
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        
+        service = build('drive', 'v3', credentials=creds)
+        
+        file_metadata = {'name': file_obj.name, 'parents': [folder_id]}
+        file_stream = io.BytesIO(file_obj.getvalue())
+        media = MediaIoBaseUpload(file_stream, mimetype=file_obj.type or 'image/jpeg', resumable=True)
+        
+        file_result = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        file_id = file_result.get('id')
+        
+        # Memberikan izin publik (read-only) agar foto bisa dimunculkan di Dashboard
+        service.permissions().create(
+            fileId=file_id, 
+            body={'type': 'anyone', 'role': 'reader'}
+        ).execute()
+        
+        # Format URL yang bisa di-render langsung di HTML/Streamlit
+        return f"https://drive.google.com/uc?id={file_id}"
+    except ImportError:
+        st.error("Library `google-api-python-client` tidak ditemukan. Tambahkan ke requirements.txt!")
+        return None
+    except Exception as e:
+        st.error(f"Gagal Upload Foto ke GDrive: {e}")
+        return None
+
+def upload_multiple_ke_drive(file_objs, folder_id="1LARvNqbQMA4Ln8TKzheHuVpoE9pFW-ni"):
+    urls = []
+    if file_objs:
+        for f in file_objs:
+            u = upload_foto_ke_drive(f, folder_id)
+            if u: urls.append(u)
+    return urls
 
 def tampilkan_grid_foto(url_data, caption=""):
     if not url_data: return
@@ -410,7 +449,7 @@ def build_pptx(db_list):
     return out.getvalue()
 
 # -------------------------------------------------------------------------
-# SETUP DATABASE GOOGLE SHEETS DENGAN AUTO-CORRECTOR KATEGORI 
+# SETUP DATABASE GOOGLE SHEETS
 # -------------------------------------------------------------------------
 SHEET_ID = "1HvgVicTWwO4RMQI6ZR3Mu3IgGicwjcLZl9mDN1auvJU"
 
@@ -428,7 +467,6 @@ def connect_gsheets(sheet_name="Report Preventive"):
 def fetch_data_from_gsheets():
     all_data = []
     
-    # 1. Mengambil data asli Report Preventive
     sheet_prev = connect_gsheets("Report Preventive")
     if sheet_prev:
         data = sheet_prev.get_all_values()
@@ -442,7 +480,6 @@ def fetch_data_from_gsheets():
                     all_data.append(item)
                 except: pass
                 
-    # 2. Mengambil data tambahan Report Pangkalan Bun
     sheet_pbu = connect_gsheets("Report PBU")
     if sheet_pbu:
         data_pbu = sheet_pbu.get_all_values()
@@ -540,7 +577,8 @@ def generate_wa_pbu(r):
     temuan_lines = str(r.get('action', '-')).split('\n')
     for line in temuan_lines:
         if line.strip(): text += f"{line}\n"
-    
+        
+    text += f"\n\n🔗 Foto & Dokumentasi lengkap tersimpan di Dashboard SPS Portal."
     return text
 
 # -------------------------------------------------------------------------
@@ -576,7 +614,6 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
     
     render_header_logo()
     
-    # Deteksi Routing dari Tombol Login
     if menu == "📸 Form Pelaporan (Lapangan)":
         if st.session_state.get('area_lapangan') == 'Pangkalan Bun':
             st.markdown("<h1 style='text-align: center;'>📸 Form Pelaporan (Pangkalan Bun)</h1>", unsafe_allow_html=True)
@@ -611,11 +648,9 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
             c1, c2 = st.columns(2)
             with c1:
                 site_name = st.text_input("Nama / ID Site", placeholder="Contoh: BTS-PKY-001")
-                
                 opsi_nop = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
                 idx_default = opsi_nop.index(nop_area_default) if nop_area_default in opsi_nop else 0
                 nop_area = st.selectbox("NOP Area", opsi_nop, index=idx_default)
-                
                 check_date = st.date_input("Tanggal Pengecekan", value=datetime.date.today())
             with c2:
                 technician_name = st.text_input("Nama Pelaksana / Teknisi")
@@ -814,11 +849,11 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             st.error("⚠️ Gagal menyambung ke Spreadsheet.")
 
     # -------------------------------------------------------------------------
-    # BLOK B: TAMBAHAN PANGKALAN BUN (Teks Saja & Auto WA & Export Lengkap)
+    # BLOK B: TAMBAHAN PANGKALAN BUN (Dengan Upload GDrive)
     # -------------------------------------------------------------------------
     elif standar_form == "Pangkalan Bun":
         
-        st.info("💡 **Format Khusus Site Visit Report (Pangkalan Bun).** Isian difokuskan pada pengumpulan data operasional dan kelistrikan tanpa memerlukan upload foto. Hasil laporan akan diotomatisasi ke WhatsApp grup.")
+        st.info("💡 **Format Khusus Site Visit Report (Pangkalan Bun).** Seluruh foto yang Anda unggah di sini akan langsung disimpan ke dalam Shared Google Drive Folder dan dapat dilihat pada Dashboard.")
         tabs_pb = st.tabs(["📌 Info Site & Power", "🔌 Rectifier & ENVA", "⚡ Kelistrikan & ACPDB", "⛽ Genset & Log", "📤 Activity & Submit"])
         
         pb_payload = {}
@@ -834,6 +869,9 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 pb_tick = st.text_input("Ticket#")
                 pb_tgl = st.text_input("Tanggal On Site", value=datetime.date.today().strftime("%d %B %Y"))
                 pb_catuan = st.selectbox("Catuan Power Utama", ["GENSET", "PLN", "SPS", "LAINNYA"])
+                
+            # FOTO SITE
+            pb_foto_site = st.file_uploader("📸 Foto Site / Kondisi Umum (Bisa >1)", accept_multiple_files=True, key="pb_foto_site")
             pb_payload.update({"te_name": pb_te, "site_id": pb_sid, "site_name": pb_sname, "ticket": pb_tick, "tgl_onsite": pb_tgl, "power_utama": pb_catuan})
             
         with tabs_pb[1]:
@@ -880,6 +918,9 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 eh = st.selectbox("High Temp", opt_enva, key="eh")
                 egr = st.selectbox("Genset Run", opt_enva, key="egr")
                 egf = st.selectbox("Genset Fail", opt_enva, key="egf")
+                
+            # FOTO RECTI & ENVA
+            pb_foto_recti = st.file_uploader("📸 Foto Rectifier & ENVA (Bisa >1)", accept_multiple_files=True, key="pb_foto_recti")
             pb_payload["enva"] = {"main_fail": em, "rect_fail": er, "low_batt": el, "high_temp": eh, "gen_run": egr, "gen_fail": egf}
 
         with tabs_pb[2]:
@@ -905,6 +946,9 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
             with c4:
                 aar = st.text_input("Pengukuran Arus R-S-T (ACPDB)", key="aar")
                 agn = st.text_input("Tegangan Pengukuran G-N (ACPDB)", key="agn")
+            
+            # FOTO KELISTRIKAN & ACPDB
+            pb_foto_listrik = st.file_uploader("📸 Foto Kelistrikan & ACPDB (Bisa >1)", accept_multiple_files=True, key="pb_foto_listrik")
             pb_payload["acpdb"] = {"ada": aa, "v_rst_n": av1, "v_rs_rt_st": av2, "arus_rst": aar, "v_gn": agn}
             
         with tabs_pb[3]:
@@ -919,6 +963,9 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 gt = st.text_input("Kapasitas Tangki", key="gt")
                 grh = st.text_input("Running Hour", key="grh")
                 gsb = st.text_input("Sisa BBM", key="gsb")
+                
+            # FOTO GENSET
+            pb_foto_genset = st.file_uploader("📸 Foto Genset (Bisa >1)", accept_multiple_files=True, key="pb_foto_genset")
             pb_payload["genset"] = {"ada": ga, "cap": gc, "status": gs, "config": gco, "tangki": gt, "rh": grh, "bbm": gsb}
 
         with tabs_pb[4]:
@@ -928,12 +975,22 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
             pb_act3 = st.multiselect("3. OSA Impact Service Activity", ["Validasi ENVA", "BBU Min Voltage", "RRU Min Voltage", "Cell Down", "Disable PA", "Int. Fault", "Cell Flicker", "BBU Temp", "RRU Temp", "Zero Traffic", "Zero Payload", "VSWR", "Optical port link fault", "GNSS/GPS", "BFAN/FCE"])
             pb_temuan = st.text_area("Temuan/ Catatan (Gunakan Enter untuk list ke bawah):", placeholder="1. \n2. \n3.")
             
+            pb_foto_act = st.file_uploader("📸 Foto Temuan / Action Lapangan (Bisa >1)", accept_multiple_files=True, key="pb_foto_act")
+            
             pb_status_akhir = st.radio("Status Akhir Site:", ["Normal", "Minor Issue", "Major/Critical"])
             
             if st.button("🚀 SUBMIT SITE VISIT & BUKA WA", type="primary", use_container_width=True):
                 if not pb_sid: st.error("⚠️ Mohon isi Site ID / Name!")
                 else:
-                    with st.spinner("⏳ Sedang menyimpan data Laporan ke Sheet PBU..."):
+                    with st.spinner("⏳ Sedang mengunggah foto ke Google Drive & menyimpan data Laporan ke Sheet PBU..."):
+                        
+                        # Upload semua foto ke GDrive Pangkalan Bun
+                        url_pb_site = upload_multiple_ke_drive(pb_foto_site)
+                        url_pb_recti = upload_multiple_ke_drive(pb_foto_recti)
+                        url_pb_listrik = upload_multiple_ke_drive(pb_foto_listrik)
+                        url_pb_genset = upload_multiple_ke_drive(pb_foto_genset)
+                        url_pb_act = upload_multiple_ke_drive(pb_foto_act)
+                        
                         report_dict = {
                             "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "site_name": pb_sid + " / " + pb_sname,
@@ -950,6 +1007,13 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             "pb_acpdb": pb_payload["acpdb"],
                             "pb_genset": pb_payload["genset"],
                             "pb_act_power": pb_act1, "pb_act_trans": pb_act2, "pb_act_osa": pb_act3,
+                            
+                            # Menyimpan URL Foto ke Payload JSON
+                            "pb_url_site": url_pb_site,
+                            "pb_url_recti": url_pb_recti,
+                            "pb_url_listrik": url_pb_listrik,
+                            "pb_url_genset": url_pb_genset,
+                            "pb_url_act": url_pb_act,
                             
                             # Bypass data agar Dashboard Palangkaraya tidak Error
                             "panel_data": [], "battery_data": [], "url_sites": [], "total_load": "-", "rect_out_v": "-", "sparepart": "-"
@@ -968,7 +1032,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             wa_text = generate_wa_pbu(report_dict)
                             wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
                             
-                            st.success("✅ BERHASIL! Data Visit Site Pangkalan Bun telah tersimpan di Sheet 'Report PBU'.")
+                            st.success("✅ BERHASIL! Data Visit & Dokumentasi Site Pangkalan Bun telah tersimpan ke GDrive dan Sheet 'Report PBU'.")
                             st.markdown("### 📱 Langkah Terakhir: Bagikan Laporan")
                             st.markdown("Silakan tekan tombol di bawah ini untuk langsung membagikan rangkuman laporan Anda ke Grup WhatsApp.")
                             st.link_button("🚀 BUKA WHATSAPP & KIRIM LAPORAN", wa_url, type="primary")
@@ -994,7 +1058,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1: st.metric("Total Laporan Masuk", total_sites)
         with col_m2: st.metric("Database Terhubung", "Google Sheets", "Online")
-        with col_m3: st.metric("Cloud Storage", "Cloudinary", "Active")
+        with col_m3: st.metric("Cloud Storage", "GDrive & Cloudinary", "Active")
         
         st.markdown("---")
         
@@ -1022,7 +1086,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         
         for r in export_db:
             if r.get('kategori') == 'Pangkalan Bun':
-                # EXCEL EXPORT KHUSUS PANGKALAN BUN - Menarik semua kolom secara mendetail
                 kel = r.get('pb_kelistrikan', {})
                 acp = r.get('pb_acpdb', {})
                 enva = r.get('pb_enva', {})
@@ -1091,7 +1154,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 summary_list.append(row_data)
 
             else:
-                # FORMAT EXCEL STANDAR (PALANGKARAYA DLL)
                 panel_issues = [p.get('Panel', 'Panel') for p in r.get('panel_data', []) if p.get('kondisi') and p.get('kondisi') != "Baik"]
                 bat_issues = [b.get('Baterai', 'Baterai') for b in r.get('battery_data', []) if b.get('Kondisi') and b.get('Kondisi') != "Normal"]
 
@@ -1209,7 +1271,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 with c_btn2: st.link_button("📈 Buka Database Spreadsheet Target", f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit", use_container_width=True)
                 
                 # =========================================================================
-                # TAMPILAN PANGKALAN BUN (ISOLASI)
+                # TAMPILAN PANGKALAN BUN (+ DOKUMENTASI GDRIVE)
                 # =========================================================================
                 if kategori_site == "Pangkalan Bun":
                     st.markdown("### 📋 SITE VISIT REPORT (Pangkalan Bun)")
@@ -1220,16 +1282,23 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     with tpb1:
                         st.markdown("**Data Rectifier:**")
                         for rect in r.get('pb_rectifiers', []): st.write(f"🔹 **{rect.get('tipe')}** | BCL: {rect.get('bcl')}% | Beban: {rect.get('load')}A | Voltase: {rect.get('dc_v')}V")
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        tampilkan_grid_foto(r.get('pb_url_site', []), "📸 Foto Site / Kondisi Umum")
+                        tampilkan_grid_foto(r.get('pb_url_recti', []), "📸 Foto Rectifier & ENVA")
                     with tpb2:
                         kel = r.get('pb_kelistrikan', {})
                         acp = r.get('pb_acpdb', {})
                         st.write(f"**Kelistrikan:** Daya KWH: {kel.get('daya', '-')} | Phasa: {kel.get('phasa', '-')} | Teg. G-N: {kel.get('v_gn', '-')}")
                         st.write(f"**ACPDB:** Tersedia: {acp.get('ada', '-')} | Teg. RST thd N: {acp.get('v_rst_n', '-')}")
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        tampilkan_grid_foto(r.get('pb_url_listrik', []), "📸 Foto Kelistrikan & ACPDB")
                     with tpb3:
                         gen = r.get('pb_genset', {})
                         en = r.get('pb_enva', {})
                         st.write(f"**Genset:** Ada: {gen.get('ada', '-')} | Kapasitas: {gen.get('cap', '-')} | Tangki: {gen.get('tangki', '-')} | Sisa: {gen.get('bbm', '-')}")
                         st.write(f"**ENVA:** Main Fail: {en.get('main_fail', '-')} | Rectifier Fail: {en.get('rect_fail', '-')} | High Temp: {en.get('high_temp', '-')}")
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        tampilkan_grid_foto(r.get('pb_url_genset', []), "📸 Foto Genset / Tangki")
                     with tpb4:
                         st.markdown("**Catatan/Temuan Tim:**")
                         st.info(r.get('action', '-'))
@@ -1237,6 +1306,8 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         if r.get('pb_act_power'): st.write(f"- Power & CME: {', '.join(r.get('pb_act_power'))}")
                         if r.get('pb_act_trans'): st.write(f"- Transport: {', '.join(r.get('pb_act_trans'))}")
                         if r.get('pb_act_osa'): st.write(f"- OSA Impact: {', '.join(r.get('pb_act_osa'))}")
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        tampilkan_grid_foto(r.get('pb_url_act', []), "📸 Foto Temuan / Action Lapangan")
 
                 # =========================================================================
                 # TAMPILAN TAB PREVENTIVE PALANGKARAYA 100% ASLI TIDAK DIRUBAH
