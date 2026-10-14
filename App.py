@@ -982,14 +982,14 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
             if st.button("🚀 SUBMIT SITE VISIT & BUKA WA", type="primary", use_container_width=True):
                 if not pb_sid: st.error("⚠️ Mohon isi Site ID / Name!")
                 else:
-                    with st.spinner("⏳ Sedang mengunggah foto ke Google Drive & menyimpan data Laporan ke Sheet PBU..."):
+                    with st.spinner("⏳ Sedang mengunggah foto ke Cloud & menyimpan data Laporan ke Sheet PBU..."):
                         
-                        # Upload semua foto ke GDrive Pangkalan Bun
-                        url_pb_site = upload_multiple_ke_drive(pb_foto_site)
-                        url_pb_recti = upload_multiple_ke_drive(pb_foto_recti)
-                        url_pb_listrik = upload_multiple_ke_drive(pb_foto_listrik)
-                        url_pb_genset = upload_multiple_ke_drive(pb_foto_genset)
-                        url_pb_act = upload_multiple_ke_drive(pb_foto_act)
+                        # MENGGUNAKAN CLOUDINARY (KARENA GDRIVE SERVICE ACCOUNT DITOLAK GOOGLE)
+                        url_pb_site = upload_multiple_images(pb_foto_site, "pb_site")
+                        url_pb_recti = upload_multiple_images(pb_foto_recti, "pb_recti")
+                        url_pb_listrik = upload_multiple_images(pb_foto_listrik, "pb_listrik")
+                        url_pb_genset = upload_multiple_images(pb_foto_genset, "pb_genset")
+                        url_pb_act = upload_multiple_images(pb_foto_act, "pb_action")
                         
                         report_dict = {
                             "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1008,7 +1008,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             "pb_genset": pb_payload["genset"],
                             "pb_act_power": pb_act1, "pb_act_trans": pb_act2, "pb_act_osa": pb_act3,
                             
-                            # Menyimpan URL Foto ke Payload JSON
+                            # Menyimpan URL Foto Cloudinary ke Payload JSON
                             "pb_url_site": url_pb_site,
                             "pb_url_recti": url_pb_recti,
                             "pb_url_listrik": url_pb_listrik,
@@ -1032,7 +1032,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             wa_text = generate_wa_pbu(report_dict)
                             wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
                             
-                            st.success("✅ BERHASIL! Data Visit & Dokumentasi Site Pangkalan Bun telah tersimpan ke GDrive dan Sheet 'Report PBU'.")
+                            st.success("✅ BERHASIL! Data Visit & Dokumentasi Pangkalan Bun tersimpan ke Cloud dan Sheet 'Report PBU'.")
                             st.markdown("### 📱 Langkah Terakhir: Bagikan Laporan")
                             st.markdown("Silakan tekan tombol di bawah ini untuk langsung membagikan rangkuman laporan Anda ke Grup WhatsApp.")
                             st.link_button("🚀 BUKA WHATSAPP & KIRIM LAPORAN", wa_url, type="primary")
