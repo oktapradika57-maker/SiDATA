@@ -27,7 +27,7 @@ except ImportError:
 # -------------------------------------------------------------------------
 # SETUP HALAMAN & FUNGSI LOGO PRESISI (.WEBP)
 # -------------------------------------------------------------------------
-st.set_page_config(page_title="Monitoring - PT Kinarya Utama Teknik", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Report SPS - Okta Pradika", page_icon="⚡", layout="wide")
 
 LOGO_UTAMA = "koperasi-jasa-konstruksi-tower-event-organizer-network-monitoring-telekomunikasi-kisel-group-logo-kut (2).webp"
 
@@ -655,221 +655,323 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
         nop_area_default = "Palangkaraya"
 
     # -------------------------------------------------------------------------
-    # BLOK A: FORM STANDAR (PALANGKARAYA / DLL) 100% ASLI
+    # BLOK A: FORM STANDAR PALANGKARAYA (DIPISAH SPS VS REGULER TAPI 1 DATABASE)
     # -------------------------------------------------------------------------
     if standar_form == "Standar":
         
         st.info("💡 Data dan Lampiran (Foto & Datalog) Anda akan dienkripsi dan dikirim langsung ke Cloud Server.")
+        site_category = st.radio("Kategori Site (Wajib Pilih):", ["SPS", "Site Reguler"], horizontal=True)
+        st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
         
-        tabs = st.tabs(["📌 1. Info Site", "☀️ 2. SPS Panel", "🔌 3. PLN & Recti", "⛽ 4. Genset & BBM", "🔋 5. Baterai & Gnd", "📤 6. Upload & Submit"])
+        if site_category == "SPS":
+            tabs = st.tabs(["📌 1. Info Site", "☀️ 2. SPS Panel", "🔌 3. PLN & Recti", "⛽ 4. Genset & BBM", "🔋 5. Baterai & Gnd", "📤 6. Upload & Submit"])
 
-        with tabs[0]:
-            st.markdown("#### Tentukan Kategori & Identitas Site")
-            site_category = st.radio("Kategori Site (Wajib Pilih):", ["SPS", "Site Reguler"], horizontal=True)
-            st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
-            
-            c1, c2 = st.columns(2)
-            with c1:
-                site_name = st.text_input("Nama / ID Site", placeholder="Contoh: BTS-PKY-001")
-                opsi_nop = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
-                idx_default = opsi_nop.index(nop_area_default) if nop_area_default in opsi_nop else 0
-                nop_area = st.selectbox("NOP Area", opsi_nop, index=idx_default)
-                check_date = st.date_input("Tanggal Pengecekan", value=datetime.date.today())
-            with c2:
-                technician_name = st.text_input("Nama Pelaksana / Teknisi")
-                weather = st.selectbox("Kondisi Cuaca", ["Cerah", "Berawan", "Hujan", "Kabut Asap menutup cahaya matahari", "Lembab tidak ada panas", "Badai"])
-            st.divider()
-            sc1, sc2 = st.columns(2)
-            with sc1:
-                site_condition = st.selectbox("Kondisi Halaman", ["Bersih & Aman", "Banyak Rumput", "Genangan Air"])
-                tower_condition = st.selectbox("Fisik Tower", ["Aman", "Berkarat", "Rusak"])
-            with sc2:
-                site_photos = st.file_uploader("📸 Foto View Site (Bisa >1)", accept_multiple_files=True, key="spics")
+            with tabs[0]:
+                st.markdown("#### Kategori Kunjungan: SPS")
+                c1, c2 = st.columns(2)
+                with c1:
+                    site_name = st.text_input("Nama / ID Site", placeholder="Contoh: BTS-PKY-001")
+                    opsi_nop = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
+                    idx_default = opsi_nop.index(nop_area_default) if nop_area_default in opsi_nop else 0
+                    nop_area = st.selectbox("NOP Area", opsi_nop, index=idx_default)
+                    check_date = st.date_input("Tanggal Pengecekan", value=datetime.date.today())
+                with c2:
+                    technician_name = st.text_input("Nama Pelaksana / Teknisi")
+                    weather = st.selectbox("Kondisi Cuaca", ["Cerah", "Berawan", "Hujan", "Kabut Asap menutup cahaya matahari", "Lembab tidak ada panas", "Badai"])
+                st.divider()
+                sc1, sc2 = st.columns(2)
+                with sc1:
+                    site_condition = st.selectbox("Kondisi Halaman", ["Bersih & Aman", "Banyak Rumput", "Genangan Air"])
+                    tower_condition = st.selectbox("Fisik Tower", ["Aman", "Berkarat", "Rusak"])
+                with sc2:
+                    site_photos = st.file_uploader("📸 Foto View Site (Bisa >1)", accept_multiple_files=True, key="spics")
 
-        with tabs[1]:
-            st.markdown("### 📝 Kelengkapan Data SPS & SCC")
-            c_pnl1, c_pnl2, c_pnl3 = st.columns(3)
-            with c_pnl1: status_panel = st.selectbox("Status Panel", ["Normal", "Kotor", "Retak / Pecah", "Terbakar", "Kritis / Kosong"])
-            with c_pnl2: jml_panel_rusak = st.number_input("Jumlah Panel Rusak", min_value=0, value=0)
-            with c_pnl3: merk_panel = st.text_input("Type Merk Panel", placeholder="Contoh: Canadian Solar 550Wp")
+            with tabs[1]:
+                st.markdown("### 📝 Kelengkapan Data SPS & SCC")
+                c_pnl1, c_pnl2, c_pnl3 = st.columns(3)
+                with c_pnl1: status_panel = st.selectbox("Status Panel", ["Normal", "Kotor", "Retak / Pecah", "Terbakar", "Kritis / Kosong"])
+                with c_pnl2: jml_panel_rusak = st.number_input("Jumlah Panel Rusak", min_value=0, value=0)
+                with c_pnl3: merk_panel = st.text_input("Type Merk Panel", placeholder="Contoh: Canadian Solar 550Wp")
 
-            c_scc1, c_scc2, c_scc3 = st.columns(3)
-            with c_scc1: status_scc = st.selectbox("Status SCC", ["Normal", "Alarm", "Rusak", "Tidak Ada"])
-            with c_scc2: jml_scc_nok = st.number_input("Jumlah SCC NOK", min_value=0, value=0)
-            with c_scc3: merk_scc = st.text_input("Type/Merk SCC", placeholder="Contoh: Huawei / Shoto")
-            st.divider()
+                c_scc1, c_scc2, c_scc3 = st.columns(3)
+                with c_scc1: status_scc = st.selectbox("Status SCC", ["Normal", "Alarm", "Rusak", "Tidak Ada"])
+                with c_scc2: jml_scc_nok = st.number_input("Jumlah SCC NOK", min_value=0, value=0)
+                with c_scc3: merk_scc = st.text_input("Type/Merk SCC", placeholder="Contoh: Huawei / Shoto")
+                st.divider()
 
-            shading_status = st.selectbox("Status Shading?", ["Aman", "Sedikit Shading", "Kritis"])
-            shading_photos = st.file_uploader("📸 Foto Shading (Bisa >1)", accept_multiple_files=True, key="shd")
-            st.divider()
-            
-            konfigurasi_panel = st.radio("Metode Pengukuran SPS:", ["Individu (Satuan)", "Seri / String (Grup)"])
-            panel_data = []
+                shading_status = st.selectbox("Status Shading?", ["Aman", "Sedikit Shading", "Kritis"])
+                shading_photos = st.file_uploader("📸 Foto Shading (Bisa >1)", accept_multiple_files=True, key="shd")
+                st.divider()
+                
+                konfigurasi_panel = st.radio("Metode Pengukuran SPS:", ["Individu (Satuan)", "Seri / String (Grup)"])
+                panel_data = []
 
-            if konfigurasi_panel == "Individu (Satuan)":
-                num_panels = st.number_input("Jumlah Panel", min_value=1, value=24)
-                for i in range(int(num_panels)):
-                    with st.expander(f"⚙️ Panel #{i+1}", expanded=(i==0)):
-                        c1, c2, c3 = st.columns([1, 1, 1])
-                        with c1:
-                            voc = st.number_input(f"Voc [V]", value=21.5, key=f"v_{i}")
-                            isc = st.number_input(f"Isc [A]", value=5.2, key=f"i_{i}")
-                            p_cond = st.selectbox(f"Fisik", ["Baik", "Kotor", "Retak", "Delaminasi"], key=f"c_{i}")
-                        with c2: pb = st.file_uploader(f"📸 KONDISI PANEL", key=f"pb_{i}")
-                        with c3: pa = st.file_uploader(f"✨ PENGUKURAN", key=f"pa_{i}")
-                        panel_data.append({"tipe": "Individu", "id": f"Panel #{i+1}", "voc": voc, "isc": isc, "kondisi": p_cond, "foto_before_obj": pb, "foto_after_obj": pa})
-            else: 
-                num_strings = st.number_input("Jumlah String", min_value=1, value=4)
-                for i in range(int(num_strings)):
-                    with st.expander(f"🔌 String Seri #{i+1}", expanded=(i==0)):
-                        c1, c2 = st.columns([1, 1.5])
-                        with c1:
-                            qty = st.number_input(f"Isi Panel per Seri", value=6, key=f"sq_{i}")
-                            voc = st.number_input(f"Total Voc [V]", value=129.0, key=f"sv_{i}")
-                            isc = st.number_input(f"Isc [A]", value=5.2, key=f"si_{i}")
-                            p_cond = st.selectbox(f"Kondisi", ["Baik", "Kotor", "Retak"], key=f"sc_{i}")
-                        with c2:
-                            pb = st.file_uploader(f"📸 KONDISI PANEL (Bisa >1)", accept_multiple_files=True, key=f"spb_{i}")
-                            pa = st.file_uploader(f"✨ PENGUKURAN (Bisa >1)", accept_multiple_files=True, key=f"spa_{i}")
-                        panel_data.append({"tipe": "Seri", "id": f"String #{i+1}", "qty": qty, "voc": voc, "isc": isc, "kondisi": p_cond, "foto_before_objs": pb, "foto_after_objs": pa})
+                if konfigurasi_panel == "Individu (Satuan)":
+                    num_panels = st.number_input("Jumlah Panel", min_value=1, value=24)
+                    for i in range(int(num_panels)):
+                        with st.expander(f"⚙️ Panel #{i+1}", expanded=(i==0)):
+                            c1, c2, c3 = st.columns([1, 1, 1])
+                            with c1:
+                                voc = st.number_input(f"Voc [V]", value=21.5, key=f"v_{i}")
+                                isc = st.number_input(f"Isc [A]", value=5.2, key=f"i_{i}")
+                                p_cond = st.selectbox(f"Fisik", ["Baik", "Kotor", "Retak", "Delaminasi"], key=f"c_{i}")
+                            with c2: pb = st.file_uploader(f"📸 KONDISI PANEL", key=f"pb_{i}")
+                            with c3: pa = st.file_uploader(f"✨ PENGUKURAN", key=f"pa_{i}")
+                            panel_data.append({"tipe": "Individu", "id": f"Panel #{i+1}", "voc": voc, "isc": isc, "kondisi": p_cond, "foto_before_obj": pb, "foto_after_obj": pa})
+                else: 
+                    num_strings = st.number_input("Jumlah String", min_value=1, value=4)
+                    for i in range(int(num_strings)):
+                        with st.expander(f"🔌 String Seri #{i+1}", expanded=(i==0)):
+                            c1, c2 = st.columns([1, 1.5])
+                            with c1:
+                                qty = st.number_input(f"Isi Panel per Seri", value=6, key=f"sq_{i}")
+                                voc = st.number_input(f"Total Voc [V]", value=129.0, key=f"sv_{i}")
+                                isc = st.number_input(f"Isc [A]", value=5.2, key=f"si_{i}")
+                                p_cond = st.selectbox(f"Kondisi", ["Baik", "Kotor", "Retak"], key=f"sc_{i}")
+                            with c2:
+                                pb = st.file_uploader(f"📸 KONDISI PANEL (Bisa >1)", accept_multiple_files=True, key=f"spb_{i}")
+                                pa = st.file_uploader(f"✨ PENGUKURAN (Bisa >1)", accept_multiple_files=True, key=f"spa_{i}")
+                            panel_data.append({"tipe": "Seri", "id": f"String #{i+1}", "qty": qty, "voc": voc, "isc": isc, "kondisi": p_cond, "foto_before_objs": pb, "foto_after_objs": pa})
 
-        with tabs[2]:
-            st.markdown("### 🔌 Pengecekan Jaringan PLN & PSB")
-            c_psb1, c_psb2 = st.columns(2)
-            with c_psb1: possibility_psb = st.selectbox("Possibility PSB (PLN)", ["Bisa Dilakukan", "Sulit / Terlalu Jauh", "Sudah Tersambung", "Tidak Memungkinkan"])
-            with c_psb2: jarak_pln = st.text_input("Estimasi Jarak tower ke jaringan PLN", placeholder="Contoh: 150 Meter / 2 KM")
-            st.divider()
+            with tabs[2]:
+                st.markdown("### 🔌 Pengecekan Jaringan PLN & PSB")
+                c_psb1, c_psb2 = st.columns(2)
+                with c_psb1: possibility_psb = st.selectbox("Possibility PSB (PLN)", ["Bisa Dilakukan", "Sulit / Terlalu Jauh", "Sudah Tersambung", "Tidak Memungkinkan"])
+                with c_psb2: jarak_pln = st.text_input("Estimasi Jarak tower ke jaringan PLN", placeholder="Contoh: 150 Meter / 2 KM")
+                st.divider()
 
-            c1, c2 = st.columns(2)
-            with c1:
-                pln_status = st.selectbox("Status PLN", ["Normal", "Padam", "Power Perusahaan", "Tidak Ada PLN"])
-                jb_enclosure = st.selectbox("Box DC & Seal", ["Bersih", "Bocor", "Sarang Serangga"])
-                jb_spd = st.selectbox("Arrester SPD", ["Normal", "Rusak"])
-            with c2:
-                rect_brand = st.text_input("Merek Rectifier", placeholder="Huawei / ZTE")
-                rect_out_v = st.number_input("Tegangan Output Rectifier [V]", value=53.5)
-                total_load_a = st.number_input("Total Beban BTS [A]", value=18.2)
-                rect_alarm = st.selectbox("Alarm Rectifier", ["No Alarm", "Ada Alarm"])
-                rect_photos = st.file_uploader("📸 Foto Rectifier (Bisa >1)", accept_multiple_files=True, key="rect_pics")
+                c1, c2 = st.columns(2)
+                with c1:
+                    pln_status = st.selectbox("Status PLN", ["Normal", "Padam", "Power Perusahaan", "Tidak Ada PLN"])
+                    jb_enclosure = st.selectbox("Box DC & Seal", ["Bersih", "Bocor", "Sarang Serangga"])
+                    jb_spd = st.selectbox("Arrester SPD", ["Normal", "Rusak"])
+                with c2:
+                    rect_brand = st.text_input("Merek Rectifier", placeholder="Huawei / ZTE")
+                    rect_out_v = st.number_input("Tegangan Output Rectifier [V]", value=53.5)
+                    total_load_a = st.number_input("Total Beban BTS [A]", value=18.2)
+                    rect_alarm = st.selectbox("Alarm Rectifier", ["No Alarm", "Ada Alarm"])
+                    rect_photos = st.file_uploader("📸 Foto Rectifier (Bisa >1)", accept_multiple_files=True, key="rect_pics")
 
-        with tabs[3]:
-            g1, g2 = st.columns(2)
-            with g1:
-                genset_status = st.selectbox("Ketersediaan Genset", ["Ada (Beroperasi)", "Tidak Ada"])
-                genset_brand = st.text_input("Merek Genset", placeholder="Perkins")
-                hour_meter = st.number_input("Hour Meter", value=1250.5, step=0.1)
-            with g2:
-                tank_capacity = st.selectbox("Kapasitas Tangki [L]", [200, 300, 500, 1000])
-                current_fuel_pct = st.slider("Level BBM [%]", 0, 100, 75)
-                est_fuel = (current_fuel_pct / 100.0) * tank_capacity
-                st.info(f"📌 **Volume BBM:** {est_fuel:.1f} Liter.")
-                genset_photos = st.file_uploader("📸 Foto Genset & BBM (Bisa >1)", accept_multiple_files=True, key="gen_pics")
+            with tabs[3]:
+                g1, g2 = st.columns(2)
+                with g1:
+                    genset_status = st.selectbox("Ketersediaan Genset", ["Ada (Beroperasi)", "Tidak Ada"])
+                    genset_brand = st.text_input("Merek Genset", placeholder="Perkins")
+                    hour_meter = st.number_input("Hour Meter", value=1250.5, step=0.1)
+                with g2:
+                    tank_capacity = st.selectbox("Kapasitas Tangki [L]", [200, 300, 500, 1000])
+                    current_fuel_pct = st.slider("Level BBM [%]", 0, 100, 75)
+                    est_fuel = (current_fuel_pct / 100.0) * tank_capacity
+                    st.info(f"📌 **Volume BBM:** {est_fuel:.1f} Liter.")
+                    genset_photos = st.file_uploader("📸 Foto Genset & BBM (Bisa >1)", accept_multiple_files=True, key="gen_pics")
 
-        with tabs[4]:
-            st.markdown("### 📝 Kelengkapan Data Baterai")
-            c_batm1, c_batm2, c_batm3 = st.columns(3)
-            with c_batm1: status_battery = st.selectbox("Status Total Baterai", ["Normal", "Degradasi (Drop)", "Rusak / Menggelembung", "Kritis / Hilang"])
-            with c_batm2: jml_bat_rusak = st.number_input("Jumlah Baterai Rusak", min_value=0, value=0)
-            with c_batm3: tipe_battery = st.text_input("Type / Merk Baterai", placeholder="Contoh: VRLA Shoto 100Ah")
-            st.divider()
+            with tabs[4]:
+                st.markdown("### 📝 Kelengkapan Data Baterai")
+                c_batm1, c_batm2, c_batm3 = st.columns(3)
+                with c_batm1: status_battery = st.selectbox("Status Total Baterai", ["Normal", "Degradasi (Drop)", "Rusak / Menggelembung", "Kritis / Hilang"])
+                with c_batm2: jml_bat_rusak = st.number_input("Jumlah Baterai Rusak", min_value=0, value=0)
+                with c_batm3: tipe_battery = st.text_input("Type / Merk Baterai", placeholder="Contoh: VRLA Shoto 100Ah")
+                st.divider()
 
-            b1, b2 = st.columns(2)
-            with b1:
-                num_bat = st.number_input("Jumlah Baterai (Pengukuran)", min_value=1, value=4)
-                bat_data = []
-                for j in range(int(num_bat)):
-                    with st.expander(f"🔋 Baterai #{j+1}", expanded=(j==0)):
-                        bc1, bc2 = st.columns(2)
-                        with bc1:
-                            bv = st.number_input(f"Voltase [V]", value=12.2, key=f"bv_{j}")
-                            bt = st.number_input(f"Load Charging [A]", value=28.0, key=f"bt_{j}")
-                        with bc2:
-                            bc = st.selectbox(f"Kondisi", ["Normal", "Bengkak", "Rusak tidak bisa charging", "Over Charging", "Korosi"], key=f"bc_{j}")
-                            bp = st.file_uploader(f"Foto Bat #{j+1}", accept_multiple_files=True, key=f"bp_{j}")
-                        bat_data.append({"id": f"Baterai #{j+1}", "voltase": bv, "suhu": bt, "kondisi": bc, "foto_objs": bp})
-            with b2:
-                earth_resistance = st.number_input("Tahanan Grounding [Ohm]", value=2.1)
-                grd_cable = st.selectbox("Kabel Grounding", ["Kuat", "Kendor", "Putus"])
-                grd_photos = st.file_uploader("📸 Foto Grounding (Bisa >1)", accept_multiple_files=True, key="grd")
+                b1, b2 = st.columns(2)
+                with b1:
+                    num_bat = st.number_input("Jumlah Baterai (Pengukuran)", min_value=1, value=4)
+                    bat_data = []
+                    for j in range(int(num_bat)):
+                        with st.expander(f"🔋 Baterai #{j+1}", expanded=(j==0)):
+                            bc1, bc2 = st.columns(2)
+                            with bc1:
+                                bv = st.number_input(f"Voltase [V]", value=12.2, key=f"bv_{j}")
+                                bt = st.number_input(f"Load Charging [A]", value=28.0, key=f"bt_{j}")
+                            with bc2:
+                                bc = st.selectbox(f"Kondisi", ["Normal", "Bengkak", "Rusak tidak bisa charging", "Over Charging", "Korosi"], key=f"bc_{j}")
+                                bp = st.file_uploader(f"Foto Bat #{j+1}", accept_multiple_files=True, key=f"bp_{j}")
+                            bat_data.append({"id": f"Baterai #{j+1}", "voltase": bv, "suhu": bt, "kondisi": bc, "foto_objs": bp})
+                with b2:
+                    earth_resistance = st.number_input("Tahanan Grounding [Ohm]", value=2.1)
+                    grd_cable = st.selectbox("Kabel Grounding", ["Kuat", "Kendor", "Putus"])
+                    grd_photos = st.file_uploader("📸 Foto Grounding (Bisa >1)", accept_multiple_files=True, key="grd")
 
-        with tabs[5]:
-            st.markdown("📂 **Upload Datalog (Bisa .csv, .xlsx, .zip, dll):**")
-            datalog_files = st.file_uploader("Semua file tersimpan utuh", accept_multiple_files=True, key="datalog_all")
-            st.divider()
-            
-            action_taken = st.text_area("🔧 Rincian Pekerjaan & Action di Lapangan:")
-            sparepart_needed = st.text_input("📦 Penggantian Sparepart:")
-            remark = st.text_area("📝 Remark / Catatan Khusus Laporan:")
-            final_status = st.radio("Status Akhir Site:", ["Normal", "Minor Issue", "Major/Critical", "Update Progress"])
+            with tabs[5]:
+                st.markdown("📂 **Upload Datalog (Bisa .csv, .xlsx, .zip, dll):**")
+                datalog_files = st.file_uploader("Semua file tersimpan utuh", accept_multiple_files=True, key="datalog_all")
+                st.divider()
+                
+                action_taken = st.text_area("🔧 Rincian Pekerjaan & Action di Lapangan:")
+                sparepart_needed = st.text_input("📦 Penggantian Sparepart:")
+                remark = st.text_area("📝 Remark / Catatan Khusus Laporan:")
+                final_status = st.radio("Status Akhir Site:", ["Normal", "Minor Issue", "Major/Critical", "Update Progress"])
 
-            if st.button("🚀 UPLOAD & SINKRONKAN DATA", type="primary", use_container_width=True):
-                if not site_name:
-                    st.error("⚠️ Mohon isi Nama Site!")
-                else:
-                    with st.spinner("⏳ Sedang memproses dan mengamankan data ke Cloud..."):
-                        url_sites = upload_multiple_images(site_photos, "prev_view")
-                        url_shadings = upload_multiple_images(shading_photos, "prev_shade")
-                        url_rects = upload_multiple_images(rect_photos, "prev_rect")
-                        url_gensets = upload_multiple_images(genset_photos, "prev_genset")
-                        url_grds = upload_multiple_images(grd_photos, "prev_grd")
-                        
-                        datalog_urls = []
-                        if datalog_files:
-                            for df in datalog_files:
-                                du = upload_datalog(df, "prev_datalog")
-                                if du: datalog_urls.append({"name": df.name, "url": du})
+                if st.button("🚀 UPLOAD & SINKRONKAN DATA SPS", type="primary", use_container_width=True):
+                    if not site_name:
+                        st.error("⚠️ Mohon isi Nama Site!")
+                    else:
+                        with st.spinner("⏳ Sedang memproses dan mengamankan data ke Cloud..."):
+                            url_sites = upload_multiple_images(site_photos, "prev_view")
+                            url_shadings = upload_multiple_images(shading_photos, "prev_shade")
+                            url_rects = upload_multiple_images(rect_photos, "prev_rect")
+                            url_gensets = upload_multiple_images(genset_photos, "prev_genset")
+                            url_grds = upload_multiple_images(grd_photos, "prev_grd")
+                            
+                            datalog_urls = []
+                            if datalog_files:
+                                for df in datalog_files:
+                                    du = upload_datalog(df, "prev_datalog")
+                                    if du: datalog_urls.append({"name": df.name, "url": du})
 
-                        p_res = []
-                        for p in panel_data:
-                            if p.get("tipe") == "Individu":
-                                p_res.append({"Tipe": "Individu", "Panel": p["id"], "Voc": p["voc"], "Isc": p["isc"], "Kondisi": p["kondisi"], "URL_Before": upload_image(p["foto_before_obj"]), "URL_After": upload_image(p["foto_after_obj"])})
+                            p_res = []
+                            for p in panel_data:
+                                if p.get("tipe") == "Individu":
+                                    p_res.append({"Tipe": "Individu", "Panel": p["id"], "Voc": p["voc"], "Isc": p["isc"], "Kondisi": p["kondisi"], "URL_Before": upload_image(p["foto_before_obj"]), "URL_After": upload_image(p["foto_after_obj"])})
+                                else:
+                                    p_res.append({"Tipe": "Seri", "Panel": p["id"], "Qty": p["qty"], "Voc": p["voc"], "Isc": p["isc"], "Kondisi": p["kondisi"], "URLs_Before": upload_multiple_images(p["foto_before_objs"]), "URLs_After": upload_multiple_images(p["foto_after_objs"])})
+                            
+                            b_res = []
+                            for b in bat_data: b_res.append({"Baterai": b["id"], "Voltase": b["voltase"], "Suhu": b["suhu"], "Kondisi": b["kondisi"], "URL_Fotos": upload_multiple_images(b["foto_objs"])})
+
+                            report_dict = {
+                                "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "site_name": site_name, 
+                                "kategori": "SPS", 
+                                "nop": nop_area, 
+                                "teknisi": technician_name,
+                                "status": final_status, 
+                                "action": action_taken, 
+                                "sparepart": sparepart_needed,
+                                
+                                "status_panel": status_panel, "jml_panel_rusak": jml_panel_rusak, "merk_panel": merk_panel,
+                                "status_scc": status_scc, "jml_scc_nok": jml_scc_nok, "merk_scc": merk_scc,
+                                "status_battery": status_battery, "jml_bat_rusak": jml_bat_rusak, "tipe_battery": tipe_battery,
+                                "possibility_psb": possibility_psb, "jarak_pln": jarak_pln, "remark": remark,
+                                
+                                "site_cond": site_condition, "tower_cond": tower_condition, "url_sites": url_sites,
+                                "shading_status": shading_status, "url_shadings": url_shadings,
+                                "panel_data": p_res,
+                                "pln_status": pln_status, "rect_brand": rect_brand, "rect_out_v": rect_out_v, 
+                                "total_load": total_load_a, "rect_alarm": rect_alarm, "url_rects": url_rects,
+                                "genset_status": genset_status, "genset_brand": genset_brand, "hour_meter": hour_meter,
+                                "tank_capacity": tank_capacity, "fuel_pct": current_fuel_pct, "fuel_liter": est_fuel,
+                                "url_gensets": url_gensets,
+                                "battery_data": b_res, "earth_ohm": earth_resistance, "url_grds": url_grds,
+                                "datalog_files": datalog_urls,
+                                "extras_fisik": [], "extras_panel": [], "extras_baterai": [], "extras_elektrikal": []
+                            }
+                            
+                            sheet = connect_gsheets("Report Preventive")
+                            if sheet:
+                                row_data = [
+                                    report_dict.get('timestamp', ''), report_dict.get('site_name', ''),
+                                    report_dict.get('nop', ''), report_dict.get('teknisi', ''),
+                                    report_dict.get('status', ''), json.dumps(report_dict)
+                                ]
+                                sheet.append_row(row_data)
+                                st.cache_data.clear()
+                                st.session_state['laporan_db'].append(report_dict)
+                                st.success("✅ BERHASIL! Data SPS telah diamankan ke Server.")
                             else:
-                                p_res.append({"Tipe": "Seri", "Panel": p["id"], "Qty": p["qty"], "Voc": p["voc"], "Isc": p["isc"], "Kondisi": p["kondisi"], "URLs_Before": upload_multiple_images(p["foto_before_objs"]), "URLs_After": upload_multiple_images(p["foto_after_objs"])})
-                        
-                        b_res = []
-                        for b in bat_data: b_res.append({"Baterai": b["id"], "Voltase": b["voltase"], "Suhu": b["suhu"], "Kondisi": b["kondisi"], "URL_Fotos": upload_multiple_images(b["foto_objs"])})
+                                st.error("⚠️ Gagal menyambung ke Server Database.")
 
-                        report_dict = {
-                            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "site_name": site_name, 
-                            "kategori": site_category, 
-                            "nop": nop_area, 
-                            "teknisi": technician_name,
-                            "status": final_status, 
-                            "action": action_taken, 
-                            "sparepart": sparepart_needed,
+        else:
+            # -------------------------------------------------------------------------
+            # BLOK A.2: FORM KHUSUS SITE REGULER (PALANGKARAYA)
+            # -------------------------------------------------------------------------
+            tabs_reg = st.tabs(["📌 1. Info & Problem", "⚡ 2. Action & Parameter", "📤 3. Submit"])
+            cond_data = {}
+            
+            with tabs_reg[0]:
+                st.markdown("#### Kategori Kunjungan: Site Reguler (Maintenance/Troubleshooting)")
+                c1, c2 = st.columns(2)
+                with c1:
+                    site_name_reg = st.text_input("Nama / ID Site", placeholder="Contoh: BTS-PKY-002", key="reg_site")
+                    opsi_nop = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
+                    idx_default = opsi_nop.index(nop_area_default) if nop_area_default in opsi_nop else 0
+                    nop_area_reg = st.selectbox("NOP Area", opsi_nop, index=idx_default, key="reg_nop")
+                with c2:
+                    teknisi_reg = st.text_input("Nama FME", key="reg_fme")
+                    check_date_reg = st.date_input("Tanggal Kunjungan", value=datetime.date.today(), key="reg_date")
+                
+                st.divider()
+                st.markdown("### 🚨 Problem Alarm")
+                prob_alarm = st.selectbox(
+                    "Pilih Problem Utama:", 
+                    ["Down power", "Fliker power", "Fliker Site Down", "Transmisi Problem", "cell down"]
+                )
+                foto_prob = st.file_uploader("📸 Foto Problem Alarm (WAJIB DILAMPIRKAN)", accept_multiple_files=True, key="f_prob")
+
+            with tabs_reg[1]:
+                st.markdown("### 🔧 Action & Perbaikan")
+                act_opts = [
+                    "Replace RRU", "Replace Optik", "Replace SFP", "Replace Module APR", 
+                    "Teg PLN Drop pelaporan PLN", "Reset Hardware", "MCB Trip", "Add Baterai"
+                ]
+                act_sel = st.multiselect("Pilih Action Dikerjakan (Bisa Multiple):", act_opts)
+                foto_act = st.file_uploader("📸 Foto Action / Perbaikan (WAJIB DILAMPIRKAN)", accept_multiple_files=True, key="f_act")
+
+                trigger_fields = ["MCB Trip", "Teg PLN Drop pelaporan PLN", "Replace Module APR", "Add Baterai"]
+                show_cond = any(item in trigger_fields for item in act_sel)
+                
+                if show_cond:
+                    st.info("💡 Berdasarkan Action yang dipilih (Power/Baterai), mohon lengkapi parameter kelistrikan berikut:")
+                    cc1, cc2 = st.columns(2)
+                    with cc1:
+                        cond_data['load_ac_rst'] = st.text_input("Load AC R-S-T", placeholder="Misal: 10A-12A-11A")
+                        cond_data['volt_ac_rst'] = st.text_input("Volt AC R-S-T", placeholder="Misal: 220V-221V-219V")
+                        cond_data['load_dc'] = st.text_input("Load DC Keseluruhan", placeholder="Misal: 45A")
+                    with cc2:
+                        cond_data['set_bcl'] = st.text_input("Settingan BCL", placeholder="Misal: 100%")
+                        cond_data['set_cap'] = st.text_input("Settingan Capacity", placeholder="Misal: 400Ah")
+                        cond_data['mod_rusak'] = st.text_input("Module Kontroler Rusak", placeholder="Misal: SC200 Rusak")
+
+            with tabs_reg[2]:
+                st.markdown("### 📤 Konfirmasi & Submit Laporan")
+                final_status_reg = st.radio("Status Akhir Site:", ["Normal", "Minor Issue", "Major/Critical", "Update Progress"], key="stat_reg")
+                
+                if st.button("🚀 UPLOAD & SINKRONKAN DATA REGULER", type="primary", use_container_width=True):
+                    if not site_name_reg or not teknisi_reg:
+                        st.error("⚠️ Nama Site dan Nama FME wajib diisi!")
+                    elif not foto_prob or not foto_act:
+                        st.error("⚠️ Foto Problem Alarm dan Foto Action WAJIB dilampirkan sebelum mensubmit data!")
+                    else:
+                        with st.spinner("⏳ Sedang memproses dan mengamankan foto ke Cloud..."):
+                            url_probs = upload_multiple_images(foto_prob, "reg_prob")
+                            url_acts = upload_multiple_images(foto_act, "reg_act")
                             
-                            "status_panel": status_panel, "jml_panel_rusak": jml_panel_rusak, "merk_panel": merk_panel,
-                            "status_scc": status_scc, "jml_scc_nok": jml_scc_nok, "merk_scc": merk_scc,
-                            "status_battery": status_battery, "jml_bat_rusak": jml_bat_rusak, "tipe_battery": tipe_battery,
-                            "possibility_psb": possibility_psb, "jarak_pln": jarak_pln, "remark": remark,
+                            report_dict = {
+                                "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "site_name": site_name_reg,
+                                "kategori": "Site Reguler",
+                                "nop": nop_area_reg,
+                                "teknisi": teknisi_reg,
+                                "status": final_status_reg,
+                                "action": f"Problem: {prob_alarm} | Action: {', '.join(act_sel)}",
+                                "sparepart": "-",
+                                "problem_alarm": prob_alarm,
+                                "action_reguler": act_sel,
+                                "url_problem": url_probs,
+                                "url_action": url_acts,
+                                "cond_data": cond_data,
+                                
+                                # Dashboard compatability fallback
+                                "pln_status": "-", "rect_brand": "-", "rect_out_v": "-", 
+                                "total_load": cond_data.get('load_dc', '-'),
+                                "url_sites": url_probs + url_acts, 
+                                "extras_fisik": [], "extras_panel": [], "extras_baterai": [], "extras_elektrikal": []
+                            }
                             
-                            "site_cond": site_condition, "tower_cond": tower_condition, "url_sites": url_sites,
-                            "shading_status": shading_status, "url_shadings": url_shadings,
-                            "panel_data": p_res,
-                            "pln_status": pln_status, "rect_brand": rect_brand, "rect_out_v": rect_out_v, 
-                            "total_load": total_load_a, "rect_alarm": rect_alarm, "url_rects": url_rects,
-                            "genset_status": genset_status, "genset_brand": genset_brand, "hour_meter": hour_meter,
-                            "tank_capacity": tank_capacity, "fuel_pct": current_fuel_pct, "fuel_liter": est_fuel,
-                            "url_gensets": url_gensets,
-                            "battery_data": b_res, "earth_ohm": earth_resistance, "url_grds": url_grds,
-                            "datalog_files": datalog_urls,
-                            "extras_fisik": [], "extras_panel": [], "extras_baterai": [], "extras_elektrikal": []
-                        }
-                        
-                        sheet = connect_gsheets("Report Preventive")
-                        if sheet:
-                            row_data = [
-                                report_dict.get('timestamp', ''), report_dict.get('site_name', ''),
-                                report_dict.get('nop', ''), report_dict.get('teknisi', ''),
-                                report_dict.get('status', ''), json.dumps(report_dict)
-                            ]
-                            sheet.append_row(row_data)
-                            st.cache_data.clear()
-                            st.session_state['laporan_db'] = fetch_data_from_gsheets()
-                            st.success("✅ BERHASIL! Data telah diamankan ke Server.")
-                        else:
-                            st.error("⚠️ Gagal menyambung ke Server Database.")
+                            sheet = connect_gsheets("Report Preventive")
+                            if sheet:
+                                row_data = [
+                                    report_dict.get('timestamp', ''), report_dict.get('site_name', ''),
+                                    report_dict.get('nop', ''), report_dict.get('teknisi', ''),
+                                    report_dict.get('status', ''), json.dumps(report_dict)
+                                ]
+                                sheet.append_row(row_data)
+                                st.cache_data.clear()
+                                st.session_state['laporan_db'].append(report_dict)
+                                st.success("✅ BERHASIL! Data Laporan Site Reguler telah diamankan ke Server.")
+                            else:
+                                st.error("⚠️ Gagal menyambung ke Server Database.")
+
 
     # -------------------------------------------------------------------------
     # BLOK B: FORM PANGKALAN BUN (LENGKAP DENGAN UPLOAD FOTO & AUTO WA)
@@ -1261,15 +1363,17 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     summary_list.append(row_data)
 
                 else:
+                    # Gabungan Ekspor Palangkaraya (SPS & Reguler)
                     panel_issues = [p.get('Panel', 'Panel') for p in r.get('panel_data', []) if p.get('kondisi') and p.get('kondisi') != "Baik"]
                     bat_issues = [b.get('Baterai', 'Baterai') for b in r.get('battery_data', []) if b.get('Kondisi') and b.get('Kondisi') != "Normal"]
 
+                    cond_d = r.get('cond_data', {})
                     summary_list.append({
                         "Timestamp": r.get('timestamp', '-'),
                         "Nama Site": r.get('site_name', '-'),
                         "Kategori": r.get('kategori', 'SPS'),
                         "NOP": r.get('nop', '-'),
-                        "Teknisi": r.get('teknisi', '-'),
+                        "Teknisi / FME": r.get('teknisi', '-'),
                         "Status Akhir": r.get('status', '-'),
                         "Kondisi Site": r.get('site_cond', '-'),
                         "Fisik Tower": r.get('tower_cond', '-'),
@@ -1285,7 +1389,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         "Type/Merk SCC": r.get('merk_scc', '-'),
                         "Possibility PSB": r.get('possibility_psb', '-'),
                         "Estimasi Jarak tower ke jaringan PLN": r.get('jarak_pln', '-'),
-                        "Remark": r.get('remark', '-'),
                         "SPS Rusak (Detail)": ", ".join(panel_issues) if panel_issues else "Aman (Baik)",
                         "Load Beban (A)": r.get('total_load', '-'),
                         "PLN": r.get('pln_status', '-'),
@@ -1296,7 +1399,17 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         "Baterai Rusak (Detail)": ", ".join(bat_issues) if bat_issues else "Aman (Normal)",
                         "Grounding (Ohm)": r.get('earth_ohm', '-'),
                         "Action / Pekerjaan": r.get('action', '-'),
-                        "Sparepart Diganti": r.get('sparepart', '-')
+                        "Sparepart Diganti": r.get('sparepart', '-'),
+                        "Remark": r.get('remark', '-'),
+                        
+                        # Tambahan untuk Reguler
+                        "Reguler - Problem Alarm": r.get('problem_alarm', '-'),
+                        "Reguler - Load AC RST": cond_d.get('load_ac_rst', '-'),
+                        "Reguler - Volt AC RST": cond_d.get('volt_ac_rst', '-'),
+                        "Reguler - Load DC": cond_d.get('load_dc', '-'),
+                        "Reguler - Set BCL": cond_d.get('set_bcl', '-'),
+                        "Reguler - Set Capacity": cond_d.get('set_cap', '-'),
+                        "Reguler - Module Rusak": cond_d.get('mod_rusak', '-')
                     })
                 
             df_export = pd.DataFrame(summary_list)
@@ -1318,7 +1431,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         cell_left = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
 
                         for i, col_name in enumerate(df_export.columns):
-                            if col_name in ["Action / Pekerjaan", "Remark", "Possibility PSB", "Estimasi Jarak tower ke jaringan PLN", "Type Merk Panel", "Type Battery", "SPS Rusak (Detail)", "Baterai Rusak (Detail)", "Sparepart Diganti", "Catatan/Temuan"]:
+                            if col_name in ["Action / Pekerjaan", "Remark", "Possibility PSB", "Estimasi Jarak tower ke jaringan PLN", "Type Merk Panel", "Type Battery", "SPS Rusak (Detail)", "Baterai Rusak (Detail)", "Sparepart Diganti", "Catatan/Temuan", "Reguler - Problem Alarm"]:
                                 worksheet.set_column(i, i, 35, cell_left)
                             else:
                                 worksheet.set_column(i, i, 18, cell_center)
@@ -1355,8 +1468,14 @@ elif menu == "📊 Hasil Laporan & Dashboard":
             stat = r.get('status', '')
             icon = "🟢" if stat == "Normal" else "🟡" if stat in ["Minor Issue", "Update Progress"] else "🔴"
             
+            # FORMAT WHATSAPP DINAMIS
             if kategori_site == "Pangkalan Bun":
                 wa_text = generate_wa_pbu(r)
+            elif kategori_site == "Site Reguler":
+                wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
+                cd = r.get('cond_data', {})
+                if cd:
+                    wa_text += f"\n*⚡ PARAMETER KELISTRIKAN:*\n- Load AC: {cd.get('load_ac_rst', '-')}\n- Volt AC: {cd.get('volt_ac_rst', '-')}\n- Load DC: {cd.get('load_dc', '-')}\n- Set BCL: {cd.get('set_bcl', '-')}\n- Set Cap: {cd.get('set_cap', '-')}\n- Modul Rusak: {cd.get('mod_rusak', '-')}\n"
             else:
                 wa_text = f"*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({kategori_site} - {r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"
             
@@ -1364,7 +1483,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 
             with st.expander(f"{icon}  |  {site_id}  |  {kategori_site}  |  {r.get('timestamp', '')}  |  Status: {stat}"):
                 
-                if kategori_site != "Pangkalan Bun":
+                if kategori_site != "Pangkalan Bun" and kategori_site != "Site Reguler":
                     if st.checkbox("📄 Buat Berita Acara (PDF Resmi)", key=f"prep_pdf_{i}"):
                         with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
                             try:
@@ -1377,7 +1496,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 st.link_button("📱 Share Rangkuman Laporan ke WhatsApp", wa_url, use_container_width=True)
                 
                 # =========================================================================
-                # TAMPILAN PANGKALAN BUN (+ DOKUMENTASI FOTO CLOUD)
+                # TAMPILAN PANGKALAN BUN
                 # =========================================================================
                 if kategori_site == "Pangkalan Bun":
                     st.markdown("### 📋 SITE VISIT REPORT (Pangkalan Bun)")
@@ -1416,7 +1535,44 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         tampilkan_grid_foto(r.get('pb_url_act', []), "📸 Foto Temuan / Action Lapangan")
 
                 # =========================================================================
-                # TAMPILAN TAB PREVENTIVE PALANGKARAYA 100% ASLI TIDAK DIRUBAH
+                # TAMPILAN SITE REGULER (PALANGKARAYA)
+                # =========================================================================
+                elif kategori_site == "Site Reguler":
+                    st.markdown("### 📋 SITE REGULER REPORT")
+                    st.markdown(f"**👨‍🔧 FME:** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **🚨 Problem:** {r.get('problem_alarm', '-')}")
+                    st.markdown(f"**🔧 Action Dikerjakan:** {', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}")
+                    
+                    cond_data = r.get('cond_data', {})
+                    if cond_data:
+                        st.info(f"**⚡ Parameter Kelistrikan:** Load AC ({cond_data.get('load_ac_rst','-')}) | Volt AC ({cond_data.get('volt_ac_rst','-')}) | Load DC ({cond_data.get('load_dc','-')}) | BCL ({cond_data.get('set_bcl','-')}) | Capacity ({cond_data.get('set_cap','-')}) | Modul Rusak ({cond_data.get('mod_rusak','-')})")
+                        
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    t1, t2 = st.tabs(["📸 Foto Problem Alarm", "📸 Foto Action / Perbaikan"])
+                    with t1: tampilkan_grid_foto(r.get('url_problem', []), "Dokumentasi Problem Alarm")
+                    with t2: tampilkan_grid_foto(r.get('url_action', []), "Dokumentasi Perbaikan / Action")
+                    
+                    if st.session_state['role'] == 'Admin':
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        with st.container(border=True):
+                            st.markdown("<h4 style='color: var(--primary-color);'>🛠 REVISI NAMA SITE / FME</h4>", unsafe_allow_html=True)
+                            ce1, ce2 = st.columns(2)
+                            with ce1: new_sreg = st.text_input("Edit Nama Site", r.get('site_name',''), key=f"esreg_{i}")
+                            with ce2: new_freg = st.text_input("Edit Nama FME", r.get('teknisi',''), key=f"efreg_{i}")
+                            
+                            if st.button("💾 Simpan Perubahan", key=f"breg_{i}"):
+                                with st.spinner("Menyimpan..."):
+                                    r['site_name'], r['teknisi'] = new_sreg, new_freg
+                                    sheet = connect_gsheets(r.get('_sheet', 'Report Preventive'))
+                                    if sheet:
+                                        sheet.update_cell(r.get('_row', i + 2), 2, new_sreg)
+                                        sheet.update_cell(r.get('_row', i + 2), 4, new_freg)
+                                        sheet.update_cell(r.get('_row', i + 2), 6, json.dumps(r))
+                                        st.cache_data.clear() 
+                                st.success("✅ REVISI BERHASIL!")
+                                st.rerun()
+
+                # =========================================================================
+                # TAMPILAN TAB PREVENTIVE PALANGKARAYA (SPS) 100% ASLI TIDAK DIRUBAH
                 # =========================================================================
                 else:
                     st.markdown(f"**👨‍🔧 Pelaksana (Teknisi):** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **⚡ Beban Load:** {r.get('total_load', '-')} A")
