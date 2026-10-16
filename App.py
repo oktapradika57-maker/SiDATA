@@ -13,7 +13,7 @@ import requests
 from io import BytesIO
 from PIL import Image
 import base64
-import tempfile
+import tempfile 
 
 # Mengimpor modul PPTX
 try:
@@ -27,7 +27,7 @@ except ImportError:
 # -------------------------------------------------------------------------
 # SETUP HALAMAN & FUNGSI LOGO PRESISI (.WEBP)
 # -------------------------------------------------------------------------
-st.set_page_config(page_title="Management Report", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Report SPS - Okta Pradika", page_icon="⚡", layout="wide")
 
 LOGO_UTAMA = "koperasi-jasa-konstruksi-tower-event-organizer-network-monitoring-telekomunikasi-kisel-group-logo-kut (2).webp"
 
@@ -178,8 +178,8 @@ if st.session_state['role'] is None:
     
     st.markdown("<br>", unsafe_allow_html=True)
     render_header_logo(is_login=True) 
-    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Menu Dasboard</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Sistem Auto Report dan database Kinarya Utama Teknik</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Sistem Pelaporan Terpadu Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
     col_v, col_space, col_a = st.columns([4, 0.6, 4])
     
     with col_v:
@@ -918,7 +918,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
 
         else:
             # -------------------------------------------------------------------------
-            # BLOK A.2: FORM KHUSUS SITE REGULER (PALANGKARAYA)
+            # BLOK A.2: FORM KHUSUS SITE REGULER BARU (PALANGKARAYA)
             # -------------------------------------------------------------------------
             tabs_reg = st.tabs(["📌 1. Info & Problem", "⚡ 2. Action & Parameter", "📤 3. Submit"])
             cond_data = {}
@@ -1010,7 +1010,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 "url_action": url_acts,
                                 "cond_data": cond_data,
                                 
-                                # Dashboard compatability fallback
+                                # Parameter Fallback agar Dashboard Lama tidak kebingungan
                                 "pln_status": "-", "rect_brand": "-", "rect_out_v": "-", 
                                 "total_load": cond_data.get('load_dc', '-'),
                                 "url_sites": url_probs + url_acts, 
@@ -1528,7 +1528,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         st.markdown("### 📋 Daftar Laporan Site Terinspeksi")
 
         # ---------------------------------------------------------------------
-        # TAMPILAN KARTU EXPANDER (TANPA TOMBOL BUKA SPREADSHEET MENTAH)
+        # TAMPILAN KARTU EXPANDER (KOMPATIBEL 100% DENGAN DATA LAMA)
         # ---------------------------------------------------------------------
         for i in reversed(filtered_indices):
             r = db[i]
@@ -1537,10 +1537,13 @@ elif menu == "📊 Hasil Laporan & Dashboard":
             stat = r.get('status', '')
             icon = "🟢" if stat == "Normal" else "🟡" if stat in ["Minor Issue", "Update Progress"] else "🔴"
             
+            # CEK APAKAH INI DATA REGULER BARU ATAU LAMA
+            is_new_reguler = kategori_site == "Site Reguler" and ("problem_alarm" in r or "cond_data" in r)
+            
             # FORMAT WHATSAPP DINAMIS
             if kategori_site == "Pangkalan Bun":
                 wa_text = generate_wa_pbu(r)
-            elif kategori_site == "Site Reguler":
+            elif is_new_reguler:
                 wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')} ({r.get('role_fme', '-')})\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
                 cd = r.get('cond_data', {})
                 if cd:
@@ -1552,7 +1555,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 
             with st.expander(f"{icon}  |  {site_id}  |  {kategori_site}  |  {r.get('timestamp', '')}  |  Status: {stat}"):
                 
-                if kategori_site != "Pangkalan Bun" and kategori_site != "Site Reguler":
+                if kategori_site != "Pangkalan Bun" and not is_new_reguler:
                     if st.checkbox("📄 Buat Berita Acara (PDF Resmi)", key=f"prep_pdf_{i}"):
                         with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
                             try:
@@ -1604,9 +1607,9 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         tampilkan_grid_foto(r.get('pb_url_act', []), "📸 Foto Temuan / Action Lapangan")
 
                 # =========================================================================
-                # TAMPILAN SITE REGULER (PALANGKARAYA)
+                # TAMPILAN SITE REGULER (VERSI BARU)
                 # =========================================================================
-                elif kategori_site == "Site Reguler":
+                elif is_new_reguler:
                     st.markdown("### 📋 SITE REGULER REPORT")
                     st.markdown(f"**👨‍🔧 FME:** {r.get('teknisi', '-')} ({r.get('role_fme', '-')}) &nbsp;&nbsp;|&nbsp;&nbsp; **🚨 Problem:** {r.get('problem_alarm', '-')}")
                     st.markdown(f"**🔧 Action Dikerjakan:** {', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}")
@@ -1641,9 +1644,12 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                 st.rerun()
 
                 # =========================================================================
-                # TAMPILAN TAB PREVENTIVE PALANGKARAYA (SPS) 100% ASLI TIDAK DIRUBAH
+                # TAMPILAN 100% ASLI UNTUK SPS & DATA LAMA (TERMASUK REGULER KEMARIN)
                 # =========================================================================
                 else:
+                    if kategori_site == "Site Reguler":
+                        st.warning("⏱️ Data di bawah ini direkam menggunakan Form Versi Lama (sebelum ada pemisahan layout SPS & Reguler).")
+                    
                     st.markdown(f"**👨‍🔧 Pelaksana (Teknisi):** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **⚡ Beban Load:** {r.get('total_load', '-')} A")
                     st.markdown(f"**🔧 Action Dikerjakan:** {r.get('action', '-')}")
                     if r.get('sparepart'): st.warning(f"**📦 Sparepart Diganti:** {r['sparepart']}")
