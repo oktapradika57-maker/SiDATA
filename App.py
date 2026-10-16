@@ -178,8 +178,8 @@ if st.session_state['role'] is None:
     
     st.markdown("<br>", unsafe_allow_html=True)
     render_header_logo(is_login=True) 
-    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Portal Report Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Sistem Report Terintegrasi</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Sistem Pelaporan Terpadu Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
     col_v, col_space, col_a = st.columns([4, 0.6, 4])
     
     with col_v:
@@ -226,6 +226,36 @@ if st.session_state['role'] is None:
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("<div style='text-align: center; font-size: 13px; opacity: 0.7;'>Secured System Application & Database Management<br><b>Created By Okta Pradika © 2026</b></div>", unsafe_allow_html=True)
     st.stop()
+
+
+# -------------------------------------------------------------------------
+# FUNGSI PEMBACA MASTER DATA EXCEL (NAMA FME & SITE ID)
+# -------------------------------------------------------------------------
+@st.cache_data(ttl=3600)
+def load_master_lists():
+    fme_plk, fme_pbu, site_plk, site_pbu = [], [], [], []
+    try:
+        df1 = pd.read_excel("NIK NOP PLK.xlsx")
+        if 'NAMA' in df1.columns: fme_plk = df1['NAMA'].dropna().astype(str).tolist()
+    except: pass
+    
+    try:
+        df2 = pd.read_excel("NAMA NOP PANGKALANBUN.xlsx")
+        if 'NAMA' in df2.columns: fme_pbu = df2['NAMA'].dropna().astype(str).tolist()
+    except: pass
+    
+    try:
+        df3 = pd.read_excel("Site ID Sidata Palangkaraya.xlsx")
+        if 'Site ID' in df3.columns: site_plk = df3['Site ID'].dropna().astype(str).tolist()
+    except: pass
+    
+    try:
+        df4 = pd.read_excel("Site ID Sidata Pangkalanbun.xlsx")
+        if 'Site ID' in df4.columns: site_pbu = df4['Site ID'].dropna().astype(str).tolist()
+    except: pass
+    
+    return sorted(fme_plk), sorted(fme_pbu), sorted(site_plk), sorted(site_pbu)
+
 
 # -------------------------------------------------------------------------
 # KONFIGURASI UPLOAD CLOUDINARY
@@ -637,6 +667,9 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
     
     render_header_logo()
     
+    # Ambil Data Master untuk Dropdown
+    fme_plk_list, fme_pbu_list, site_plk_list, site_pbu_list = load_master_lists()
+    
     if menu == "📸 Form Pelaporan (Lapangan)":
         if st.session_state.get('area_lapangan') == 'Pangkalan Bun':
             st.markdown("<h1 style='text-align: center;'>📸 Form Pelaporan (Pangkalan Bun)</h1>", unsafe_allow_html=True)
@@ -670,13 +703,22 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 st.markdown("#### Kategori Kunjungan: SPS")
                 c1, c2 = st.columns(2)
                 with c1:
-                    site_name = st.text_input("Nama / ID Site", placeholder="Contoh: BTS-PKY-001")
+                    if site_plk_list:
+                        site_name = st.selectbox("Pilih Site ID", [""] + site_plk_list)
+                    else:
+                        site_name = st.text_input("Nama / ID Site", placeholder="Contoh: BTS-PKY-001")
+                        
                     opsi_nop = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
                     idx_default = opsi_nop.index(nop_area_default) if nop_area_default in opsi_nop else 0
                     nop_area = st.selectbox("NOP Area", opsi_nop, index=idx_default)
                     check_date = st.date_input("Tanggal Pengecekan", value=datetime.date.today())
                 with c2:
-                    technician_name = st.text_input("Nama Pelaksana / Teknisi")
+                    if fme_plk_list:
+                        technician_name = st.multiselect("Pilih Nama Pelaksana / FME (Bisa >1):", fme_plk_list)
+                    else:
+                        tek_str = st.text_input("Nama Pelaksana / Teknisi")
+                        technician_name = [tek_str] if tek_str else []
+                        
                     weather = st.selectbox("Kondisi Cuaca", ["Cerah", "Berawan", "Hujan", "Kabut Asap menutup cahaya matahari", "Lembab tidak ada panas", "Badai"])
                 st.divider()
                 sc1, sc2 = st.columns(2)
@@ -804,7 +846,9 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
 
                 if st.button("🚀 UPLOAD & SINKRONKAN DATA SPS", type="primary", use_container_width=True):
                     if not site_name:
-                        st.error("⚠️ Mohon isi Nama Site!")
+                        st.error("⚠️ Mohon pilih Nama Site!")
+                    elif not technician_name:
+                        st.error("⚠️ Mohon pilih Pelaksana / FME!")
                     else:
                         with st.spinner("⏳ Sedang memproses dan mengamankan data ke Cloud..."):
                             url_sites = upload_multiple_images(site_photos, "prev_view")
@@ -829,12 +873,13 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             b_res = []
                             for b in bat_data: b_res.append({"Baterai": b["id"], "Voltase": b["voltase"], "Suhu": b["suhu"], "Kondisi": b["kondisi"], "URL_Fotos": upload_multiple_images(b["foto_objs"])})
 
+                            tek_str_final = ", ".join(technician_name)
                             report_dict = {
                                 "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                                 "site_name": site_name, 
                                 "kategori": "SPS", 
                                 "nop": nop_area, 
-                                "teknisi": technician_name,
+                                "teknisi": tek_str_final,
                                 "status": final_status, 
                                 "action": action_taken, 
                                 "sparepart": sparepart_needed,
@@ -882,12 +927,22 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 st.markdown("#### Kategori Kunjungan: Site Reguler (Maintenance/Troubleshooting)")
                 c1, c2 = st.columns(2)
                 with c1:
-                    site_name_reg = st.text_input("Nama / ID Site", placeholder="Contoh: BTS-PKY-002", key="reg_site")
+                    if site_plk_list:
+                        site_name_reg = st.selectbox("Pilih Site ID", [""] + site_plk_list, key="reg_site")
+                    else:
+                        site_name_reg = st.text_input("Nama / ID Site", key="reg_site")
+                        
                     opsi_nop = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
                     idx_default = opsi_nop.index(nop_area_default) if nop_area_default in opsi_nop else 0
                     nop_area_reg = st.selectbox("NOP Area", opsi_nop, index=idx_default, key="reg_nop")
                 with c2:
-                    teknisi_reg = st.text_input("Nama FME", key="reg_fme")
+                    if fme_plk_list:
+                        teknisi_reg = st.multiselect("Pilih Nama FME (Bisa >1):", fme_plk_list, key="reg_fme")
+                    else:
+                        t_str = st.text_input("Nama FME", key="reg_fme")
+                        teknisi_reg = [t_str] if t_str else []
+                    
+                    role_fme_reg = st.selectbox("Role FME:", ["TE", "MBP", "CME"], key="reg_role")
                     check_date_reg = st.date_input("Tanggal Kunjungan", value=datetime.date.today(), key="reg_date")
                 
                 st.divider()
@@ -927,8 +982,10 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 final_status_reg = st.radio("Status Akhir Site:", ["Normal", "Minor Issue", "Major/Critical", "Update Progress"], key="stat_reg")
                 
                 if st.button("🚀 UPLOAD & SINKRONKAN DATA REGULER", type="primary", use_container_width=True):
-                    if not site_name_reg or not teknisi_reg:
-                        st.error("⚠️ Nama Site dan Nama FME wajib diisi!")
+                    if not site_name_reg:
+                        st.error("⚠️ Nama / ID Site wajib dipilih!")
+                    elif not teknisi_reg:
+                        st.error("⚠️ Nama FME wajib dipilih!")
                     elif not foto_prob or not foto_act:
                         st.error("⚠️ Foto Problem Alarm dan Foto Action WAJIB dilampirkan sebelum mensubmit data!")
                     else:
@@ -936,12 +993,14 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             url_probs = upload_multiple_images(foto_prob, "reg_prob")
                             url_acts = upload_multiple_images(foto_act, "reg_act")
                             
+                            tek_str_reg = ", ".join(teknisi_reg)
                             report_dict = {
                                 "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                                 "site_name": site_name_reg,
                                 "kategori": "Site Reguler",
                                 "nop": nop_area_reg,
-                                "teknisi": teknisi_reg,
+                                "teknisi": tek_str_reg,
+                                "role_fme": role_fme_reg,
                                 "status": final_status_reg,
                                 "action": f"Problem: {prob_alarm} | Action: {', '.join(act_sel)}",
                                 "sparepart": "-",
@@ -987,16 +1046,26 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
             st.markdown("### 📌 INFORMASI SITE")
             c1, c2 = st.columns(2)
             with c1:
-                pb_te = st.text_input("FME NAME")
-                pb_sid = st.text_input("Site ID")
-                pb_sname = st.text_input("Site Name")
+                if fme_pbu_list:
+                    pb_te = st.multiselect("FME NAME (Bisa >1):", fme_pbu_list, key="pb_te")
+                else:
+                    pt_str = st.text_input("FME NAME", key="pb_te")
+                    pb_te = [pt_str] if pt_str else []
+                    
+                if site_pbu_list:
+                    pb_sid = st.selectbox("Pilih Site ID", [""] + site_pbu_list, key="pb_sid")
+                else:
+                    pb_sid = st.text_input("Site ID", key="pb_sid")
+                    
             with c2:
                 pb_tick = st.text_input("Ticket#")
                 pb_tgl = st.text_input("Tanggal On Site", value=datetime.date.today().strftime("%d %B %Y"))
                 pb_catuan = st.selectbox("Catuan Power Utama", ["GENSET", "PLN", "SPS", "LAINNYA"])
                 
             pb_foto_site = st.file_uploader("📸 Foto Site / Kondisi Umum (Bisa >1)", accept_multiple_files=True, key="pb_foto_site")
-            pb_payload.update({"te_name": pb_te, "site_id": pb_sid, "site_name": pb_sname, "ticket": pb_tick, "tgl_onsite": pb_tgl, "power_utama": pb_catuan})
+            
+            tek_pb_str = ", ".join(pb_te) if pb_te else "-"
+            pb_payload.update({"te_name": tek_pb_str, "site_id": pb_sid, "site_name": pb_sid, "ticket": pb_tick, "tgl_onsite": pb_tgl, "power_utama": pb_catuan})
             
         with tabs_pb[1]:
             st.markdown("### 🔌 DATA RECTIFIER")
@@ -1100,7 +1169,8 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
             pb_status_akhir = st.radio("Status Akhir Site:", ["Normal", "Minor Issue", "Major/Critical"])
             
             if st.button("🚀 SUBMIT SITE VISIT & BUKA WA", type="primary", use_container_width=True):
-                if not pb_sid: st.error("⚠️ Mohon isi Site ID / Name!")
+                if not pb_sid: st.error("⚠️ Mohon pilih Site ID!")
+                elif not pb_te: st.error("⚠️ Mohon pilih FME NAME!")
                 else:
                     with st.spinner("⏳ Sedang mengunggah foto ke Cloud & menyimpan data Laporan..."):
                         
@@ -1112,14 +1182,14 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                         
                         report_dict = {
                             "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "site_name": pb_sid + " / " + pb_sname,
+                            "site_name": pb_sid,
                             "kategori": "Pangkalan Bun", 
                             "nop": "Pangkalan Bun", 
-                            "teknisi": pb_te,
+                            "teknisi": tek_pb_str,
                             "status": pb_status_akhir, 
                             "action": pb_temuan,
                             
-                            "pb_te": pb_te, "pb_site_id": pb_sid, "pb_ticket": pb_tick, "pb_power": pb_catuan,
+                            "pb_te": tek_pb_str, "pb_site_id": pb_sid, "pb_ticket": pb_tick, "pb_power": pb_catuan,
                             "pb_rectifiers": pb_recti_list,
                             "pb_enva": pb_payload["enva"],
                             "pb_kelistrikan": pb_payload["kelistrikan"],
@@ -1363,7 +1433,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     summary_list.append(row_data)
 
                 else:
-                    # Gabungan Ekspor Palangkaraya (SPS & Reguler)
                     panel_issues = [p.get('Panel', 'Panel') for p in r.get('panel_data', []) if p.get('kondisi') and p.get('kondisi') != "Baik"]
                     bat_issues = [b.get('Baterai', 'Baterai') for b in r.get('battery_data', []) if b.get('Kondisi') and b.get('Kondisi') != "Normal"]
 
@@ -1374,6 +1443,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         "Kategori": r.get('kategori', 'SPS'),
                         "NOP": r.get('nop', '-'),
                         "Teknisi / FME": r.get('teknisi', '-'),
+                        "Role FME (Reguler)": r.get('role_fme', '-'),
                         "Status Akhir": r.get('status', '-'),
                         "Kondisi Site": r.get('site_cond', '-'),
                         "Fisik Tower": r.get('tower_cond', '-'),
@@ -1402,7 +1472,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         "Sparepart Diganti": r.get('sparepart', '-'),
                         "Remark": r.get('remark', '-'),
                         
-                        # Tambahan untuk Reguler
                         "Reguler - Problem Alarm": r.get('problem_alarm', '-'),
                         "Reguler - Load AC RST": cond_d.get('load_ac_rst', '-'),
                         "Reguler - Volt AC RST": cond_d.get('volt_ac_rst', '-'),
@@ -1449,7 +1518,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 if aktif_area == "Palangkaraya":
                     if HAS_PPTX:
                         with st.spinner("Menyiapkan PPTX..."):
-                            pptx_data = build_pptx([x for x in export_db if x.get('kategori') != 'Pangkalan Bun'])
+                            pptx_data = build_pptx([x for x in export_db if x.get('kategori') != 'Pangkalan Bun' and x.get('kategori') != 'Site Reguler'])
                             st.download_button(label="📽 Download Presentasi Report (PPTX)", data=pptx_data, file_name=f"Report_PM_KUT_{datetime.date.today()}.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", type="primary", use_container_width=True)
                     else:
                         st.error("Library `python-pptx` belum ter-install di server.")
@@ -1472,7 +1541,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
             if kategori_site == "Pangkalan Bun":
                 wa_text = generate_wa_pbu(r)
             elif kategori_site == "Site Reguler":
-                wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
+                wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')} ({r.get('role_fme', '-')})\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
                 cd = r.get('cond_data', {})
                 if cd:
                     wa_text += f"\n*⚡ PARAMETER KELISTRIKAN:*\n- Load AC: {cd.get('load_ac_rst', '-')}\n- Volt AC: {cd.get('volt_ac_rst', '-')}\n- Load DC: {cd.get('load_dc', '-')}\n- Set BCL: {cd.get('set_bcl', '-')}\n- Set Cap: {cd.get('set_cap', '-')}\n- Modul Rusak: {cd.get('mod_rusak', '-')}\n"
@@ -1539,7 +1608,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 # =========================================================================
                 elif kategori_site == "Site Reguler":
                     st.markdown("### 📋 SITE REGULER REPORT")
-                    st.markdown(f"**👨‍🔧 FME:** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **🚨 Problem:** {r.get('problem_alarm', '-')}")
+                    st.markdown(f"**👨‍🔧 FME:** {r.get('teknisi', '-')} ({r.get('role_fme', '-')}) &nbsp;&nbsp;|&nbsp;&nbsp; **🚨 Problem:** {r.get('problem_alarm', '-')}")
                     st.markdown(f"**🔧 Action Dikerjakan:** {', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}")
                     
                     cond_data = r.get('cond_data', {})
