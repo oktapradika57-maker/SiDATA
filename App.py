@@ -27,7 +27,7 @@ except ImportError:
 # -------------------------------------------------------------------------
 # SETUP HALAMAN & FUNGSI LOGO PRESISI (.WEBP)
 # -------------------------------------------------------------------------
-st.set_page_config(page_title="Report SPS - Okta Pradika", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="RPO - PLK & PBU", page_icon="⚡", layout="wide")
 
 LOGO_UTAMA = "koperasi-jasa-konstruksi-tower-event-organizer-network-monitoring-telekomunikasi-kisel-group-logo-kut (2).webp"
 
@@ -369,8 +369,8 @@ if st.session_state['role'] is None:
     
     st.markdown("<br>", unsafe_allow_html=True)
     render_header_logo(is_login=True) 
-    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Sistem Pelaporan Terpadu Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>RPO NOP PLK & PBU</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Report Online & Dasboard Monitoring Activity Taks Force</p>", unsafe_allow_html=True)
     col_v, col_space, col_a = st.columns([4, 0.6, 4])
     
     with col_v:
@@ -911,7 +911,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 ]
                                 sheet.insert_row(row_data, index=2)
                                 st.cache_data.clear()
-                                st.session_state['laporan_db'] = fetch_data_from_gsheets()
+                                st.session_state['laporan_db'].append(report_dict)
                                 st.success("✅ BERHASIL! Data SPS telah diamankan ke Baris Teratas Spreadsheet.")
                             else:
                                 st.error("⚠️ Gagal menyambung ke Server Database.")
@@ -957,25 +957,25 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 st.markdown("### 🔧 Action & Perbaikan")
                 act_opts = [
                     "Replace RRU", "Replace Optik", "Replace SFP", "Replace Module APR", 
-                    "Teg PLN Drop pelaporan PLN", "Reset Hardware", "MCB Trip", "Add Baterai"
+                    "Teg PLN Drop pelaporan PLN", "Reset Hardware", "MCB Trip", "Add Baterai",
+                    "Cleaning Fan BTS", "Cleaning FAN Recti", "Cleaning FAN Perangkat TRM", "Cleaning FAN Shelter"
                 ]
                 act_sel = st.multiselect("Pilih Action Dikerjakan (Bisa Multiple):", act_opts)
                 foto_act = st.file_uploader("📸 Foto Action / Perbaikan (WAJIB DILAMPIRKAN)", accept_multiple_files=True, key="f_act")
 
-                trigger_fields = ["MCB Trip", "Teg PLN Drop pelaporan PLN", "Replace Module APR", "Add Baterai"]
-                show_cond = any(item in trigger_fields for item in act_sel)
-                
-                if show_cond:
-                    st.info("💡 Berdasarkan Action yang dipilih (Power/Baterai), mohon lengkapi parameter kelistrikan berikut:")
-                    cc1, cc2 = st.columns(2)
-                    with cc1:
-                        cond_data['load_ac_rst'] = st.text_input("Load AC R-S-T", placeholder="Misal: 10A-12A-11A")
-                        cond_data['volt_ac_rst'] = st.text_input("Volt AC R-S-T", placeholder="Misal: 220V-221V-219V")
-                        cond_data['load_dc'] = st.text_input("Load DC Keseluruhan", placeholder="Misal: 45A")
-                    with cc2:
-                        cond_data['set_bcl'] = st.text_input("Settingan BCL", placeholder="Misal: 100%")
-                        cond_data['set_cap'] = st.text_input("Settingan Capacity", placeholder="Misal: 400Ah")
-                        cond_data['mod_rusak'] = st.text_input("Module Kontroler Rusak", placeholder="Misal: SC200 Rusak")
+                st.info("💡 Mohon lengkapi parameter kelistrikan berikut untuk pendataan validasi:")
+                cc1, cc2 = st.columns(2)
+                with cc1:
+                    cond_data['load_ac_rst'] = st.text_input("Load AC R-S-T", placeholder="Misal: 10A-12A-11A")
+                    cond_data['volt_ac_rst'] = st.text_input("Volt AC R-S-T", placeholder="Misal: 220V-221V-219V")
+                    cond_data['load_dc'] = st.text_input("Load DC Keseluruhan", placeholder="Misal: 45A")
+                with cc2:
+                    cond_data['set_bcl'] = st.text_input("Settingan BCL", placeholder="Misal: 100%")
+                    cond_data['set_cap'] = st.text_input("Settingan Capacity", placeholder="Misal: 400Ah")
+                    cond_data['mod_rusak'] = st.text_input("Module Kontroler Rusak", placeholder="Misal: SC200 Rusak")
+                    
+                st.divider()
+                cond_data['note_action'] = st.text_area("📝 NOTE / REMARK Action Lapangan (Opsional):", placeholder="Ketik catatan tambahan mengenai pengerjaan yang dilakukan hari ini...")
 
             with tabs_reg[2]:
                 st.markdown("### 📤 Konfirmasi & Submit Laporan")
@@ -1026,7 +1026,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 ]
                                 sheet.insert_row(row_data, index=2)
                                 st.cache_data.clear()
-                                st.session_state['laporan_db'] = fetch_data_from_gsheets()
+                                st.session_state['laporan_db'].append(report_dict)
                                 st.success("✅ BERHASIL! Data Laporan Site Reguler telah diamankan ke Baris Teratas Spreadsheet.")
                             else:
                                 st.error("⚠️ Gagal menyambung ke Server Database.")
@@ -1478,7 +1478,8 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         "Reguler - Load DC": cond_d.get('load_dc', '-'),
                         "Reguler - Set BCL": cond_d.get('set_bcl', '-'),
                         "Reguler - Set Capacity": cond_d.get('set_cap', '-'),
-                        "Reguler - Module Rusak": cond_d.get('mod_rusak', '-')
+                        "Reguler - Module Rusak": cond_d.get('mod_rusak', '-'),
+                        "Reguler - Note/Remark": cond_d.get('note_action', '-')
                     })
                 
             df_export = pd.DataFrame(summary_list)
@@ -1500,7 +1501,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         cell_left = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
 
                         for i, col_name in enumerate(df_export.columns):
-                            if col_name in ["Action / Pekerjaan", "Remark", "Possibility PSB", "Estimasi Jarak tower ke jaringan PLN", "Type Merk Panel", "Type Battery", "SPS Rusak (Detail)", "Baterai Rusak (Detail)", "Sparepart Diganti", "Catatan/Temuan", "Reguler - Problem Alarm"]:
+                            if col_name in ["Action / Pekerjaan", "Remark", "Possibility PSB", "Estimasi Jarak tower ke jaringan PLN", "Type Merk Panel", "Type Battery", "SPS Rusak (Detail)", "Baterai Rusak (Detail)", "Sparepart Diganti", "Catatan/Temuan", "Reguler - Problem Alarm", "Reguler - Note/Remark"]:
                                 worksheet.set_column(i, i, 35, cell_left)
                             else:
                                 worksheet.set_column(i, i, 18, cell_center)
@@ -1548,6 +1549,8 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 cd = r.get('cond_data', {})
                 if cd:
                     wa_text += f"\n*⚡ PARAMETER KELISTRIKAN:*\n- Load AC: {cd.get('load_ac_rst', '-')}\n- Volt AC: {cd.get('volt_ac_rst', '-')}\n- Load DC: {cd.get('load_dc', '-')}\n- Set BCL: {cd.get('set_bcl', '-')}\n- Set Cap: {cd.get('set_cap', '-')}\n- Modul Rusak: {cd.get('mod_rusak', '-')}\n"
+                    if cd.get('note_action'):
+                        wa_text += f"\n*📝 NOTE/REMARK:*\n{cd.get('note_action')}\n"
             else:
                 wa_text = f"*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({kategori_site} - {r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"
             
@@ -1617,6 +1620,8 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     cond_data = r.get('cond_data', {})
                     if cond_data:
                         st.info(f"**⚡ Parameter Kelistrikan:** Load AC ({cond_data.get('load_ac_rst','-')}) | Volt AC ({cond_data.get('volt_ac_rst','-')}) | Load DC ({cond_data.get('load_dc','-')}) | BCL ({cond_data.get('set_bcl','-')}) | Capacity ({cond_data.get('set_cap','-')}) | Modul Rusak ({cond_data.get('mod_rusak','-')})")
+                        if cond_data.get('note_action'):
+                            st.warning(f"**📝 NOTE/REMARK Lapangan:** {cond_data.get('note_action')}")
                         
                     st.markdown("<br>", unsafe_allow_html=True)
                     t1, t2 = st.tabs(["📸 Foto Problem Alarm", "📸 Foto Action / Perbaikan"])
