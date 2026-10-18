@@ -1657,28 +1657,37 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     
                     cond_data = r.get('cond_data', {})
                     if cond_data:
-                        st.info(f"**⚡ Parameter Kelistrikan:** Teg AC ({cond_data.get('v_rn','-')}/{cond_data.get('v_sn','-')}/{cond_data.get('v_tn','-')} V) | Arus AC ({cond_data.get('i_r','-')}/{cond_data.get('i_s','-')}/{cond_data.get('i_t','-')} A) | Load DC ({cond_data.get('load_dc','-')} A) | BCL ({cond_data.get('set_bcl','-')}) | Capacity ({cond_data.get('set_cap','-')})")
+                        v_rst = cond_data.get('volt_ac_rst') or f"{cond_data.get('v_rn','-')}/{cond_data.get('v_sn','-')}/{cond_data.get('v_tn','-')}"
+                        i_rst = cond_data.get('load_ac_rst') or f"{cond_data.get('i_r','-')}/{cond_data.get('i_s','-')}/{cond_data.get('i_t','-')}"
+                        st.info(f"**⚡ Parameter Kelistrikan:** Teg AC R/S/T ({v_rst} V) | Load AC R/S/T ({i_rst} A) | Load DC ({cond_data.get('load_dc','-')} A) | BCL ({cond_data.get('set_bcl','-')}) | Capacity ({cond_data.get('set_cap','-')}) | Modul Rusak ({cond_data.get('mod_rusak','-')})")
                         if cond_data.get('note_action'):
                             st.warning(f"**📝 NOTE/REMARK Lapangan:** {cond_data.get('note_action')}")
                         
                     st.markdown("<br>", unsafe_allow_html=True)
-                    t1, t2, t3 = st.tabs(["📸 Foto Problem Alarm", "📸 Foto Perbaikan", "📸 Eviden Parameter"])
+                    t1, t2, t3 = st.tabs(["📸 Foto Problem Alarm", "📸 Foto Action / Perbaikan", "📸 Eviden Pengukuran Power"])
                     with t1: tampilkan_grid_foto(r.get('url_problem', []), "Dokumentasi Problem Alarm")
                     with t2: tampilkan_grid_foto(r.get('url_action', []), "Dokumentasi Perbaikan / Action")
-                    with t3: 
+                    with t3:
                         if cond_data:
-                            all_eviden = [
-                                cond_data.get('url_v_rn'), cond_data.get('url_v_sn'), cond_data.get('url_v_tn'),
-                                cond_data.get('url_i_r'), cond_data.get('url_i_s'), cond_data.get('url_i_t'),
-                                cond_data.get('url_ldc'), cond_data.get('url_bcl'), cond_data.get('url_cap'), cond_data.get('url_mod')
+                            eviden_list = [
+                                (cond_data.get('url_v_rn'), f"Teg AC R-N: {cond_data.get('v_rn', '-')} V"),
+                                (cond_data.get('url_v_sn'), f"Teg AC S-N: {cond_data.get('v_sn', '-')} V"),
+                                (cond_data.get('url_v_tn'), f"Teg AC T-N: {cond_data.get('v_tn', '-')} V"),
+                                (cond_data.get('url_i_r'), f"Load AC R: {cond_data.get('i_r', '-')} A"),
+                                (cond_data.get('url_i_s'), f"Load AC S: {cond_data.get('i_s', '-')} A"),
+                                (cond_data.get('url_i_t'), f"Load AC T: {cond_data.get('i_t', '-')} A"),
+                                (cond_data.get('url_ldc'), f"Load DC Total: {cond_data.get('load_dc', '-')} A"),
+                                (cond_data.get('url_bcl'), f"Settingan BCL: {cond_data.get('set_bcl', '-')}"),
+                                (cond_data.get('url_cap'), f"Settingan Capacity: {cond_data.get('set_cap', '-')}"),
+                                (cond_data.get('url_mod'), f"Module Kontroler: {cond_data.get('mod_rusak', '-')}")
                             ]
-                            all_eviden = [url for url in all_eviden if url]
-                            if all_eviden:
-                                tampilkan_grid_foto(all_eviden, "Bukti Foto Pengukuran Kelistrikan")
-                            else:
-                                st.write("Belum ada foto parameter pengukuran pada laporan ini.")
-                        else:
-                            st.write("Tidak ada parameter kelistrikan yang dilaporkan.")
+                            ada_foto_param = False
+                            for u_ev, cap_ev in eviden_list:
+                                if u_ev:
+                                    ada_foto_param = True
+                                    tampilkan_grid_foto([u_ev], f"📌 {cap_ev}")
+                            if not ada_foto_param:
+                                st.info("Belum ada foto eviden per-parameter pada laporan ini.")
                     
                     if st.session_state['role'] == 'Admin':
                         with st.container(border=True):
