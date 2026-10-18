@@ -639,35 +639,35 @@ def generate_wa_pbu(r):
 if 'active_menu' not in st.session_state:
     st.session_state['active_menu'] = None
 
+# --- KODE WATERMARK GLOBAL (MUNCUL DI MENU UTAMA & DALAM FORM) ---
+bg_base64 = get_base64_of_bin_file(LOGO_UTAMA)
+if bg_base64:
+    st.markdown(
+        f"""
+        <style>
+        .watermark-kut {{
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.05; /* Transparansi tipis dan elegan */
+            z-index: 0;
+            pointer-events: none; /* Agar tidak menghalangi tombol saat diklik */
+        }}
+        .watermark-kut img {{
+            width: 750px; /* Ukuran besar menutupi background */
+            max-width: 90vw;
+            filter: grayscale(100%); /* Efek monokrom eksklusif */
+        }}
+        </style>
+        <div class="watermark-kut">
+            <img src="data:image/webp;base64,{bg_base64}">
+        </div>
+        """, unsafe_allow_html=True
+    )
+# -----------------------------------------------------------------
+
 if st.session_state['active_menu'] is None:
-    
-    # --- TAMBAHAN KODE WATERMARK MULAI DI SINI ---
-    bg_base64 = get_base64_of_bin_file(LOGO_UTAMA)
-    if bg_base64:
-        st.markdown(
-            f"""
-            <style>
-            .watermark-kut {{
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                opacity: 0.05; /* Transparansi tipis dan elegan */
-                z-index: 0;
-                pointer-events: none; /* Agar tombol tetap bisa diklik */
-            }}
-            .watermark-kut img {{
-                width: 750px; /* Ukuran besar menutupi background */
-                max-width: 90vw;
-                filter: grayscale(100%); /* Efek monokrom/hitam-putih eksklusif */
-            }}
-            </style>
-            <div class="watermark-kut">
-                <img src="data:image/webp;base64,{bg_base64}">
-            </div>
-            """, unsafe_allow_html=True
-        )
-    # --- TAMBAHAN KODE WATERMARK SELESAI ---
     render_header_logo()
     role_badge = "🟢 MODE ADMIN" if st.session_state['role'] == 'Admin' else f"👷‍♂️ TIM LAPANGAN ({st.session_state.get('area_lapangan', 'Umum').upper()})"
     st.markdown("<h1 style='text-align: center; margin-bottom: 5px;'>⚡ Menu Utama Operasional</h1>", unsafe_allow_html=True)
