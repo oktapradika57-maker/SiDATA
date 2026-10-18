@@ -998,8 +998,8 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
             # -------------------------------------------------------------------------
             tabs_reg = st.tabs(["📌 1. Info & Problem", "⚡ 2. Action & Parameter", "📤 3. Submit"])
             
-                            else:
-                                st.error("⚠️ Gagal menyambung ke Server Database.")
+        else:
+             st.error("⚠️ Gagal menyambung ke Server Database.")
 
     # -------------------------------------------------------------------------
     # BLOK B: FORM PANGKALAN BUN (LENGKAP DENGAN UPLOAD FOTO & AUTO WA)
