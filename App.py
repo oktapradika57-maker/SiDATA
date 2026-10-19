@@ -1704,14 +1704,24 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         st.markdown("### 📋 Daftar Laporan Site Terinspeksi")
 
         # ---------------------------------------------------------------------
-        # TAMPILAN KARTU EXPANDER (KOMPATIBEL 100% DENGAN DATA LAMA)
+        # TAMPILAN KARTU UI MODERN & URUTAN TERBARU DI ATAS
         # ---------------------------------------------------------------------
-        for i in reversed(filtered_indices):
+        for i in filtered_indices:  # Dihapus 'reversed' agar data terbaru otomatis muncul paling atas!
             r = db[i]
             site_id = r.get('site_name', 'Unknown')
             kategori_site = r.get('kategori', 'SPS')
             stat = r.get('status', '')
-            icon = "🟢" if stat == "Normal" else "🟡" if stat in ["Minor Issue", "Update Progress"] else "🔴"
+            
+            # Pewarnaan Label Status UI
+            if stat == "Normal":
+                warna_status = "#00E676" # Hijau
+                icon = "🟢"
+            elif stat in ["Minor Issue", "Update Progress"]:
+                warna_status = "#FFC107" # Kuning
+                icon = "🟡"
+            else:
+                warna_status = "#FF5252" # Merah
+                icon = "🔴"
             
             # CEK APAKAH INI DATA REGULER BARU ATAU LAMA
             is_new_reguler = kategori_site == "Site Reguler" and ("problem_alarm" in r or "cond_data" in r)
@@ -1731,282 +1741,310 @@ elif menu == "📊 Hasil Laporan & Dashboard":
             
             wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
 
-            with st.expander(f"{icon}  |  {site_id}  |  {kategori_site}  |  {r.get('timestamp', '')}  |  Status: {stat}"):
+            # BUNGKUSAN CARD UTAMA
+            with st.container(border=False):
+                fme_tampil = r.get('teknisi', '-') if kategori_site != "Pangkalan Bun" else r.get('pb_te', '-')
                 
-                if kategori_site != "Pangkalan Bun" and not is_new_reguler:
-                    if st.checkbox("📄 Buat Berita Acara (PDF Resmi)", key=f"prep_pdf_{i}"):
-                        with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
-                            try:
-                                pdf_bytes = build_pdf(r)
-                                st.download_button(label="📥 Download PDF Berita Acara", data=pdf_bytes, file_name=f"Berita_Acara_{site_id}.pdf", mime="application/pdf", key=f"dl_pdf_{i}", type="primary")
-                            except Exception as e:
-                                st.error(f"Terjadi kesalahan saat menyusun PDF: {e}")
+                # Desain HTML Card Premium
+                st.markdown(f"""
+                    <div style="padding: 18px 20px; border-radius: 12px; border-left: 8px solid {warna_status}; background-color: var(--secondary-background-color); margin-bottom: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.08); border-top: 1px solid rgba(128,128,128,0.1); border-right: 1px solid rgba(128,128,128,0.1); border-bottom: 1px solid rgba(128,128,128,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h3 style="margin: 0; padding: 0; font-size: 22px; font-weight: 800;">{icon} {site_id}</h3>
+                            <span style="font-size: 13px; font-weight: 700; color: #ffffff; background-color: {warna_status}; padding: 4px 12px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">📅 {r.get('timestamp', '')}</span>
+                        </div>
+                        <div style="font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>📝 Kategori:</b> {kategori_site} ({r.get('nop', '-')})</span>
+                            <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>👷 FME:</b> {fme_tampil}</span>
+                        </div>
+                        <div style="font-size: 15px; border-top: 1px dashed rgba(128,128,128,0.3); padding-top: 8px; margin-top: 8px;">
+                            <b>📊 Status Akhir:</b> <span style="color: {warna_status}; font-weight: 900; font-size: 16px;">{stat}</span>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
                 
-                st.markdown("<hr style='border: 1px solid var(--primary-color); margin: 12px 0;'>", unsafe_allow_html=True)
-                st.link_button("📱 Share Rangkuman Laporan ke WhatsApp", wa_url, use_container_width=True)
-                
-                # =========================================================================
-                # TAMPILAN PANGKALAN BUN
-                # =========================================================================
-                if kategori_site == "Pangkalan Bun":
-                    st.markdown("### 📋 SITE VISIT REPORT (Pangkalan Bun)")
-                    st.write(f"**FME NAME:** {r.get('pb_te', '-')} | **Ticket:** {r.get('pb_ticket', '-')}")
-                    st.write(f"**Catuan Power:** {r.get('pb_power', '-')} | **Status Akhir:** {stat}")
-                    
-                    tpb1, tpb2, tpb3, tpb4 = st.tabs(["📌 Info & Recti", "⚡ Kelistrikan & ACPDB", "⛽ Genset & ENVA", "📝 Temuan & Activity"])
-                    with tpb1:
-                        st.markdown("**Data Rectifier:**")
-                        for rect in r.get('pb_rectifiers', []): st.write(f"🔹 **{rect.get('tipe')}** | BCL: {rect.get('bcl')}% | Beban: {rect.get('load')}A | Voltase: {rect.get('dc_v')}V")
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        tampilkan_grid_foto(r.get('pb_url_site', []), "📸 Foto Site / Kondisi Umum")
-                        tampilkan_grid_foto(r.get('pb_url_recti', []), "📸 Foto Rectifier & ENVA")
-                    with tpb2:
-                        kel = r.get('pb_kelistrikan', {})
-                        acp = r.get('pb_acpdb', {})
-                        st.write(f"**Kelistrikan:** Daya KWH: {kel.get('daya', '-')} | Phasa: {kel.get('phasa', '-')} | Teg. G-N: {kel.get('v_gn', '-')}")
-                        st.write(f"**ACPDB:** Tersedia: {acp.get('ada', '-')} | Teg. RST thd N: {acp.get('v_rst_n', '-')}")
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        tampilkan_grid_foto(r.get('pb_url_listrik', []), "📸 Foto Kelistrikan & ACPDB")
-                    with tpb3:
-                        gen = r.get('pb_genset', {})
-                        en = r.get('pb_enva', {})
-                        st.write(f"**Genset:** Ada: {gen.get('ada', '-')} | Kapasitas: {gen.get('cap', '-')} | Tangki: {gen.get('tangki', '-')} | Sisa: {gen.get('bbm', '-')}")
-                        st.write(f"**ENVA:** Main Fail: {en.get('main_fail', '-')} | Rectifier Fail: {en.get('rect_fail', '-')} | High Temp: {en.get('high_temp', '-')}")
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        tampilkan_grid_foto(r.get('pb_url_genset', []), "📸 Foto Genset / Tangki")
-                    with tpb4:
-                        st.markdown("**Catatan/Temuan Tim:**")
-                        st.info(r.get('action', '-'))
-                        st.markdown("**Activity Report:**")
-                        if r.get('pb_act_power'): st.write(f"- Power & CME: {', '.join(r.get('pb_act_power'))}")
-                        if r.get('pb_act_trans'): st.write(f"- Transport: {', '.join(r.get('pb_act_trans'))}")
-                        if r.get('pb_act_osa'): st.write(f"- OSA Impact: {', '.join(r.get('pb_act_osa'))}")
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        tampilkan_grid_foto(r.get('pb_url_act', []), "📸 Foto Temuan / Action Lapangan")
+                # Tombol Aksi Cepat di luar Expander (Lebih Praktis!)
+                c_btn1, c_btn2 = st.columns(2)
+                with c_btn1:
+                    st.link_button("📱 Share Rangkuman Laporan (WA)", wa_url, use_container_width=True)
+                with c_btn2:
+                    if kategori_site != "Pangkalan Bun" and not is_new_reguler:
+                        if st.checkbox("📄 Buat PDF Resmi", key=f"prep_pdf_{i}"):
+                            with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
+                                try:
+                                    pdf_bytes = build_pdf(r)
+                                    st.download_button(label="📥 Download PDF", data=pdf_bytes, file_name=f"Berita_Acara_{site_id}.pdf", mime="application/pdf", key=f"dl_pdf_{i}", type="primary", use_container_width=True)
+                                except Exception as e:
+                                    st.error(f"Gagal memproses PDF: {e}")
+                    else:
+                        st.button("📄 Format Tanpa PDF", disabled=True, key=f"dl_pdf_dis_{i}", use_container_width=True)
 
-                # =========================================================================
-                # TAMPILAN SITE REGULER (VERSI BARU)
-                # =========================================================================
-                elif is_new_reguler:
-                    st.markdown("### 📋 SITE REGULER REPORT")
-                    st.markdown(f"**👨‍🔧 FME:** {r.get('teknisi', '-')} ({r.get('role_fme', '-')}) &nbsp;&nbsp;|&nbsp;&nbsp; **🚨 Problem:** {r.get('problem_alarm', '-')}")
-                    st.markdown(f"**🔧 Action Dikerjakan:** {', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}")
+                # Rincian Data
+                with st.expander("📂 BUKA DETAIL & DOKUMENTASI LAPORAN"):
                     
-                    cond_data = r.get('cond_data', {})
-                    if cond_data:
-                        v_rst = cond_data.get('volt_ac_rst') or f"{cond_data.get('v_rn','-')}/{cond_data.get('v_sn','-')}/{cond_data.get('v_tn','-')}"
-                        i_rst = cond_data.get('load_ac_rst') or f"{cond_data.get('i_r','-')}/{cond_data.get('i_s','-')}/{cond_data.get('i_t','-')}"
-                        st.info(f"**⚡ Parameter Kelistrikan:** Teg AC R/S/T ({v_rst} V) | Load AC R/S/T ({i_rst} A) | Load DC ({cond_data.get('load_dc','-')} A) | BCL ({cond_data.get('set_bcl','-')}) | Capacity ({cond_data.get('set_cap','-')}) | Modul Rusak ({cond_data.get('mod_rusak','-')})")
-                        if cond_data.get('note_action'):
-                            st.warning(f"**📝 NOTE/REMARK Lapangan:** {cond_data.get('note_action')}")
+                    # =========================================================================
+                    # TAMPILAN PANGKALAN BUN
+                    # =========================================================================
+                    if kategori_site == "Pangkalan Bun":
+                        st.markdown("### 📋 SITE VISIT REPORT (Pangkalan Bun)")
+                        st.write(f"**FME NAME:** {r.get('pb_te', '-')} | **Ticket:** {r.get('pb_ticket', '-')}")
+                        st.write(f"**Catuan Power:** {r.get('pb_power', '-')} | **Status Akhir:** {stat}")
                         
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    t1, t2, t3 = st.tabs(["📸 Foto Problem Alarm", "📸 Foto Action / Perbaikan", "📸 Eviden Pengukuran Power"])
-                    with t1: tampilkan_grid_foto(r.get('url_problem', []), "Dokumentasi Problem Alarm")
-                    with t2: tampilkan_grid_foto(r.get('url_action', []), "Dokumentasi Perbaikan / Action")
-                    with t3:
+                        tpb1, tpb2, tpb3, tpb4 = st.tabs(["📌 Info & Recti", "⚡ Kelistrikan & ACPDB", "⛽ Genset & ENVA", "📝 Temuan & Activity"])
+                        with tpb1:
+                            st.markdown("**Data Rectifier:**")
+                            for rect in r.get('pb_rectifiers', []): st.write(f"🔹 **{rect.get('tipe')}** | BCL: {rect.get('bcl')}% | Beban: {rect.get('load')}A | Voltase: {rect.get('dc_v')}V")
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            tampilkan_grid_foto(r.get('pb_url_site', []), "📸 Foto Site / Kondisi Umum")
+                            tampilkan_grid_foto(r.get('pb_url_recti', []), "📸 Foto Rectifier & ENVA")
+                        with tpb2:
+                            kel = r.get('pb_kelistrikan', {})
+                            acp = r.get('pb_acpdb', {})
+                            st.write(f"**Kelistrikan:** Daya KWH: {kel.get('daya', '-')} | Phasa: {kel.get('phasa', '-')} | Teg. G-N: {kel.get('v_gn', '-')}")
+                            st.write(f"**ACPDB:** Tersedia: {acp.get('ada', '-')} | Teg. RST thd N: {acp.get('v_rst_n', '-')}")
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            tampilkan_grid_foto(r.get('pb_url_listrik', []), "📸 Foto Kelistrikan & ACPDB")
+                        with tpb3:
+                            gen = r.get('pb_genset', {})
+                            en = r.get('pb_enva', {})
+                            st.write(f"**Genset:** Ada: {gen.get('ada', '-')} | Kapasitas: {gen.get('cap', '-')} | Tangki: {gen.get('tangki', '-')} | Sisa: {gen.get('bbm', '-')}")
+                            st.write(f"**ENVA:** Main Fail: {en.get('main_fail', '-')} | Rectifier Fail: {en.get('rect_fail', '-')} | High Temp: {en.get('high_temp', '-')}")
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            tampilkan_grid_foto(r.get('pb_url_genset', []), "📸 Foto Genset / Tangki")
+                        with tpb4:
+                            st.markdown("**Catatan/Temuan Tim:**")
+                            st.info(r.get('action', '-'))
+                            st.markdown("**Activity Report:**")
+                            if r.get('pb_act_power'): st.write(f"- Power & CME: {', '.join(r.get('pb_act_power'))}")
+                            if r.get('pb_act_trans'): st.write(f"- Transport: {', '.join(r.get('pb_act_trans'))}")
+                            if r.get('pb_act_osa'): st.write(f"- OSA Impact: {', '.join(r.get('pb_act_osa'))}")
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            tampilkan_grid_foto(r.get('pb_url_act', []), "📸 Foto Temuan / Action Lapangan")
+
+                    # =========================================================================
+                    # TAMPILAN SITE REGULER (VERSI BARU)
+                    # =========================================================================
+                    elif is_new_reguler:
+                        st.markdown("### 📋 SITE REGULER REPORT")
+                        st.markdown(f"**👨‍🔧 FME:** {r.get('teknisi', '-')} ({r.get('role_fme', '-')}) &nbsp;&nbsp;|&nbsp;&nbsp; **🚨 Problem:** {r.get('problem_alarm', '-')}")
+                        st.markdown(f"**🔧 Action Dikerjakan:** {', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}")
+                        
+                        cond_data = r.get('cond_data', {})
                         if cond_data:
-                            eviden_list = [
-                                (cond_data.get('url_v_rn'), f"Teg AC R-N: {cond_data.get('v_rn', '-')} V"),
-                                (cond_data.get('url_v_sn'), f"Teg AC S-N: {cond_data.get('v_sn', '-')} V"),
-                                (cond_data.get('url_v_tn'), f"Teg AC T-N: {cond_data.get('v_tn', '-')} V"),
-                                (cond_data.get('url_i_r'), f"Load AC R: {cond_data.get('i_r', '-')} A"),
-                                (cond_data.get('url_i_s'), f"Load AC S: {cond_data.get('i_s', '-')} A"),
-                                (cond_data.get('url_i_t'), f"Load AC T: {cond_data.get('i_t', '-')} A"),
-                                (cond_data.get('url_ldc'), f"Load DC Total: {cond_data.get('load_dc', '-')} A"),
-                                (cond_data.get('url_bcl'), f"Settingan BCL: {cond_data.get('set_bcl', '-')}"),
-                                (cond_data.get('url_cap'), f"Settingan Capacity: {cond_data.get('set_cap', '-')}"),
-                                (cond_data.get('url_mod'), f"Module Kontroler: {cond_data.get('mod_rusak', '-')}")
-                            ]
-                            ada_foto_param = False
-                            for u_ev, cap_ev in eviden_list:
-                                if u_ev:
-                                    ada_foto_param = True
-                                    tampilkan_grid_foto([u_ev], f"📌 {cap_ev}")
-                            if not ada_foto_param:
-                                st.info("Belum ada foto eviden per-parameter pada laporan ini.")
-                    
-                    if st.session_state['role'] == 'Admin':
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        with st.container(border=True):
-                            st.markdown("<h4 style='color: var(--primary-color);'>🛠 REVISI NAMA SITE / FME</h4>", unsafe_allow_html=True)
-                            ce1, ce2 = st.columns(2)
-                            with ce1: new_sreg = st.text_input("Edit Nama Site", r.get('site_name',''), key=f"esreg_{i}")
-                            with ce2: new_freg = st.text_input("Edit Nama FME", r.get('teknisi',''), key=f"efreg_{i}")
+                            v_rst = cond_data.get('volt_ac_rst') or f"{cond_data.get('v_rn','-')}/{cond_data.get('v_sn','-')}/{cond_data.get('v_tn','-')}"
+                            i_rst = cond_data.get('load_ac_rst') or f"{cond_data.get('i_r','-')}/{cond_data.get('i_s','-')}/{cond_data.get('i_t','-')}"
+                            st.info(f"**⚡ Parameter Kelistrikan:** Teg AC ({v_rst} V) | Arus AC ({i_rst} A) | Load DC ({cond_data.get('load_dc','-')} A) | BCL ({cond_data.get('set_bcl','-')}) | Capacity ({cond_data.get('set_cap','-')})")
+                            if cond_data.get('note_action'):
+                                st.warning(f"**📝 NOTE/REMARK Lapangan:** {cond_data.get('note_action')}")
                             
-                            if st.button("💾 Simpan Perubahan", key=f"breg_{i}"):
-                                with st.spinner("Menyimpan..."):
-                                    r['site_name'], r['teknisi'] = new_sreg, new_freg
-                                    sheet = connect_gsheets(r.get('_sheet', 'Report Preventive'))
-                                    if sheet:
-                                        sheet.update_cell(r.get('_row', i + 2), 2, new_sreg)
-                                        sheet.update_cell(r.get('_row', i + 2), 4, new_freg)
-                                        sheet.update_cell(r.get('_row', i + 2), 6, json.dumps(r))
-                                        st.cache_data.clear() 
-                                st.success("✅ REVISI BERHASIL!")
-                                st.rerun()
-
-                # =========================================================================
-                # TAMPILAN 100% ASLI UNTUK SPS & DATA LAMA (TERMASUK REGULER KEMARIN)
-                # =========================================================================
-                else:
-                    if kategori_site == "Site Reguler":
-                        st.warning("⏱️ Data di bawah ini direkam menggunakan Form Versi Lama (sebelum ada pemisahan layout SPS & Reguler).")
-                    
-                    st.markdown(f"**👨‍🔧 Pelaksana (Teknisi):** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **⚡ Beban Load:** {r.get('total_load', '-')} A")
-                    st.markdown(f"**🔧 Action Dikerjakan:** {r.get('action', '-')}")
-                    if r.get('sparepart'): st.warning(f"**📦 Sparepart Diganti:** {r['sparepart']}")
-                    if r.get('remark'): st.info(f"**📝 Remark:** {r['remark']}")
-                    
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    
-                    ltab1, ltab2, ltab3, ltab4, ltab5, ltab6 = st.tabs(["🏗️ 1. Fisik", "☀️ 2. Panel SPS", "🔌 3. Recti & Genset", "🔋 4. Baterai & Gnd", "📂 5. Datalog", "📈 6. Analisa Power BBU"])
-                    
-                    with ltab1:
-                        st.write(f"- Kondisi Site: {r.get('site_cond', '-')} | Tower: {r.get('tower_cond', '-')} | Shading: {r.get('shading_status', '-')}")
-                        tampilkan_grid_foto(r.get('url_sites'), "📸 View Site")
-                        tampilkan_grid_foto(r.get('url_shadings'), "📸 Shading")
-                        tampilkan_grid_foto(r.get('extras_fisik'), "📸 Tambahan")
-
-                    with ltab2:
-                        st.write(f"**Status Panel:** {r.get('status_panel', '-')} ({r.get('jml_panel_rusak', 0)} Rusak) | **Merk Panel:** {r.get('merk_panel', '-')}")
-                        st.write(f"**Status SCC:** {r.get('status_scc', '-')} ({r.get('jml_scc_nok', 0)} Rusak) | **Merk SCC:** {r.get('merk_scc', '-')}")
-                        for p in r.get('panel_data', []):
-                            st.markdown(f"**{p.get('Panel', '-')}** | Voc: {p.get('Voc','-')}V | Isc: {p.get('Isc','-')}A")
-                            cb, ca = st.columns(2)
-                            with cb: tampilkan_grid_foto(p.get('URL_Before') or p.get('URLs_Before'), "📸 KONDISI PANEL")
-                            with ca: tampilkan_grid_foto(p.get('URL_After') or p.get('URLs_After'), "✨ PENGUKURAN")
-                            st.divider()
-                        tampilkan_grid_foto(r.get('extras_panel'), "📸 Tambahan Panel")
-
-                    with ltab3:
-                        c_p1, c_p2 = st.columns(2)
-                        with c_p1:
-                            st.write(f"**PLN:** {r.get('pln_status', '-')} | **Rectifier:** {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)")
-                            st.write(f"**Possibility PSB:** {r.get('possibility_psb', '-')} | **Jarak PLN:** {r.get('jarak_pln', '-')}")
-                            tampilkan_grid_foto(r.get('url_rects'), "📸 Rectifier")
-                        with c_p2:
-                            st.write(f"**Genset:** {r.get('genset_status', '-')} | **BBM:** {r.get('fuel_pct', '-')}%")
-                            tampilkan_grid_foto(r.get('url_gensets'), "📸 Genset")
-                        st.divider()
-                        tampilkan_grid_foto(r.get('extras_elektrikal'), "📸 Tambahan Mesin/Elektrikal")
-
-                    with ltab4:
-                        st.markdown("### 🔋 Bank Baterai")
-                        st.write(f"**Status Baterai Keseluruhan:** {r.get('status_battery', '-')} ({r.get('jml_bat_rusak', 0)} Rusak) | **Merk Baterai:** {r.get('tipe_battery', '-')}")
-                        for b in r.get('battery_data', []):
-                            with st.container(border=True):
-                                bc1, bc2 = st.columns([2, 1])
-                                with bc1:
-                                    st.markdown(f"**{b.get('Baterai', 'Baterai')}**")
-                                    st.write(f"🔹 **Voltase:** {b.get('Voltase', '-') } V  |  🌡 **Load Charging:** {b.get('Suhu', '-') } A")
-                                    st.write(f"🔍 **Kondisi Fisik:** {b.get('Kondisi', '-')}")
-                                bat_urls = b.get('URL_Fotos') or b.get('URL_Foto')
-                                if bat_urls:
-                                    st.markdown("")
-                                    tampilkan_grid_foto(bat_urls, "📸 Dokumentasi Baterai")
-                            st.markdown("")
-                        st.markdown("---")
-                        st.markdown("### 🌍 Sistem Grounding")
-                        st.write(f"⚡ **Tahanan Grounding:** {r.get('earth_ohm', '-')} Ohm")
-                        tampilkan_grid_foto(r.get('url_grds'), "📸 Foto Grounding")
-                        tampilkan_grid_foto(r.get('extras_baterai'), "📸 Tambahan Baterai & Grounding")
-
-                    with ltab5:
-                        st.markdown("📂 **Datalog Universal yang Tersimpan:**")
-                        dls = r.get('datalog_files', [])
-                        if dls:
-                            for dl in dls: st.markdown(f"- 🔗 [{dl['name']}]({dl['url']})")
-                        else: st.info("Tidak ada file datalog diunggah pada site ini.")
-
-                    with ltab6:
-                        st.markdown("### ⚡ Grafik Analisa Power & Voltage")
-                        st.info(f"Sistem sedang melacak file data histori **`{site_id}.xlsx`** di repositori...")
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        t1, t2, t3 = st.tabs(["📸 Foto Problem Alarm", "📸 Foto Perbaikan", "📸 Eviden Parameter"])
+                        with t1: tampilkan_grid_foto(r.get('url_problem', []), "Dokumentasi Problem Alarm")
+                        with t2: tampilkan_grid_foto(r.get('url_action', []), "Dokumentasi Perbaikan / Action")
+                        with t3: 
+                            if cond_data:
+                                eviden_list = [
+                                    (cond_data.get('url_v_rn'), f"Teg AC R-N: {cond_data.get('v_rn', '-')} V"),
+                                    (cond_data.get('url_v_sn'), f"Teg AC S-N: {cond_data.get('v_sn', '-')} V"),
+                                    (cond_data.get('url_v_tn'), f"Teg AC T-N: {cond_data.get('v_tn', '-')} V"),
+                                    (cond_data.get('url_i_r'), f"Load AC R: {cond_data.get('i_r', '-')} A"),
+                                    (cond_data.get('url_i_s'), f"Load AC S: {cond_data.get('i_s', '-')} A"),
+                                    (cond_data.get('url_i_t'), f"Load AC T: {cond_data.get('i_t', '-')} A"),
+                                    (cond_data.get('url_ldc'), f"Load DC Total: {cond_data.get('load_dc', '-')} A"),
+                                    (cond_data.get('url_bcl'), f"Settingan BCL: {cond_data.get('set_bcl', '-')}"),
+                                    (cond_data.get('url_cap'), f"Settingan Capacity: {cond_data.get('set_cap', '-')}"),
+                                    (cond_data.get('url_mod'), f"Module Kontroler: {cond_data.get('mod_rusak', '-')}")
+                                ]
+                                ada_foto = False
+                                for u_ev, cap_ev in eviden_list:
+                                    if u_ev:
+                                        ada_foto = True
+                                        tampilkan_grid_foto([u_ev], f"📌 {cap_ev}")
+                                if not ada_foto:
+                                    st.write("Belum ada foto parameter pengukuran pada laporan ini.")
+                            else:
+                                st.write("Tidak ada parameter kelistrikan yang dilaporkan.")
                         
-                        excel_filename = f"{site_id}.xlsx"
-                        if os.path.exists(excel_filename):
-                            try:
-                                df_power = pd.read_excel(excel_filename, engine='openpyxl')
-                                if 'Begin Time' in df_power.columns and 'MinVoltageOfBBU(V)' in df_power.columns:
-                                    df_power['Waktu'] = pd.to_datetime(df_power['Begin Time']).dt.strftime('%H:%M')
-                                    df_power.set_index('Waktu', inplace=True)
-                                    
-                                    chart_cols = ['MaxVoltageOfBBU(V)', 'MinVoltageOfBBU(V)', 'AvgVoltageOfBBU(V)']
-                                    chart_data = df_power[chart_cols].copy()
-                                    chart_data['Batas Hold (55V)'] = 55.0
-                                    
-                                    st.line_chart(chart_data, color=["#64FFDA", "#FF5252", "#FFC107", "#FFFFFF"])
-                                    
-                                    min_voltage = df_power['MinVoltageOfBBU(V)'].min()
-                                    if min_voltage < 55.0:
-                                        st.error(f"🚨 **ANALISA DROP VOLTAGE:** Ditemukan tegangan Drop di bawah batas 55V! Tegangan terendah terekam di angka **{min_voltage} V**.")
-                                    else:
-                                        st.success(f"✅ **ANALISA STABIL:** Kondisi Power aman. Tegangan berhasil di-hold (tidak jatuh di bawah batas 55V). Tegangan terendah terekam: {min_voltage} V.")
-                                else:
-                                    st.warning(f"File '{excel_filename}' ditemukan, tapi struktur kolomnya tidak sesuai format U2000/U2020. Pastikan ada kolom 'Begin Time' dan 'MinVoltageOfBBU(V)'.")
-                            except Exception as e:
-                                st.error(f"Gagal membaca file {excel_filename}. Pesan Error: {e}")
-                        else:
-                            st.warning(f"File log power **`{excel_filename}`** belum di-upload ke repositori/folder lokal server. Silakan upload file excel dengan nama site tersebut untuk melihat grafik otomatis.")
-
-
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    
-                    if st.session_state['role'] == 'Admin':
-                        with st.container(border=True):
-                            st.markdown("<h4 style='color: var(--primary-color);'>🛠 REVISI DATA & TAMBAH LAMPIRAN</h4>", unsafe_allow_html=True)
-                            c_edit1, c_edit2 = st.columns(2)
-                            with c_edit1:
-                                new_site = st.text_input("Edit Nama Site / ID", r.get('site_name',''), key=f"esite_{i}")
-                                kat_options = ["SPS", "Site Reguler"]
-                                curr_kat = r.get('kategori', 'SPS')
-                                if curr_kat not in kat_options: curr_kat = "SPS"
-                                new_kat = st.selectbox("Edit Kategori Site", kat_options, index=kat_options.index(curr_kat), key=f"ekat_{i}")
+                        if st.session_state['role'] == 'Admin':
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            with st.container(border=True):
+                                st.markdown("<h4 style='color: var(--primary-color);'>🛠 REVISI NAMA SITE / FME</h4>", unsafe_allow_html=True)
+                                ce1, ce2 = st.columns(2)
+                                with ce1: new_sreg = st.text_input("Edit Nama Site", r.get('site_name',''), key=f"esreg_{i}")
+                                with ce2: new_freg = st.text_input("Edit Nama FME", r.get('teknisi',''), key=f"efreg_{i}")
                                 
-                                nop_options = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
-                                curr_nop = r.get('nop', 'Palangkaraya')
-                                if curr_nop not in nop_options: curr_nop = "Lainnya"
-                                new_nop = st.selectbox("Edit NOP Area", nop_options, index=nop_options.index(curr_nop), key=f"enop_{i}")
-                                new_tek = st.text_input("Edit Teknisi", r.get('teknisi',''), key=f"et_{i}")
-                            with c_edit2:
-                                status_options = ["Normal", "Minor Issue", "Major/Critical"]
-                                curr_stat = r.get('status', 'Normal')
-                                if curr_stat not in status_options: curr_stat = "Normal"
-                                new_status = st.selectbox("Edit Status Akhir", status_options, index=status_options.index(curr_stat), key=f"estat_{i}")
-                                new_sp = st.text_input("Edit Sparepart", r.get('sparepart',''), key=f"es_{i}")
-                            new_act = st.text_area("Edit Action / Tindakan", r.get('action',''), key=f"ea_{i}")
-                            st.markdown("**Tambah Lampiran Susulan (Otomatis Masuk Cloud):**")
-                            up_f = st.file_uploader("📸 Fisik / Shading", accept_multiple_files=True, key=f"uf_{i}")
-                            up_p = st.file_uploader("📸 Panel Surya", accept_multiple_files=True, key=f"up_{i}")
-                            up_b = st.file_uploader("📸 Baterai / Grounding", accept_multiple_files=True, key=f"ub_{i}")
-                            up_e = st.file_uploader("📸 Elektrikal / Mesin", accept_multiple_files=True, key=f"ue_{i}")
-                            up_dl = st.file_uploader("📂 Datalog (Zip, Csv, xlsx)", accept_multiple_files=True, key=f"udl_{i}")
+                                if st.button("💾 Simpan Perubahan", key=f"breg_{i}"):
+                                    with st.spinner("Menyimpan..."):
+                                        r['site_name'], r['teknisi'] = new_sreg, new_freg
+                                        sheet = connect_gsheets(r.get('_sheet', 'Report Preventive'))
+                                        if sheet:
+                                            sheet.update_cell(r.get('_row', i + 2), 2, new_sreg)
+                                            sheet.update_cell(r.get('_row', i + 2), 4, new_freg)
+                                            sheet.update_cell(r.get('_row', i + 2), 6, json.dumps(r))
+                                            st.cache_data.clear() 
+                                    st.success("✅ REVISI BERHASIL!")
+                                    st.rerun()
 
-                            if st.button("💾 Simpan Perubahan ke Server", key=f"btn_{i}"):
-                                with st.spinner("Mengirim Revisi ke Database Utama..."):
-                                    r['site_name'], r['kategori'], r['nop'], r['status'], r['teknisi'], r['action'], r['sparepart'] = new_site, new_kat, new_nop, new_status, new_tek, new_act, new_sp
-                                    if up_f: r['extras_fisik'] = r.get('extras_fisik', []) + upload_multiple_images(up_f)
-                                    if up_p: r['extras_panel'] = r.get('extras_panel', []) + upload_multiple_images(up_p)
-                                    if up_b: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_b)
-                                    if up_e: r['extras_elektrikal'] = r.get('extras_elektrikal', []) + upload_multiple_images(up_e)
-                                    if up_dl:
-                                        new_datalog = []
-                                        for df in up_dl:
-                                            du = upload_datalog(df, "prev_datalog")
-                                            if du: new_datalog.append({"name": df.name, "url": du})
-                                        r['datalog_files'] = r.get('datalog_files', []) + new_datalog
+                    # =========================================================================
+                    # TAMPILAN 100% ASLI UNTUK SPS & DATA LAMA
+                    # =========================================================================
+                    else:
+                        if kategori_site == "Site Reguler":
+                            st.warning("⏱️ Data di bawah ini direkam menggunakan Form Versi Lama (sebelum ada pemisahan layout SPS & Reguler).")
+                        
+                        st.markdown(f"**👨‍🔧 Pelaksana (Teknisi):** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **⚡ Beban Load:** {r.get('total_load', '-')} A")
+                        st.markdown(f"**🔧 Action Dikerjakan:** {r.get('action', '-')}")
+                        if r.get('sparepart'): st.warning(f"**📦 Sparepart Diganti:** {r['sparepart']}")
+                        if r.get('remark'): st.info(f"**📝 Remark:** {r['remark']}")
+                        
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        
+                        ltab1, ltab2, ltab3, ltab4, ltab5, ltab6 = st.tabs(["🏗️ 1. Fisik", "☀️ 2. Panel SPS", "🔌 3. Recti & Genset", "🔋 4. Baterai & Gnd", "📂 5. Datalog", "📈 6. Analisa Power BBU"])
+                        
+                        with ltab1:
+                            st.write(f"- Kondisi Site: {r.get('site_cond', '-')} | Tower: {r.get('tower_cond', '-')} | Shading: {r.get('shading_status', '-')}")
+                            tampilkan_grid_foto(r.get('url_sites'), "📸 View Site")
+                            tampilkan_grid_foto(r.get('url_shadings'), "📸 Shading")
+                            tampilkan_grid_foto(r.get('extras_fisik'), "📸 Tambahan")
+
+                        with ltab2:
+                            st.write(f"**Status Panel:** {r.get('status_panel', '-')} ({r.get('jml_panel_rusak', 0)} Rusak) | **Merk Panel:** {r.get('merk_panel', '-')}")
+                            st.write(f"**Status SCC:** {r.get('status_scc', '-')} ({r.get('jml_scc_nok', 0)} Rusak) | **Merk SCC:** {r.get('merk_scc', '-')}")
+                            for p in r.get('panel_data', []):
+                                st.markdown(f"**{p.get('Panel', '-')}** | Voc: {p.get('Voc','-')}V | Isc: {p.get('Isc','-')}A")
+                                cb, ca = st.columns(2)
+                                with cb: tampilkan_grid_foto(p.get('URL_Before') or p.get('URLs_Before'), "📸 KONDISI PANEL")
+                                with ca: tampilkan_grid_foto(p.get('URL_After') or p.get('URLs_After'), "✨ PENGUKURAN")
+                                st.divider()
+                            tampilkan_grid_foto(r.get('extras_panel'), "📸 Tambahan Panel")
+
+                        with ltab3:
+                            c_p1, c_p2 = st.columns(2)
+                            with c_p1:
+                                st.write(f"**PLN:** {r.get('pln_status', '-')} | **Rectifier:** {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)")
+                                st.write(f"**Possibility PSB:** {r.get('possibility_psb', '-')} | **Jarak PLN:** {r.get('jarak_pln', '-')}")
+                                tampilkan_grid_foto(r.get('url_rects'), "📸 Rectifier")
+                            with c_p2:
+                                st.write(f"**Genset:** {r.get('genset_status', '-')} | **BBM:** {r.get('fuel_pct', '-')}%")
+                                tampilkan_grid_foto(r.get('url_gensets'), "📸 Genset")
+                            st.divider()
+                            tampilkan_grid_foto(r.get('extras_elektrikal'), "📸 Tambahan Mesin/Elektrikal")
+
+                        with ltab4:
+                            st.markdown("### 🔋 Bank Baterai")
+                            st.write(f"**Status Baterai Keseluruhan:** {r.get('status_battery', '-')} ({r.get('jml_bat_rusak', 0)} Rusak) | **Merk Baterai:** {r.get('tipe_battery', '-')}")
+                            for b in r.get('battery_data', []):
+                                with st.container(border=True):
+                                    bc1, bc2 = st.columns([2, 1])
+                                    with bc1:
+                                        st.markdown(f"**{b.get('Baterai', 'Baterai')}**")
+                                        st.write(f"🔹 **Voltase:** {b.get('Voltase', '-') } V  |  🌡 **Load Charging:** {b.get('Suhu', '-') } A")
+                                        st.write(f"🔍 **Kondisi Fisik:** {b.get('Kondisi', '-')}")
+                                    bat_urls = b.get('URL_Fotos') or b.get('URL_Foto')
+                                    if bat_urls:
+                                        st.markdown("")
+                                        tampilkan_grid_foto(bat_urls, "📸 Dokumentasi Baterai")
+                                st.markdown("")
+                            st.markdown("---")
+                            st.markdown("### 🌍 Sistem Grounding")
+                            st.write(f"⚡ **Tahanan Grounding:** {r.get('earth_ohm', '-')} Ohm")
+                            tampilkan_grid_foto(r.get('url_grds'), "📸 Foto Grounding")
+                            tampilkan_grid_foto(r.get('extras_baterai'), "📸 Tambahan Baterai & Grounding")
+
+                        with ltab5:
+                            st.markdown("📂 **Datalog Universal yang Tersimpan:**")
+                            dls = r.get('datalog_files', [])
+                            if dls:
+                                for dl in dls: st.markdown(f"- 🔗 [{dl['name']}]({dl['url']})")
+                            else: st.info("Tidak ada file datalog diunggah pada site ini.")
+
+                        with ltab6:
+                            st.markdown("### ⚡ Grafik Analisa Power & Voltage")
+                            st.info(f"Sistem sedang melacak file data histori **`{site_id}.xlsx`** di repositori...")
+                            
+                            excel_filename = f"{site_id}.xlsx"
+                            if os.path.exists(excel_filename):
+                                try:
+                                    df_power = pd.read_excel(excel_filename, engine='openpyxl')
+                                    if 'Begin Time' in df_power.columns and 'MinVoltageOfBBU(V)' in df_power.columns:
+                                        df_power['Waktu'] = pd.to_datetime(df_power['Begin Time']).dt.strftime('%H:%M')
+                                        df_power.set_index('Waktu', inplace=True)
+                                        
+                                        chart_cols = ['MaxVoltageOfBBU(V)', 'MinVoltageOfBBU(V)', 'AvgVoltageOfBBU(V)']
+                                        chart_data = df_power[chart_cols].copy()
+                                        chart_data['Batas Hold (55V)'] = 55.0
+                                        
+                                        st.line_chart(chart_data, color=["#64FFDA", "#FF5252", "#FFC107", "#FFFFFF"])
+                                        
+                                        min_voltage = df_power['MinVoltageOfBBU(V)'].min()
+                                        if min_voltage < 55.0:
+                                            st.error(f"🚨 **ANALISA DROP VOLTAGE:** Ditemukan tegangan Drop di bawah batas 55V! Tegangan terendah terekam di angka **{min_voltage} V**.")
+                                        else:
+                                            st.success(f"✅ **ANALISA STABIL:** Kondisi Power aman. Tegangan berhasil di-hold (tidak jatuh di bawah batas 55V). Tegangan terendah terekam: {min_voltage} V.")
+                                    else:
+                                        st.warning(f"File '{excel_filename}' ditemukan, tapi struktur kolomnya tidak sesuai format U2000/U2020. Pastikan ada kolom 'Begin Time' dan 'MinVoltageOfBBU(V)'.")
+                                except Exception as e:
+                                    st.error(f"Gagal membaca file {excel_filename}. Pesan Error: {e}")
+                            else:
+                                st.warning(f"File log power **`{excel_filename}`** belum di-upload ke repositori/folder lokal server. Silakan upload file excel dengan nama site tersebut untuk melihat grafik otomatis.")
+
+
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        
+                        if st.session_state['role'] == 'Admin':
+                            with st.container(border=True):
+                                st.markdown("<h4 style='color: var(--primary-color);'>🛠 REVISI DATA & TAMBAH LAMPIRAN</h4>", unsafe_allow_html=True)
+                                c_edit1, c_edit2 = st.columns(2)
+                                with c_edit1:
+                                    new_site = st.text_input("Edit Nama Site / ID", r.get('site_name',''), key=f"esite_{i}")
+                                    kat_options = ["SPS", "Site Reguler"]
+                                    curr_kat = r.get('kategori', 'SPS')
+                                    if curr_kat not in kat_options: curr_kat = "SPS"
+                                    new_kat = st.selectbox("Edit Kategori Site", kat_options, index=kat_options.index(curr_kat), key=f"ekat_{i}")
                                     
-                                    sheet = connect_gsheets(r.get('_sheet', 'Report Preventive'))
-                                    if sheet:
-                                        row_num = r.get('_row', i + 2)
-                                        sheet.update_cell(row_num, 2, new_site)
-                                        sheet.update_cell(row_num, 3, new_nop)
-                                        sheet.update_cell(row_num, 4, new_tek)
-                                        sheet.update_cell(row_num, 5, new_status)
-                                        sheet.update_cell(row_num, 6, json.dumps(r))
-                                        st.cache_data.clear() 
-                                st.success("✅ REVISI BERHASIL! Data & Foto tersimpan permanen.")
-                                st.rerun()
+                                    nop_options = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
+                                    curr_nop = r.get('nop', 'Palangkaraya')
+                                    if curr_nop not in nop_options: curr_nop = "Lainnya"
+                                    new_nop = st.selectbox("Edit NOP Area", nop_options, index=nop_options.index(curr_nop), key=f"enop_{i}")
+                                    new_tek = st.text_input("Edit Teknisi", r.get('teknisi',''), key=f"et_{i}")
+                                with c_edit2:
+                                    status_options = ["Normal", "Minor Issue", "Major/Critical"]
+                                    curr_stat = r.get('status', 'Normal')
+                                    if curr_stat not in status_options: curr_stat = "Normal"
+                                    new_status = st.selectbox("Edit Status Akhir", status_options, index=status_options.index(curr_stat), key=f"estat_{i}")
+                                    new_sp = st.text_input("Edit Sparepart", r.get('sparepart',''), key=f"es_{i}")
+                                new_act = st.text_area("Edit Action / Tindakan", r.get('action',''), key=f"ea_{i}")
+                                st.markdown("**Tambah Lampiran Susulan (Otomatis Masuk Cloud):**")
+                                up_f = st.file_uploader("📸 Fisik / Shading", accept_multiple_files=True, key=f"uf_{i}")
+                                up_p = st.file_uploader("📸 Panel Surya", accept_multiple_files=True, key=f"up_{i}")
+                                up_b = st.file_uploader("📸 Baterai / Grounding", accept_multiple_files=True, key=f"ub_{i}")
+                                up_e = st.file_uploader("📸 Elektrikal / Mesin", accept_multiple_files=True, key=f"ue_{i}")
+                                up_dl = st.file_uploader("📂 Datalog (Zip, Csv, xlsx)", accept_multiple_files=True, key=f"udl_{i}")
+
+                                if st.button("💾 Simpan Perubahan ke Server", key=f"btn_{i}"):
+                                    with st.spinner("Mengirim Revisi ke Database Utama..."):
+                                        r['site_name'], r['kategori'], r['nop'], r['status'], r['teknisi'], r['action'], r['sparepart'] = new_site, new_kat, new_nop, new_status, new_tek, new_act, new_sp
+                                        if up_f: r['extras_fisik'] = r.get('extras_fisik', []) + upload_multiple_images(up_f)
+                                        if up_p: r['extras_panel'] = r.get('extras_panel', []) + upload_multiple_images(up_p)
+                                        if up_b: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_b)
+                                        if up_e: r['extras_elektrikal'] = r.get('extras_elektrikal', []) + upload_multiple_images(up_e)
+                                        if up_dl:
+                                            new_datalog = []
+                                            for df in up_dl:
+                                                du = upload_datalog(df, "prev_datalog")
+                                                if du: new_datalog.append({"name": df.name, "url": du})
+                                            r['datalog_files'] = r.get('datalog_files', []) + new_datalog
+                                        
+                                        sheet = connect_gsheets(r.get('_sheet', 'Report Preventive'))
+                                        if sheet:
+                                            row_num = r.get('_row', i + 2)
+                                            sheet.update_cell(row_num, 2, new_site)
+                                            sheet.update_cell(row_num, 3, new_nop)
+                                            sheet.update_cell(row_num, 4, new_tek)
+                                            sheet.update_cell(row_num, 5, new_status)
+                                            sheet.update_cell(row_num, 6, json.dumps(r))
+                                            st.cache_data.clear() 
+                                    st.success("✅ REVISI BERHASIL! Data & Foto tersimpan permanen.")
+                                    st.rerun()
 
 # =========================================================================
 # MENU 3: EXCEL LIVE-EDITOR (MONITORING IMPROVEMENT)
