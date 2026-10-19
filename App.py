@@ -27,7 +27,7 @@ except ImportError:
 # -------------------------------------------------------------------------
 # SETUP HALAMAN & FUNGSI LOGO PRESISI (.WEBP)
 # -------------------------------------------------------------------------
-st.set_page_config(page_title="Report SPS - Okta Pradika", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="RPO - PLK & PBU", page_icon="⚡", layout="wide")
 
 LOGO_UTAMA = "koperasi-jasa-konstruksi-tower-event-organizer-network-monitoring-telekomunikasi-kisel-group-logo-kut (2).webp"
 
@@ -373,8 +373,8 @@ if st.session_state['role'] is None:
     
     st.markdown("<br>", unsafe_allow_html=True)
     render_header_logo(is_login=True) 
-    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Sistem Pelaporan Terpadu Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>RPO Kal-Teng</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Report Online & Monitoring Dasboard Kal-Teng</p>", unsafe_allow_html=True)
     col_v, col_space, col_a = st.columns([4, 0.6, 4])
     
     with col_v:
