@@ -834,7 +834,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
     if standar_form == "Standar":
         
         st.info("💡 Data dan Lampiran (Foto & Datalog) Anda akan dienkripsi dan dikirim langsung ke Cloud Server.")
-        site_category = st.radio("Kategori Site (Wajib Pilih):", ["SPS", "Site Reguler"], horizontal=True)
+        site_category = st.radio("Kategori Site (Wajib Pilih):", ["SPS", "Site Reguler", "Project"], horizontal=True)
         st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
         
         if site_category == "SPS":
