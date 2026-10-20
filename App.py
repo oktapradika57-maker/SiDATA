@@ -408,17 +408,14 @@ if st.session_state['role'] is None:
             </div>
         """, unsafe_allow_html=True)
         st.write("")
-        log_pass = st.text_input("Kata Sandi Logistik:", type="password", placeholder="Masukkan Sandi...", key="pwd_log")
+        st.write("")
+        st.write("")
         if st.button("📦 MASUK LOGISTIK", type="secondary", use_container_width=True):
-            import base64
-            if base64.b64encode(log_pass.encode()).decode() == "WXVpMjAyNSM=":
-                st.session_state['role'] = 'Logistik'
-                st.session_state['area_lapangan'] = 'Logistik'
-                st.session_state['dashboard_area'] = None
-                st.session_state['active_menu'] = None
-                st.rerun()
-            else:
-                st.error("❌ Kata sandi salah! Akses ditolak.")
+            st.session_state['role'] = 'Logistik'
+            st.session_state['area_lapangan'] = 'Logistik'
+            st.session_state['dashboard_area'] = None
+            st.session_state['active_menu'] = None
+            st.rerun()
             
     with col_a:
         st.markdown("""
@@ -1364,8 +1361,51 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             tipe_pekerjaan = st.selectbox("Tipe Pekerjaan PO *", ["Instalasi Imacro", "Relokasi NE", "Lainnya"])
                             proj_data['tipe_pekerjaan'] = tipe_pekerjaan
 
+                        st.markdown("### 🗺️ Rincian Multi-Site, Pekerjaan, Timeline & Budget")
+                        st.info("💡 **Tabel Dinamis Enterprise:** Tambahkan baris baru di tabel bawah ini untuk memasukkan banyak Site sekaligus. Margin & Progress akan dikalkulasi otomatis!")
+                        
+                        # Format Tabel Enterprise
+                        df_po = pd.DataFrame(columns=["Site Asal", "Site Tujuan", "Pekerjaan Spesifik", "Budget Per Site", "Start Date", "End Date", "Progress (%)", "Status", "Remark"])
+                        edited_po = st.data_editor(
+                            df_po, 
+                            num_rows="dynamic", 
+                            use_container_width=True,
+                            column_config={
+                                "Site Asal": st.column_config.TextColumn("Site Asal (Dari)", placeholder="Cth: PKY001"),
+                                "Site Tujuan": st.column_config.TextColumn("Site Tujuan (Ke)", placeholder="Cth: PKY002"),
+                                "Pekerjaan Spesifik": st.column_config.TextColumn("Pekerjaan", placeholder="Cth: Relokasi Rak & Penarikan FO"),
+                                "Budget Per Site": st.column_config.NumberColumn("Budget / Cost (Rp)", min_value=0, default=0, step=100000),
+                                "Start Date": st.column_config.DateColumn("Mulai", format="YYYY-MM-DD"),
+                                "End Date": st.column_config.DateColumn("Target Selesai", format="YYYY-MM-DD"),
+                                "Progress (%)": st.column_config.NumberColumn("Progress (%)", min_value=0, max_value=100, default=0),
+                                "Status": st.column_config.SelectboxColumn("Status", options=["Not Started", "On Progress", "Done", "Pending Issue"])
+                            },
+                            key="tabel_po_input"
+                        )
+                        
+                        # Kalkulasi Otomatis (Auto-Math)
+                        try:
+                            val_po = float(proj_data['nilai_po'].replace('.', '').replace(',', ''))
+                        except:
+                            val_po = 0.0
+                            
+                        total_cost = edited_po["Budget Per Site"].sum() if not edited_po.empty else 0.0
+                        margin = val_po - total_cost
+                        avg_progress = edited_po["Progress (%)"].mean() if not edited_po.empty else 0.0
+                        
+                        cm1, cm2, cm3, cm4 = st.columns(4)
+                        cm1.metric("💰 Nilai PO Total", f"Rp {val_po:,.0f}")
+                        cm2.metric("💸 Total Cost (Modal)", f"Rp {total_cost:,.0f}")
+                        cm3.metric("📈 Profit Margin", f"Rp {margin:,.0f}", delta=f"{(margin/val_po*100):.1f}%" if val_po > 0 else "")
+                        cm4.metric("📊 Rata-Rata Progress", f"{avg_progress:.1f}%")
+                        
+                        proj_data['tabel_pekerjaan'] = edited_po.to_dict('records')
+                        proj_data['total_cost'] = float(total_cost)
+                        proj_data['margin'] = float(margin)
+                        proj_data['avg_progress'] = float(avg_progress)
+
                         if tipe_pekerjaan == "Instalasi Imacro":
-                            st.markdown("**📌 Checklist Progress Instalasi Imacro:**")
+                            st.markdown("**📌 Checklist Standard Imacro:**")
                             c_chk1, c_chk2 = st.columns(2)
                             with c_chk1:
                                 p1 = st.checkbox("Dismantle")
@@ -1375,17 +1415,6 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 p4 = st.checkbox("Material Terkirim/Lengkap")
                                 p5 = st.checkbox("PSB PLN")
                             proj_data['progress_imacro'] = [k for k, v in zip(["Dismantle", "Instalasi", "Penarikan Optik", "Material", "PSB PLN"], [p1, p2, p3, p4, p5]) if v]
-
-                        elif tipe_pekerjaan == "Relokasi NE":
-                            st.markdown("**📌 Detail Relokasi NE:**")
-                            c_rel1, c_rel2 = st.columns(2)
-                            with c_rel1:
-                                proj_data['site_asal'] = st.selectbox("Dari Site (Asal):", [""] + site_plk_list, key="po_asal") if site_plk_list else st.text_input("Dari Site (Asal):")
-                            with c_rel2:
-                                proj_data['site_tujuan'] = st.selectbox("Ke Site (Tujuan):", [""] + site_plk_list, key="po_tuj") if site_plk_list else st.text_input("Ke Site (Tujuan):")
-                            proj_data['program_relokasi'] = st.text_area("Program / Item Relokasi:", placeholder="Cth: Relokasi Rak BBU, Rectifier, Baterai...")
-                            proj_data['nilai_per_site'] = st.text_input("Nilai Per Site (Rp):", placeholder="Jika ada pecahan nilai per site...")
-
                     elif jenis_project == "SVA":
                         st.markdown("### 📋 Detail Site Verification / Audit (SVA)")
                         c_sva1, c_sva2 = st.columns(2)
@@ -2029,14 +2058,25 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 wa_text = generate_wa_pbu(r)
             elif is_project:
                 pd_data = r.get('proj_data', {})
-                wa_text = f"*REPORT PROJECT ({pd_data.get('jenis_project', '')})* ⚡\n📍 *Site / Target:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Tim/FME:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n"
+                wa_text = f"*REPORT PROJECT ({pd_data.get('jenis_project', '')})* ⚡\n📍 *Project:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Tim/FME:* {r.get('teknisi', '-')}\n📊 *Status Laporan:* {r.get('status', '-')}\n"
                 
                 if pd_data.get('jenis_project') == "PO":
-                    wa_text += f"\n*📋 DETAIL PO:*\n- No PO: {pd_data.get('no_po', '-')}\n- Mitra: {pd_data.get('mitra', '-')}\n- Pekerjaan: {pd_data.get('tipe_pekerjaan', '-')}\n"
+                    wa_text += f"\n*📋 DETAIL PO:*\n- No PO: {pd_data.get('no_po', '-')}\n- Mitra: {pd_data.get('mitra', '-')}\n- Pekerjaan Utama: {pd_data.get('tipe_pekerjaan', '-')}\n- Progress Keseluruhan: {pd_data.get('avg_progress', 0):.1f}%\n"
+                    
+                    tabel_p = pd_data.get('tabel_pekerjaan', [])
+                    if tabel_p:
+                        wa_text += f"\n*🗺️ RINCIAN MULTI-SITE ({len(tabel_p)} Rute/Item):*\n"
+                        for idx, tp in enumerate(tabel_p):
+                            asal = tp.get('Site Asal', '')
+                            tuj = tp.get('Site Tujuan', '')
+                            pek = tp.get('Pekerjaan Spesifik', '')
+                            prog = tp.get('Progress (%)', 0)
+                            stat_tp = tp.get('Status', '')
+                            rute = f"{asal} ➡️ {tuj}" if asal and tuj else (asal or tuj or "Site Project")
+                            wa_text += f"  {idx+1}. {rute} | {pek} ({prog}% - {stat_tp})\n"
+                            
                     if pd_data.get('tipe_pekerjaan') == "Instalasi Imacro":
-                        wa_text += f"- Progress: {', '.join(pd_data.get('progress_imacro', []))}\n"
-                    elif pd_data.get('tipe_pekerjaan') == "Relokasi NE":
-                        wa_text += f"- Rute: {pd_data.get('site_asal', '-')} ➡️ {pd_data.get('site_tujuan', '-')}\n- Program: {pd_data.get('program_relokasi', '-')}\n"
+                        wa_text += f"\n*🛠️ Progress Imacro:* {', '.join(pd_data.get('progress_imacro', []))}\n"
                 elif pd_data.get('jenis_project') == "SVA":
                     wa_text += f"\n*📋 DETAIL SVA:*\n- No Tiket: {pd_data.get('no_tiket', '-')}\n- Temuan: {pd_data.get('temuan_sva', '-')}\n"
                 
@@ -2140,11 +2180,39 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         st.markdown(f"**👨‍🔧 Tim:** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **🏷️ Kategori:** Project {pd_data.get('jenis_project', '-')}")
                         
                         if pd_data.get('jenis_project') == 'PO':
-                            st.info(f"**📋 Detail PO:** No PO: {pd_data.get('no_po','-')} | Mitra: {pd_data.get('mitra','-')} | Pekerjaan: {pd_data.get('tipe_pekerjaan','-')}")
+                            st.info(f"**📋 Detail PO:** No PO: {pd_data.get('no_po','-')} | Mitra: {pd_data.get('mitra','-')} | Pekerjaan Utama: {pd_data.get('tipe_pekerjaan','-')}")
+                            
+                            val_po = float(str(pd_data.get('nilai_po', '0')).replace('.', '').replace(',', '')) if pd_data.get('nilai_po') else 0.0
+                            t_cost = pd_data.get('total_cost', 0.0)
+                            t_margin = pd_data.get('margin', 0.0)
+                            avg_prog = pd_data.get('avg_progress', 0.0)
+                            
+                            c_mar1, c_mar2, c_mar3, c_mar4 = st.columns(4)
+                            c_mar1.metric("💰 Nilai PO Total", f"Rp {val_po:,.0f}")
+                            c_mar2.metric("💸 Total Cost Pelaksanaan", f"Rp {t_cost:,.0f}")
+                            c_mar3.metric("📈 Profit Margin", f"Rp {t_margin:,.0f}")
+                            c_mar4.metric("📊 Rata-Rata Progress", f"{avg_prog:.1f}%")
+                            
+                            tabel_p = pd_data.get('tabel_pekerjaan', [])
+                            if tabel_p:
+                                st.markdown("#### 🗺️ Rincian Timeline, Progress & Cost Per-Site")
+                                df_show = pd.DataFrame(tabel_p)
+                                # Gunakan column_config agar progress bar muncul cantik!
+                                st.dataframe(
+                                    df_show, 
+                                    use_container_width=True,
+                                    hide_index=True,
+                                    column_config={
+                                        "Budget Per Site": st.column_config.NumberColumn("Budget / Cost", format="Rp %d"),
+                                        "Progress (%)": st.column_config.ProgressColumn("Progress Aktual", min_value=0, max_value=100, format="%d%%"),
+                                        "Start Date": st.column_config.DateColumn("Tgl Mulai"),
+                                        "End Date": st.column_config.DateColumn("Target Selesai"),
+                                    }
+                                )
+
                             if pd_data.get('tipe_pekerjaan') == 'Instalasi Imacro':
-                                st.warning(f"**🛠️ Progress:** {', '.join(pd_data.get('progress_imacro', []))}")
-                            elif pd_data.get('tipe_pekerjaan') == 'Relokasi NE':
-                                st.warning(f"**🔄 Rute Relokasi:** {pd_data.get('site_asal','-')} ➡️ {pd_data.get('site_tujuan','-')} | Program: {pd_data.get('program_relokasi','-')} | Nilai: {pd_data.get('nilai_per_site','-')}")
+                                st.warning(f"**🛠️ Progress Checklists:** {', '.join(pd_data.get('progress_imacro', []))}")
+                                
                         elif pd_data.get('jenis_project') == 'SVA':
                             st.info(f"**📋 Detail SVA:** No Tiket: {pd_data.get('no_tiket','-')} | Tanggal: {pd_data.get('tgl_sva','-')} | Temuan: {pd_data.get('temuan_sva','-')}")
                             
@@ -2158,7 +2226,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                             t1, t2 = st.tabs(["📸 View Site & Perangkat", "📸 Temuan / Defect"])
                             with t1: tampilkan_grid_foto(pd_data.get('url_sva1', []), "Foto View Site & Perangkat")
                             with t2: tampilkan_grid_foto(pd_data.get('url_sva2', []), "Foto Temuan Defect")
-
                     elif is_new_reguler:
                         st.markdown("### 📋 SITE REGULER REPORT")
                         st.markdown(f"**👨‍🔧 FME:** {r.get('teknisi', '-')} ({r.get('role_fme', '-')}) &nbsp;&nbsp;|&nbsp;&nbsp; **🚨 Problem:** {r.get('problem_alarm', '-')}")
