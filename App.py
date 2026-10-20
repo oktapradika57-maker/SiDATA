@@ -1127,7 +1127,8 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 foto_act = st.file_uploader("📸 Foto Action / Perbaikan Diluar Pengukuran (WAJIB DILAMPIRKAN):", accept_multiple_files=True, key="f_act")
 
                 trigger_fields_power = ["MCB Trip", "Teg PLN Drop pelaporan PLN", "Replace Module APR", "Add Baterai"]
-                show_cond_power = any(item in trigger_fields_power for item in act_sel)
+                # --- UPDATE: PENGUKURAN POWER WAJIB MUNCUL UNTUK SEMUA ACTION ---
+                show_cond_power = True 
                 show_cond_genset = any("Genset" in item or "ATS" in item for item in act_sel)
                 
                 if show_cond_power or show_cond_genset:
