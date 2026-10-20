@@ -1965,25 +1965,27 @@ elif menu == "📊 Hasil Laporan & Dashboard":
             
             # CEK APAKAH INI DATA REGULER BARU ATAU LAMA
             is_new_reguler = kategori_site == "Site Reguler" and ("problem_alarm" in r or "cond_data" in r)
+            is_project = kategori_site == "Project"
             
             # FORMAT WHATSAPP DINAMIS
             if kategori_site == "Pangkalan Bun":
                 wa_text = generate_wa_pbu(r)
+            elif is_project:
+                pd_data = r.get('proj_data', {})
+                wa_text = f"*REPORT PROJECT ({pd_data.get('jenis_project', '')})* ⚡\n📍 *Site / Target:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Tim/FME:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n"
+                
+                if pd_data.get('jenis_project') == "PO":
+                    wa_text += f"\n*📋 DETAIL PO:*\n- No PO: {pd_data.get('no_po', '-')}\n- Mitra: {pd_data.get('mitra', '-')}\n- Pekerjaan: {pd_data.get('tipe_pekerjaan', '-')}\n"
+                    if pd_data.get('tipe_pekerjaan') == "Instalasi Imacro":
+                        wa_text += f"- Progress: {', '.join(pd_data.get('progress_imacro', []))}\n"
+                    elif pd_data.get('tipe_pekerjaan') == "Relokasi NE":
+                        wa_text += f"- Rute: {pd_data.get('site_asal', '-')} ➡️ {pd_data.get('site_tujuan', '-')}\n- Program: {pd_data.get('program_relokasi', '-')}\n"
+                elif pd_data.get('jenis_project') == "SVA":
+                    wa_text += f"\n*📋 DETAIL SVA:*\n- No Tiket: {pd_data.get('no_tiket', '-')}\n- Temuan: {pd_data.get('temuan_sva', '-')}\n"
+                
+                if pd_data.get('note_akhir'):
+                    wa_text += f"\n*📝 NOTE:* {pd_data.get('note_akhir')}\n"
             elif is_new_reguler:
-                wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')} ({r.get('role_fme', '-')})\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
-                cd = r.get('cond_data', {})
-                if cd:
-                    if cd.get('v_rn'):
-                        wa_text += f"\n*⚡ PARAMETER AC/DC:*\n- Teg AC (R/S/T): {cd.get('v_rn','-')}/{cd.get('v_sn','-')}/{cd.get('v_tn','-')} V\n- Arus AC (R/S/T): {cd.get('i_r','-')}/{cd.get('i_s','-')}/{cd.get('i_t','-')} A\n- Load DC: {cd.get('load_dc', '-')} A\n- Set BCL: {cd.get('set_bcl', '-')} | Cap: {cd.get('set_cap', '-')}\n- Modul Rusak: {cd.get('mod_rusak', '-')}\n"
-                    if cd.get('gen_v'):
-                        wa_text += f"\n*⚙️ PARAMETER GENSET:*\n- Teg Output: {cd.get('gen_v','-')} V | Load: {cd.get('gen_i','-')} A\n- Status ATS: {cd.get('gen_ats','-')}\n- Issue Mesin: {cd.get('gen_issue','-')}\n- Hour Meter: {cd.get('gen_hm','-')} HM\n- Sisa BBM: {cd.get('gen_bbm','-')} Liter\n"
-                    
-                    if cd.get('note_action'):
-                        wa_text += f"\n*📝 NOTE/REMARK:*\n{cd.get('note_action')}\n"
-            else:
-                wa_text = f"*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({kategori_site} - {r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"
-            
-            wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
 
             # BUNGKUSAN CARD UTAMA
             with st.container(border=False):
