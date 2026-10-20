@@ -375,39 +375,53 @@ if st.session_state['role'] is None:
     render_header_logo(is_login=True) 
     st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>RPO Dashboard & Taks Force</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Report Online Dashboard,Taks Force PLK & PBU</p>", unsafe_allow_html=True)
-    col_v, col_space, col_a = st.columns([4, 0.6, 4])
+    col_v, col_l, col_a = st.columns([3, 3, 3])
     
     with col_v:
         st.markdown("""
             <div class='login-box' style='padding-bottom: 20px;'>
                 <div style='font-size: 55px; margin-bottom: 15px;'>👷‍♂️</div>
-                <div class='login-title'>Mode Tim Lapangan</div>
+                <div class='login-title'>Mode Lapangan</div>
                 <div class='login-desc'>Pilih area operasional Anda agar langsung diarahkan ke form pendataan yang tepat.</div>
             </div>
         """, unsafe_allow_html=True)
         st.write("")
-        c_btn1, c_btn2 = st.columns(2)
-        with c_btn1:
-            if st.button("🔴 MASUK PANGKALAN BUN", type="primary", use_container_width=True):
-                st.session_state['role'] = 'Lapangan'
-                st.session_state['area_lapangan'] = 'Pangkalan Bun'
-                st.session_state['dashboard_area'] = None
-                st.session_state['active_menu'] = None
-                st.rerun()
-        with c_btn2:
-            if st.button("🔵 MASUK PALANGKARAYA", type="secondary", use_container_width=True):
-                st.session_state['role'] = 'Lapangan'
-                st.session_state['area_lapangan'] = 'Palangkaraya'
-                st.session_state['dashboard_area'] = None
-                st.session_state['active_menu'] = None
-                st.rerun()
+        if st.button("🔴 PANGKALAN BUN", type="primary", use_container_width=True):
+            st.session_state['role'] = 'Lapangan'
+            st.session_state['area_lapangan'] = 'Pangkalan Bun'
+            st.session_state['dashboard_area'] = None
+            st.session_state['active_menu'] = None
+            st.rerun()
+        if st.button("🔵 PALANGKARAYA", type="secondary", use_container_width=True):
+            st.session_state['role'] = 'Lapangan'
+            st.session_state['area_lapangan'] = 'Palangkaraya'
+            st.session_state['dashboard_area'] = None
+            st.session_state['active_menu'] = None
+            st.rerun()
+
+    with col_l:
+        st.markdown("""
+            <div class='login-box' style='padding-bottom: 20px; border-color: #FF9800;'>
+                <div style='font-size: 55px; margin-bottom: 15px;'>📦</div>
+                <div class='login-title'>Gudang / Logistik</div>
+                <div class='login-desc'>Akses pengelolaan stok material, in/out barang, sparepart, dan pelaporan SPMS.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        st.write("")
+        st.write("")
+        if st.button("📦 MASUK LOGISTIK", type="secondary", use_container_width=True):
+            st.session_state['role'] = 'Logistik'
+            st.session_state['area_lapangan'] = 'Logistik'
+            st.session_state['dashboard_area'] = None
+            st.session_state['active_menu'] = None
+            st.rerun()
             
     with col_a:
         st.markdown("""
             <div class='login-box'>
                 <div style='font-size: 55px; margin-bottom: 15px;'>🔐</div>
                 <div class='login-title'>Mode Admin</div>
-                <div class='login-desc'>Akses khusus operasional untuk revisi data lapangan, perbaikan dashboard, input form PM utuh, dan analisa grafik Power.</div>
+                <div class='login-desc'>Akses khusus operasional untuk revisi data lapangan, dan analisa grafik Power.</div>
             </div>
         """, unsafe_allow_html=True)
         st.write("")
@@ -747,7 +761,18 @@ if st.session_state['active_menu'] is None:
         if st.button("📅 BUKA DAILY TRACKER", type="primary", use_container_width=True, key="m_tracker"):
             st.session_state['active_menu'] = "📅 Daily Tracker Palangkaraya"
             st.rerun()
-            
+            st.markdown("<br>", unsafe_allow_html=True)
+        if st.session_state['role'] in ['Admin', 'Logistik']:
+            st.markdown("""
+                <div class='area-card' style='border-top-color: #FF9800;'>
+                    <div style='font-size: 46px; margin-bottom: 8px;'>📦</div>
+                    <div class='login-title'>Logistik & SPMS</div>
+                    <div class='login-desc'>Manajemen Inbound/Outbound stok material, oli, filter genset, dan riwayat gudang.</div>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("📦 BUKA MANAJEMEN LOGISTIK", type="secondary", use_container_width=True, key="m_log"):
+                st.session_state['active_menu'] = "📦 Logistik & SPMS"
+                st.rerun()
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🚪 KELUAR AKUN (LOG OUT)", use_container_width=True, key="btn_logout_main"):
             st.session_state['role'] = None
@@ -2615,7 +2640,127 @@ elif menu == "📅 Daily Tracker Palangkaraya":
                         
             except Exception as e:
                 st.error(f"Gagal memproses Live Editor To Do List: {e}.")
-
+# =========================================================================
+# MENU 6: LOGISTIK & SPMS (MANAJEMEN STOK GUDANG)
+# =========================================================================
+elif menu == "📦 Logistik & SPMS":
+    st.markdown("<h1 style='text-align: center;'>📦 Manajemen Logistik & SPMS</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.8;'>Sistem Pencatatan Barang Masuk (Inbound), Barang Keluar (Outbound), dan Auto-Kalkulasi Stok.</p>", unsafe_allow_html=True)
+    
+    sheet_logistik = connect_gsheets("Data Logistik")
+    if sheet_logistik is None:
+        st.error("⚠️ **PENTING:** Silakan buat Sheet baru bernama **'Data Logistik'** (tanpa tanda kutip) di dalam file Google Spreadsheet Database Utama Anda agar fitur ini bisa menyimpan data.")
+        st.stop()
+        
+    data_log = sheet_logistik.get_all_values()
+    if not data_log:
+        headers = ["Tanggal", "Tipe Transaksi", "Kategori", "Merek / Nama Barang", "Untuk Genset/Mesin", "Jumlah", "PIC / Pengambil", "Site ID", "Keterangan"]
+        sheet_logistik.insert_row(headers, index=1)
+        data_log = [headers]
+        
+    df_log = pd.DataFrame(data_log[1:], columns=data_log[0]) if len(data_log) > 1 else pd.DataFrame(columns=data_log[0])
+    
+    tab_in, tab_out, tab_dash = st.tabs(["📥 Inbound (Barang Masuk)", "📤 Outbound (Ambil Barang)", "📊 Dashboard Stok & Ekspor"])
+    
+    kategori_opsi = ["Filter Oli", "Filter Solar", "Filter Udara", "Oli Mesin", "Water Separator", "Sparepart Genset", "Modul Kontroler", "Material CME", "Lainnya"]
+    
+    with tab_in:
+        st.markdown("### 📥 Form Barang Masuk Gudang (Inbound)")
+        with st.container(border=True):
+            c1, c2 = st.columns(2)
+            with c1:
+                tgl_in = st.date_input("📅 Tanggal Masuk", key="in_tgl")
+                kat_in = st.selectbox("📂 Kategori Barang", kategori_opsi, key="in_kat")
+                nama_in = st.text_input("🏷️ Merek / Nama Barang Lengkap (Wajib)", placeholder="Cth: Filter Oli Donaldson / Oli Meditran SX", key="in_nama")
+            with c2:
+                genset_in = st.text_input("⚙️ Diperuntukkan Untuk Tipe Genset", placeholder="Cth: Perkins 20kVA / Kubota / Umum", key="in_gen")
+                qty_in = st.number_input("📦 Jumlah Masuk (Pcs/Liter)", min_value=1, value=1, key="in_qty")
+                pic_in = st.text_input("👨‍💼 PIC / Penerima Gudang", placeholder="Nama penerima barang", key="in_pic")
+            ket_in = st.text_input("📝 Keterangan (Opsional)", placeholder="Cth: DO dari pusat / Pembelian lokal", key="in_ket")
+            
+            if st.button("💾 SIMPAN DATA MASUK (INBOUND)", type="primary", use_container_width=True, key="btn_in"):
+                if not nama_in: st.error("⚠️ Merek/Nama Barang Wajib diisi!")
+                else:
+                    with st.spinner("Menyimpan stok ke Database..."):
+                        row_in = [tgl_in.strftime("%Y-%m-%d"), "INBOUND", kat_in, nama_in, genset_in, qty_in, pic_in, "-", ket_in]
+                        sheet_logistik.insert_row(row_in, index=2)
+                    st.success(f"✅ Berhasil! {qty_in} qty '{nama_in}' telah ditambahkan ke dalam stok gudang.")
+                    st.rerun()
+                    
+    with tab_out:
+        st.markdown("### 📤 Form Pengambilan Barang (Outbound)")
+        with st.container(border=True):
+            st.info("💡 **Catatan:** Pilih Merek Barang yang sudah terdaftar di stok, atau ketik manual jika tidak ada.")
+            c3, c4 = st.columns(2)
+            with c3:
+                tgl_out = st.date_input("📅 Tanggal Pengambilan", key="out_tgl")
+                kat_out = st.selectbox("📂 Kategori Barang Keluar", kategori_opsi, key="out_kat")
+                
+                stok_tersedia = df_log[df_log['Tipe Transaksi'] == 'INBOUND']['Merek / Nama Barang'].unique().tolist() if not df_log.empty else []
+                if stok_tersedia:
+                    nama_out = st.selectbox("🏷️ Pilih Merek / Nama Barang dari Stok", ["- Ketik Manual / Barang Baru -"] + stok_tersedia, key="out_nama_sel")
+                    if nama_out == "- Ketik Manual / Barang Baru -":
+                        nama_out = st.text_input("Ketik Merek / Nama Barang:", key="out_nama_txt")
+                else:
+                    nama_out = st.text_input("🏷️ Merek / Nama Barang Keluar", key="out_nama_txt")
+                    
+            with c4:
+                qty_out = st.number_input("📦 Jumlah Diambil (Pcs/Liter)", min_value=1, value=1, key="out_qty")
+                fme_plk_list, _, site_plk_list, _ = load_master_lists()
+                pic_out = st.selectbox("👷 Nama Tim / FME Pengambil", [""] + fme_plk_list, key="out_pic") if fme_plk_list else st.text_input("👷 FME / Tim Pengambil")
+                site_out = st.selectbox("📍 Digunakan Untuk Site Target", [""] + site_plk_list, key="out_site") if site_plk_list else st.text_input("📍 Digunakan Untuk Site")
+                
+            ket_out = st.text_input("📝 Keterangan Pengerjaan", placeholder="Cth: PM Genset / Perbaikan Breakdown...", key="out_ket")
+            
+            if st.button("🚀 SIMPAN PENGAMBILAN & POTONG STOK", type="primary", use_container_width=True, key="btn_out"):
+                if not nama_out or not pic_out or not site_out: 
+                    st.error("⚠️ Nama Barang, Nama FME, dan Site Target wajib diisi agar bisa dilacak!")
+                else:
+                    with st.spinner("Memotong stok dan merekam data..."):
+                        row_out = [tgl_out.strftime("%Y-%m-%d"), "OUTBOUND", kat_out, nama_out, "-", qty_out, pic_out, site_out, ket_out]
+                        sheet_logistik.insert_row(row_out, index=2)
+                    st.success(f"✅ Pengambilan tercatat! {qty_out} qty '{nama_out}' telah dikeluarkan untuk Site {site_out}.")
+                    st.rerun()
+                    
+    with tab_dash:
+        st.markdown("### 📊 Kalkulasi Stok Otomatis (In vs Out)")
+        if df_log.empty:
+            st.info("Belum ada data transaksi Logistik di dalam Database.")
+        else:
+            try:
+                df_calc = df_log.copy()
+                df_calc['Jumlah'] = pd.to_numeric(df_calc['Jumlah'], errors='coerce').fillna(0)
+                
+                # Kalkulasi Inbound
+                df_in = df_calc[df_calc['Tipe Transaksi'] == 'INBOUND'].groupby(['Kategori', 'Merek / Nama Barang', 'Untuk Genset/Mesin'])['Jumlah'].sum().reset_index()
+                df_in.rename(columns={'Jumlah': 'Total Masuk'}, inplace=True)
+                
+                # Kalkulasi Outbound
+                df_out = df_calc[df_calc['Tipe Transaksi'] == 'OUTBOUND'].groupby(['Kategori', 'Merek / Nama Barang'])['Jumlah'].sum().reset_index()
+                df_out.rename(columns={'Jumlah': 'Total Keluar'}, inplace=True)
+                
+                # Gabungkan & Hitung Sisa
+                df_stok = pd.merge(df_in, df_out, on=['Kategori', 'Merek / Nama Barang'], how='left').fillna(0)
+                df_stok['Sisa Stok Tersedia'] = df_stok['Total Masuk'] - df_stok['Total Keluar']
+                
+                # Highlight Stok Habis
+                def color_stock(val):
+                    color = '#FF5252' if val <= 0 else '#00E676'
+                    return f'color: {color}; font-weight: bold;'
+                
+                st.dataframe(df_stok.style.map(color_stock, subset=['Sisa Stok Tersedia']), use_container_width=True)
+                
+                st.markdown("### 📥 Ekspor & Rekap Laporan Logistik")
+                c_dl1, c_dl2 = st.columns(2)
+                with c_dl1:
+                    csv_riwayat = df_log.to_csv(index=False).encode('utf-8')
+                    st.download_button("📥 Download Riwayat Keluar-Masuk (CSV)", data=csv_riwayat, file_name=f"Riwayat_In_Out_Logistik_{datetime.date.today()}.csv", mime="text/csv", use_container_width=True)
+                with c_dl2:
+                    csv_stok = df_stok.to_csv(index=False).encode('utf-8')
+                    st.download_button("📊 Download Ringkasan Stok (CSV)", data=csv_stok, file_name=f"Sisa_Stok_Logistik_{datetime.date.today()}.csv", mime="text/csv", type="primary", use_container_width=True)
+                    
+            except Exception as e:
+                st.error(f"Terjadi kesalahan saat mengalkulasi stok: {e}")
 # -------------------------------------------------------------------------
 # FOOTER HAK CIPTA OKTA PRADIKA
 # -------------------------------------------------------------------------
