@@ -1057,9 +1057,10 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             else:
                                 st.error("⚠️ Gagal menyambung ke Server Database.")
 
-        elif site_category == "Site Reguler":
+        else:
             # -------------------------------------------------------------------------
             # BLOK A.2: FORM KHUSUS SITE REGULER BARU (PALANGKARAYA - WAJIB LENGKAP 100%)
+            # -------------------------------------------------------------------------
             tabs_reg = st.tabs(["📌 1. Info & Problem", "⚡ 2. Action & Parameter", "📤 3. Submit"])
             cond_data = {}
             cond_files = {}
@@ -1288,165 +1289,6 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             else:
                                 st.error("⚠️ Gagal menyambung ke Server Database.")
 
-
-    elif site_category == "Project":
-            # -------------------------------------------------------------------------
-            # BLOK A.3: FORM KHUSUS PROJECT (PO & SVA)
-            # -------------------------------------------------------------------------
-            tabs_proj = st.tabs(["📌 Info Project", "📸 Bukti & Dokumentasi", "📤 Submit Project"])
-            proj_data = {}
-            proj_files = {}
-
-            with tabs_proj[0]:
-                st.markdown("#### Kategori Kunjungan: Project Lapangan")
-                jenis_project = st.selectbox("Pilih Jenis Project:", ["PO", "SVA"])
-                proj_data['jenis_project'] = jenis_project
-
-                if fme_plk_list:
-                    teknisi_proj = st.multiselect("Nama FME / Tim (Wajib):", fme_plk_list, key="proj_fme")
-                else:
-                    t_str = st.text_input("Nama FME / Tim (Wajib):", key="proj_fme")
-                    teknisi_proj = [t_str] if t_str else []
-
-                opsi_nop = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
-                nop_area_proj = st.selectbox("NOP Area:", opsi_nop, index=0, key="proj_nop")
-                st.divider()
-
-                if jenis_project == "PO":
-                    st.markdown("### 📋 Detail Purchase Order (PO)")
-                    c_po1, c_po2 = st.columns(2)
-                    with c_po1:
-                        proj_data['no_po'] = st.text_input("Nomor PO *")
-                        proj_data['mitra'] = st.text_input("Mitra Pemberi Kerja *", placeholder="Cth: Telkomsel / Huawei...")
-                    with c_po2:
-                        proj_data['nilai_po'] = st.text_input("Nilai PO (Rp) *", placeholder="Cth: 15.000.000")
-                        tipe_pekerjaan = st.selectbox("Tipe Pekerjaan PO *", ["Instalasi Imacro", "Relokasi NE", "Lainnya"])
-                        proj_data['tipe_pekerjaan'] = tipe_pekerjaan
-
-                    if tipe_pekerjaan == "Instalasi Imacro":
-                        st.markdown("**📌 Checklist Progress Instalasi Imacro:**")
-                        c_chk1, c_chk2 = st.columns(2)
-                        with c_chk1:
-                            p1 = st.checkbox("Dismantle")
-                            p2 = st.checkbox("Instalasi")
-                            p3 = st.checkbox("Penarikan Optik")
-                        with c_chk2:
-                            p4 = st.checkbox("Material Terkirim/Lengkap")
-                            p5 = st.checkbox("PSB PLN")
-                        proj_data['progress_imacro'] = [k for k, v in zip(["Dismantle", "Instalasi", "Penarikan Optik", "Material", "PSB PLN"], [p1, p2, p3, p4, p5]) if v]
-
-                    elif tipe_pekerjaan == "Relokasi NE":
-                        st.markdown("**📌 Detail Relokasi NE:**")
-                        c_rel1, c_rel2 = st.columns(2)
-                        with c_rel1:
-                            proj_data['site_asal'] = st.selectbox("Dari Site (Asal):", [""] + site_plk_list, key="po_asal") if site_plk_list else st.text_input("Dari Site (Asal):")
-                        with c_rel2:
-                            proj_data['site_tujuan'] = st.selectbox("Ke Site (Tujuan):", [""] + site_plk_list, key="po_tuj") if site_plk_list else st.text_input("Ke Site (Tujuan):")
-                        proj_data['program_relokasi'] = st.text_area("Program / Item Relokasi:", placeholder="Cth: Relokasi Rak BBU, Rectifier, Baterai...")
-                        proj_data['nilai_per_site'] = st.text_input("Nilai Per Site (Rp):", placeholder="Jika ada pecahan nilai per site...")
-
-                elif jenis_project == "SVA":
-                    st.markdown("### 📋 Detail Site Verification / Audit (SVA)")
-                    c_sva1, c_sva2 = st.columns(2)
-                    with c_sva1:
-                        proj_data['site_sva'] = st.selectbox("Pilih Site ID *", [""] + site_plk_list, key="sva_site") if site_plk_list else st.text_input("Site ID *")
-                        proj_data['no_tiket'] = st.text_input("Nomor Tiket SVA *")
-                    with c_sva2:
-                        tgl_sva_val = st.date_input("Tanggal Pengerjaan SVA *", value=datetime.date.today())
-                        proj_data['tgl_sva'] = tgl_sva_val.strftime("%Y-%m-%d")
-                        proj_data['status_sva'] = st.selectbox("Status SVA", ["Done", "On Progress", "Pending Issue"])
-
-                    proj_data['temuan_sva'] = st.text_area("Temuan / Hasil Audit Lapangan:", placeholder="Catat detail temuan SVA di sini...")
-
-            with tabs_proj[1]:
-                st.markdown("### 📸 Lampiran Dokumentasi Project")
-                st.info("💡 Unggah foto progres pekerjaan secara lengkap dari awal hingga akhir.")
-
-                if jenis_project == "PO":
-                    foto_awal = st.file_uploader("📸 Foto Kondisi Awal (Before)", accept_multiple_files=True, key="p_awal")
-                    foto_proses = st.file_uploader("📸 Foto Proses Pengerjaan (On Progress)", accept_multiple_files=True, key="p_pros")
-                    foto_akhir = st.file_uploader("📸 Foto Hasil Akhir (After) / BAST", accept_multiple_files=True, key="p_akhir")
-                    proj_files['foto_awal'] = foto_awal
-                    proj_files['foto_proses'] = foto_proses
-                    proj_files['foto_akhir'] = foto_akhir
-                else:
-                    foto_sva_1 = st.file_uploader("📸 Foto View Site & Perangkat", accept_multiple_files=True, key="sva_1")
-                    foto_sva_2 = st.file_uploader("📸 Foto Temuan SVA / Defect", accept_multiple_files=True, key="sva_2")
-                    proj_files['foto_sva_1'] = foto_sva_1
-                    proj_files['foto_sva_2'] = foto_sva_2
-
-            with tabs_proj[2]:
-                st.markdown("### 📤 Konfirmasi & Submit Laporan Project")
-                proj_data['note_akhir'] = st.text_area("📝 Catatan Akhir Project:", placeholder="Kendala atau catatan penting lainnya...")
-                final_status_proj = st.radio("Status Laporan:", ["Done", "On Progress", "Pending"], key="stat_proj")
-
-                if st.button("🚀 UPLOAD & SINKRONKAN DATA PROJECT", type="primary", use_container_width=True):
-                    item_kurang = []
-                    if not teknisi_proj: item_kurang.append("Nama FME/Tim")
-
-                    if jenis_project == "PO":
-                        if not proj_data.get('no_po'): item_kurang.append("Nomor PO")
-                        if not proj_data.get('mitra'): item_kurang.append("Mitra Pemberi Kerja")
-                        if not proj_data.get('nilai_po'): item_kurang.append("Nilai PO")
-                        if not proj_files.get('foto_akhir') and not proj_files.get('foto_proses'): item_kurang.append("Minimal Foto Proses / Akhir")
-                    else:
-                        if not proj_data.get('site_sva'): item_kurang.append("Site ID SVA")
-                        if not proj_data.get('no_tiket'): item_kurang.append("Nomor Tiket SVA")
-                        if not proj_files.get('foto_sva_1'): item_kurang.append("Foto Dokumentasi SVA")
-
-                    if item_kurang:
-                        st.error(f"⚠️ **LAPORAN DITOLAK!** Mohon lengkapi isian berikut:\n- " + "\n- ".join(item_kurang))
-                    else:
-                        with st.spinner("⏳ Sedang memproses dan mengamankan data Project ke Cloud..."):
-                            url_awal, url_proses, url_akhir = [], [], []
-                            url_sva1, url_sva2 = [], []
-
-                            if jenis_project == "PO":
-                                url_awal = upload_multiple_images(proj_files['foto_awal'], "proj_po")
-                                url_proses = upload_multiple_images(proj_files['foto_proses'], "proj_po")
-                                url_akhir = upload_multiple_images(proj_files['foto_akhir'], "proj_po")
-                            else:
-                                url_sva1 = upload_multiple_images(proj_files['foto_sva_1'], "proj_sva")
-                                url_sva2 = upload_multiple_images(proj_files['foto_sva_2'], "proj_sva")
-
-                            proj_data['url_awal'] = url_awal
-                            proj_data['url_proses'] = url_proses
-                            proj_data['url_akhir'] = url_akhir
-                            proj_data['url_sva1'] = url_sva1
-                            proj_data['url_sva2'] = url_sva2
-
-                            tek_str_proj = ", ".join(teknisi_proj)
-                            nama_site_db = proj_data.get('site_sva') if jenis_project == "SVA" else f"Project PO: {proj_data.get('no_po')}"
-
-                            report_dict = {
-                                "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                "site_name": nama_site_db,
-                                "kategori": "Project",
-                                "nop": nop_area_proj,
-                                "teknisi": tek_str_proj,
-                                "status": final_status_proj,
-                                "action": f"Project {jenis_project}",
-                                "sparepart": "-",
-                                "proj_data": proj_data,
-                                "url_sites": url_awal + url_sva1,
-                                "url_action": url_proses + url_akhir + url_sva2,
-                                "pln_status": "-", "rect_brand": "-", "rect_out_v": "-",
-                                "total_load": "-", "cond_data": {}
-                            }
-
-                            sheet = connect_gsheets("Report Preventive")
-                            if sheet:
-                                row_data = [
-                                    report_dict.get('timestamp', ''), report_dict.get('site_name', ''),
-                                    report_dict.get('nop', ''), report_dict.get('teknisi', ''),
-                                    report_dict.get('status', ''), json.dumps(report_dict)
-                                ]
-                                sheet.insert_row(row_data, index=2)
-                                st.cache_data.clear()
-                                st.session_state['laporan_db'].append(report_dict)
-                                st.success("✅ BERHASIL! Data Project telah diamankan ke Baris Teratas Spreadsheet.")
-                            else:
-                                st.error("⚠️ Gagal menyambung ke Server Database.")
 
     # -------------------------------------------------------------------------
     # BLOK B: FORM PANGKALAN BUN (LENGKAP DENGAN UPLOAD FOTO & AUTO WA)
@@ -1953,38 +1795,22 @@ elif menu == "📊 Hasil Laporan & Dashboard":
             stat = r.get('status', '')
             
             # Pewarnaan Label Status UI
-            if stat == "Normal" or stat == "Done":
+            if stat == "Normal":
                 warna_status = "#00E676" # Hijau
                 icon = "🟢"
-            elif stat in ["Minor Issue", "Update Progress", "On Progress"]:
+            elif stat in ["Minor Issue", "Update Progress"]:
                 warna_status = "#FFC107" # Kuning
                 icon = "🟡"
             else:
                 warna_status = "#FF5252" # Merah
                 icon = "🔴"
             
-            # CEK KATEGORI DATA
+            # CEK APAKAH INI DATA REGULER BARU ATAU LAMA
             is_new_reguler = kategori_site == "Site Reguler" and ("problem_alarm" in r or "cond_data" in r)
-            is_project = kategori_site == "Project"
             
             # FORMAT WHATSAPP DINAMIS
             if kategori_site == "Pangkalan Bun":
                 wa_text = generate_wa_pbu(r)
-            elif is_project:
-                pd_data = r.get('proj_data', {})
-                wa_text = f"*REPORT PROJECT ({pd_data.get('jenis_project', '')})* ⚡\n📍 *Site / Target:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Tim/FME:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n"
-                
-                if pd_data.get('jenis_project') == "PO":
-                    wa_text += f"\n*📋 DETAIL PO:*\n- No PO: {pd_data.get('no_po', '-')}\n- Mitra: {pd_data.get('mitra', '-')}\n- Pekerjaan: {pd_data.get('tipe_pekerjaan', '-')}\n"
-                    if pd_data.get('tipe_pekerjaan') == "Instalasi Imacro":
-                        wa_text += f"- Progress: {', '.join(pd_data.get('progress_imacro', []))}\n"
-                    elif pd_data.get('tipe_pekerjaan') == "Relokasi NE":
-                        wa_text += f"- Rute: {pd_data.get('site_asal', '-')} ➡️ {pd_data.get('site_tujuan', '-')}\n- Program: {pd_data.get('program_relokasi', '-')}\n"
-                elif pd_data.get('jenis_project') == "SVA":
-                    wa_text += f"\n*📋 DETAIL SVA:*\n- No Tiket: {pd_data.get('no_tiket', '-')}\n- Temuan: {pd_data.get('temuan_sva', '-')}\n"
-                
-                if pd_data.get('note_akhir'):
-                    wa_text += f"\n*📝 NOTE:* {pd_data.get('note_akhir')}\n"
             elif is_new_reguler:
                 wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')} ({r.get('role_fme', '-')})\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
                 cd = r.get('cond_data', {})
@@ -2014,7 +1840,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         </div>
                         <div style="font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                             <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>📝 Kategori:</b> {kategori_site} ({r.get('nop', '-')})</span>
-                            <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>👷 Tim:</b> {fme_tampil}</span>
+                            <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>👷 FME:</b> {fme_tampil}</span>
                         </div>
                         <div style="font-size: 15px; border-top: 1px dashed rgba(128,128,128,0.3); padding-top: 8px; margin-top: 8px;">
                             <b>📊 Status Akhir:</b> <span style="color: {warna_status}; font-weight: 900; font-size: 16px;">{stat}</span>
@@ -2022,12 +1848,12 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # Tombol Aksi Cepat di luar Expander
+                # Tombol Aksi Cepat di luar Expander (Lebih Praktis!)
                 c_btn1, c_btn2 = st.columns(2)
                 with c_btn1:
                     st.link_button("📱 Share Rangkuman Laporan (WA)", wa_url, use_container_width=True)
                 with c_btn2:
-                    if kategori_site != "Pangkalan Bun" and not is_new_reguler and not is_project:
+                    if kategori_site != "Pangkalan Bun" and not is_new_reguler:
                         if st.checkbox("📄 Buat PDF Resmi", key=f"prep_pdf_{i}"):
                             with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
                                 try:
@@ -2041,6 +1867,9 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 # Rincian Data
                 with st.expander("📂 BUKA DETAIL & DOKUMENTASI LAPORAN"):
                     
+                    # =========================================================================
+                    # TAMPILAN PANGKALAN BUN
+                    # =========================================================================
                     if kategori_site == "Pangkalan Bun":
                         st.markdown("### 📋 SITE VISIT REPORT (Pangkalan Bun)")
                         st.write(f"**FME NAME:** {r.get('pb_te', '-')} | **Ticket:** {r.get('pb_ticket', '-')}")
@@ -2077,31 +1906,9 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                             st.markdown("<br>", unsafe_allow_html=True)
                             tampilkan_grid_foto(r.get('pb_url_act', []), "📸 Foto Temuan / Action Lapangan")
 
-                    elif is_project:
-                        st.markdown("### 📋 REPORT PROJECT")
-                        pd_data = r.get('proj_data', {})
-                        st.markdown(f"**👨‍🔧 Tim:** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **🏷️ Kategori:** Project {pd_data.get('jenis_project', '-')}")
-                        
-                        if pd_data.get('jenis_project') == 'PO':
-                            st.info(f"**📋 Detail PO:** No PO: {pd_data.get('no_po','-')} | Mitra: {pd_data.get('mitra','-')} | Pekerjaan: {pd_data.get('tipe_pekerjaan','-')}")
-                            if pd_data.get('tipe_pekerjaan') == 'Instalasi Imacro':
-                                st.warning(f"**🛠️ Progress:** {', '.join(pd_data.get('progress_imacro', []))}")
-                            elif pd_data.get('tipe_pekerjaan') == 'Relokasi NE':
-                                st.warning(f"**🔄 Rute Relokasi:** {pd_data.get('site_asal','-')} ➡️ {pd_data.get('site_tujuan','-')} | Program: {pd_data.get('program_relokasi','-')} | Nilai: {pd_data.get('nilai_per_site','-')}")
-                        elif pd_data.get('jenis_project') == 'SVA':
-                            st.info(f"**📋 Detail SVA:** No Tiket: {pd_data.get('no_tiket','-')} | Tanggal: {pd_data.get('tgl_sva','-')} | Temuan: {pd_data.get('temuan_sva','-')}")
-                            
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        if pd_data.get('jenis_project') == 'PO':
-                            t1, t2, t3 = st.tabs(["📸 Foto Before", "📸 Foto On Progress", "📸 Foto After / BAST"])
-                            with t1: tampilkan_grid_foto(pd_data.get('url_awal', []), "Kondisi Awal")
-                            with t2: tampilkan_grid_foto(pd_data.get('url_proses', []), "Proses Pengerjaan")
-                            with t3: tampilkan_grid_foto(pd_data.get('url_akhir', []), "Hasil Akhir (BAST)")
-                        else:
-                            t1, t2 = st.tabs(["📸 View Site & Perangkat", "📸 Temuan / Defect"])
-                            with t1: tampilkan_grid_foto(pd_data.get('url_sva1', []), "Foto View Site & Perangkat")
-                            with t2: tampilkan_grid_foto(pd_data.get('url_sva2', []), "Foto Temuan Defect")
-
+                    # =========================================================================
+                    # TAMPILAN SITE REGULER (VERSI BARU)
+                    # =========================================================================
                     elif is_new_reguler:
                         st.markdown("### 📋 SITE REGULER REPORT")
                         st.markdown(f"**👨‍🔧 FME:** {r.get('teknisi', '-')} ({r.get('role_fme', '-')}) &nbsp;&nbsp;|&nbsp;&nbsp; **🚨 Problem:** {r.get('problem_alarm', '-')}")
@@ -2154,9 +1961,34 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                     st.write("Belum ada foto parameter pengukuran pada laporan ini.")
                             else:
                                 st.write("Tidak ada parameter pengukuran yang dilaporkan.")
+                        
+                        if st.session_state['role'] == 'Admin':
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            with st.container(border=True):
+                                st.markdown("<h4 style='color: var(--primary-color);'>🛠 REVISI NAMA SITE / FME</h4>", unsafe_allow_html=True)
+                                ce1, ce2 = st.columns(2)
+                                with ce1: new_sreg = st.text_input("Edit Nama Site", r.get('site_name',''), key=f"esreg_{i}")
+                                with ce2: new_freg = st.text_input("Edit Nama FME", r.get('teknisi',''), key=f"efreg_{i}")
+                                
+                                if st.button("💾 Simpan Perubahan", key=f"breg_{i}"):
+                                    with st.spinner("Menyimpan..."):
+                                        r['site_name'], r['teknisi'] = new_sreg, new_freg
+                                        sheet = connect_gsheets(r.get('_sheet', 'Report Preventive'))
+                                        if sheet:
+                                            sheet.update_cell(r.get('_row', i + 2), 2, new_sreg)
+                                            sheet.update_cell(r.get('_row', i + 2), 4, new_freg)
+                                            sheet.update_cell(r.get('_row', i + 2), 6, json.dumps(r))
+                                            st.cache_data.clear() 
+                                    st.success("✅ REVISI BERHASIL!")
+                                    st.rerun()
 
+                    # =========================================================================
+                    # TAMPILAN 100% ASLI UNTUK SPS & DATA LAMA
+                    # =========================================================================
                     else:
-                        st.warning("⏱️ Data di bawah ini direkam menggunakan Form Versi Lama (sebelum ada pemisahan layout).")
+                        if kategori_site == "Site Reguler":
+                            st.warning("⏱️ Data di bawah ini direkam menggunakan Form Versi Lama (sebelum ada pemisahan layout SPS & Reguler).")
+                        
                         st.markdown(f"**👨‍🔧 Pelaksana (Teknisi):** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **⚡ Beban Load:** {r.get('total_load', '-')} A")
                         st.markdown(f"**🔧 Action Dikerjakan:** {r.get('action', '-')}")
                         if r.get('sparepart'): st.warning(f"**📦 Sparepart Diganti:** {r['sparepart']}")
@@ -2226,6 +2058,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         with ltab6:
                             st.markdown("### ⚡ Grafik Analisa Power & Voltage")
                             st.info(f"Sistem sedang melacak file data histori **`{site_id}.xlsx`** di repositori...")
+                            
                             excel_filename = f"{site_id}.xlsx"
                             if os.path.exists(excel_filename):
                                 try:
@@ -2237,7 +2070,9 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                         chart_cols = ['MaxVoltageOfBBU(V)', 'MinVoltageOfBBU(V)', 'AvgVoltageOfBBU(V)']
                                         chart_data = df_power[chart_cols].copy()
                                         chart_data['Batas Hold (55V)'] = 55.0
+                                        
                                         st.line_chart(chart_data, color=["#64FFDA", "#FF5252", "#FFC107", "#FFFFFF"])
+                                        
                                         min_voltage = df_power['MinVoltageOfBBU(V)'].min()
                                         if min_voltage < 55.0:
                                             st.error(f"🚨 **ANALISA DROP VOLTAGE:** Ditemukan tegangan Drop di bawah batas 55V! Tegangan terendah terekam di angka **{min_voltage} V**.")
@@ -2250,26 +2085,64 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                             else:
                                 st.warning(f"File log power **`{excel_filename}`** belum di-upload ke repositori/folder lokal server. Silakan upload file excel dengan nama site tersebut untuk melihat grafik otomatis.")
 
-                    # Tombol Revisi Admin ditaruh paling bawah expander agar rapi
-                    if st.session_state['role'] == 'Admin':
+
                         st.markdown("<br>", unsafe_allow_html=True)
-                        with st.container(border=True):
-                            st.markdown("<h4 style='color: var(--primary-color);'>🛠 REVISI NAMA SITE / FME</h4>", unsafe_allow_html=True)
-                            ce1, ce2 = st.columns(2)
-                            with ce1: new_sreg = st.text_input("Edit Nama Site", r.get('site_name',''), key=f"esreg_{i}")
-                            with ce2: new_freg = st.text_input("Edit Nama FME / Tim", r.get('teknisi',''), key=f"efreg_{i}")
-                            
-                            if st.button("💾 Simpan Perubahan", key=f"breg_{i}"):
-                                with st.spinner("Menyimpan..."):
-                                    r['site_name'], r['teknisi'] = new_sreg, new_freg
-                                    sheet = connect_gsheets(r.get('_sheet', 'Report Preventive'))
-                                    if sheet:
-                                        sheet.update_cell(r.get('_row', i + 2), 2, new_sreg)
-                                        sheet.update_cell(r.get('_row', i + 2), 4, new_freg)
-                                        sheet.update_cell(r.get('_row', i + 2), 6, json.dumps(r))
-                                        st.cache_data.clear() 
-                                st.success("✅ REVISI BERHASIL!")
-                                st.rerun()
+                        
+                        if st.session_state['role'] == 'Admin':
+                            with st.container(border=True):
+                                st.markdown("<h4 style='color: var(--primary-color);'>🛠 REVISI DATA & TAMBAH LAMPIRAN</h4>", unsafe_allow_html=True)
+                                c_edit1, c_edit2 = st.columns(2)
+                                with c_edit1:
+                                    new_site = st.text_input("Edit Nama Site / ID", r.get('site_name',''), key=f"esite_{i}")
+                                    kat_options = ["SPS", "Site Reguler"]
+                                    curr_kat = r.get('kategori', 'SPS')
+                                    if curr_kat not in kat_options: curr_kat = "SPS"
+                                    new_kat = st.selectbox("Edit Kategori Site", kat_options, index=kat_options.index(curr_kat), key=f"ekat_{i}")
+                                    
+                                    nop_options = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
+                                    curr_nop = r.get('nop', 'Palangkaraya')
+                                    if curr_nop not in nop_options: curr_nop = "Lainnya"
+                                    new_nop = st.selectbox("Edit NOP Area", nop_options, index=nop_options.index(curr_nop), key=f"enop_{i}")
+                                    new_tek = st.text_input("Edit Teknisi", r.get('teknisi',''), key=f"et_{i}")
+                                with c_edit2:
+                                    status_options = ["Normal", "Minor Issue", "Major/Critical"]
+                                    curr_stat = r.get('status', 'Normal')
+                                    if curr_stat not in status_options: curr_stat = "Normal"
+                                    new_status = st.selectbox("Edit Status Akhir", status_options, index=status_options.index(curr_stat), key=f"estat_{i}")
+                                    new_sp = st.text_input("Edit Sparepart", r.get('sparepart',''), key=f"es_{i}")
+                                new_act = st.text_area("Edit Action / Tindakan", r.get('action',''), key=f"ea_{i}")
+                                st.markdown("**Tambah Lampiran Susulan (Otomatis Masuk Cloud):**")
+                                up_f = st.file_uploader("📸 Fisik / Shading", accept_multiple_files=True, key=f"uf_{i}")
+                                up_p = st.file_uploader("📸 Panel Surya", accept_multiple_files=True, key=f"up_{i}")
+                                up_b = st.file_uploader("📸 Baterai / Grounding", accept_multiple_files=True, key=f"ub_{i}")
+                                up_e = st.file_uploader("📸 Elektrikal / Mesin", accept_multiple_files=True, key=f"ue_{i}")
+                                up_dl = st.file_uploader("📂 Datalog (Zip, Csv, xlsx)", accept_multiple_files=True, key=f"udl_{i}")
+
+                                if st.button("💾 Simpan Perubahan ke Server", key=f"btn_{i}"):
+                                    with st.spinner("Mengirim Revisi ke Database Utama..."):
+                                        r['site_name'], r['kategori'], r['nop'], r['status'], r['teknisi'], r['action'], r['sparepart'] = new_site, new_kat, new_nop, new_status, new_tek, new_act, new_sp
+                                        if up_f: r['extras_fisik'] = r.get('extras_fisik', []) + upload_multiple_images(up_f)
+                                        if up_p: r['extras_panel'] = r.get('extras_panel', []) + upload_multiple_images(up_p)
+                                        if up_b: r['extras_baterai'] = r.get('extras_baterai', []) + upload_multiple_images(up_b)
+                                        if up_e: r['extras_elektrikal'] = r.get('extras_elektrikal', []) + upload_multiple_images(up_e)
+                                        if up_dl:
+                                            new_datalog = []
+                                            for df in up_dl:
+                                                du = upload_datalog(df, "prev_datalog")
+                                                if du: new_datalog.append({"name": df.name, "url": du})
+                                            r['datalog_files'] = r.get('datalog_files', []) + new_datalog
+                                        
+                                        sheet = connect_gsheets(r.get('_sheet', 'Report Preventive'))
+                                        if sheet:
+                                            row_num = r.get('_row', i + 2)
+                                            sheet.update_cell(row_num, 2, new_site)
+                                            sheet.update_cell(row_num, 3, new_nop)
+                                            sheet.update_cell(row_num, 4, new_tek)
+                                            sheet.update_cell(row_num, 5, new_status)
+                                            sheet.update_cell(row_num, 6, json.dumps(r))
+                                            st.cache_data.clear() 
+                                    st.success("✅ REVISI BERHASIL! Data & Foto tersimpan permanen.")
+                                    st.rerun()
 
 # =========================================================================
 # MENU 3: EXCEL LIVE-EDITOR (MONITORING IMPROVEMENT)
