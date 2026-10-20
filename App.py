@@ -27,7 +27,7 @@ except ImportError:
 # -------------------------------------------------------------------------
 # SETUP HALAMAN & FUNGSI LOGO PRESISI (.WEBP)
 # -------------------------------------------------------------------------
-st.set_page_config(page_title="Report SPS - Okta Pradika", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="RPO - PLK & PBU", page_icon="⚡", layout="wide")
 
 LOGO_UTAMA = "koperasi-jasa-konstruksi-tower-event-organizer-network-monitoring-telekomunikasi-kisel-group-logo-kut (2).webp"
 
@@ -373,8 +373,8 @@ if st.session_state['role'] is None:
     
     st.markdown("<br>", unsafe_allow_html=True)
     render_header_logo(is_login=True) 
-    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Sistem Pelaporan Terpadu Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>RPO NOP PLK & PBU Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Report Online,Dasboard Minitoring dan evidance taksforce</p>", unsafe_allow_html=True)
     col_v, col_l, col_a = st.columns([3, 3, 3])
     
     with col_v:
@@ -404,17 +404,19 @@ if st.session_state['role'] is None:
             <div class='login-box' style='padding-bottom: 20px; border-color: #FF9800;'>
                 <div style='font-size: 55px; margin-bottom: 15px;'>📦</div>
                 <div class='login-title'>Gudang / Logistik</div>
-                <div class='login-desc'>Akses pengelolaan stok material, in/out barang, sparepart, dan pelaporan SPMS.</div>
+                <div class='login-desc'>Akses eksklusif pengelolaan stok, in/out barang, sparepart, dan pelaporan SPMS.</div>
             </div>
         """, unsafe_allow_html=True)
         st.write("")
-        st.write("")
+        log_pass = st.text_input("Kata Sandi Logistik:", type="password", placeholder="Masukkan Sandi...", key="pwd_log")
         if st.button("📦 MASUK LOGISTIK", type="secondary", use_container_width=True):
-            st.session_state['role'] = 'Logistik'
-            st.session_state['area_lapangan'] = 'Logistik'
-            st.session_state['dashboard_area'] = None
-            st.session_state['active_menu'] = None
-            st.rerun()
+            import base64
+            if base64.b64encode(log_pass.encode()).decode() == "WXVpMjAyNSM=":
+                st.session_state['role'] = 'Logistik'
+                st.session_state['area_lapangan'] = 'Logistik'
+                st.session_state['dashboard_area'] = None
+                st.session_state['active_menu'] = None
+                st.rerun()
             else:
                 st.error("❌ Kata sandi salah! Akses ditolak.")
             
@@ -1358,47 +1360,12 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             proj_data['no_po'] = st.text_input("Nomor PO *")
                             proj_data['mitra'] = st.text_input("Mitra Pemberi Kerja *", placeholder="Cth: Telkomsel / Huawei...")
                         with c_po2:
-                            nilai_po_str = st.text_input("Nilai PO Total (Rp) *", value="0")
-                            proj_data['nilai_po'] = nilai_po_str
-                            tipe_pekerjaan = st.selectbox("Tipe Pekerjaan PO *", ["Relokasi NE", "Instalasi Imacro", "Lainnya"])
+                            proj_data['nilai_po'] = st.text_input("Nilai PO (Rp) *", placeholder="Cth: 15.000.000")
+                            tipe_pekerjaan = st.selectbox("Tipe Pekerjaan PO *", ["Instalasi Imacro", "Relokasi NE", "Lainnya"])
                             proj_data['tipe_pekerjaan'] = tipe_pekerjaan
 
-                        st.markdown("### 🗺️ Rincian Site, Timeline & Costing Project")
-                        st.info("💡 **Tabel Dinamis:** Tambahkan baris baru di tabel bawah ini untuk memasukkan banyak Site sekaligus. Nilai Margin akan dikalkulasi otomatis!")
-                        
-                        df_po = pd.DataFrame(columns=["Site Asal", "Site Tujuan", "Cost Pengerjaan", "Start Date", "End Date", "Status", "Remark"])
-                        edited_po = st.data_editor(
-                            df_po, 
-                            num_rows="dynamic", 
-                            use_container_width=True,
-                            column_config={
-                                "Cost Pengerjaan": st.column_config.NumberColumn("Cost Pengerjaan (Rp)", min_value=0, default=0, step=10000),
-                                "Start Date": st.column_config.DateColumn("Start Date", format="YYYY-MM-DD"),
-                                "End Date": st.column_config.DateColumn("End Date", format="YYYY-MM-DD"),
-                                "Status": st.column_config.SelectboxColumn(options=["Not Started", "On Progress", "Done"])
-                            },
-                            key="tabel_po_input"
-                        )
-                        
-                        try:
-                            val_po = float(nilai_po_str.replace('.', '').replace(',', ''))
-                        except:
-                            val_po = 0.0
-                            
-                        total_cost = edited_po["Cost Pengerjaan"].sum() if not edited_po.empty else 0.0
-                        margin = val_po - total_cost
-                        
-                        cm1, cm2, cm3 = st.columns(3)
-                        cm1.metric("💰 Nilai PO Total", f"Rp {val_po:,.0f}")
-                        cm2.metric("💸 Total Cost (Modal)", f"Rp {total_cost:,.0f}")
-                        cm3.metric("📈 Profit Margin", f"Rp {margin:,.0f}", delta=f"Margin {(margin/val_po*100):.1f}%" if val_po > 0 else "")
-                        
-                        proj_data['tabel_pekerjaan'] = edited_po.to_dict('records')
-                        proj_data['total_cost'] = float(total_cost)
-                        proj_data['margin'] = float(margin)
-
                         if tipe_pekerjaan == "Instalasi Imacro":
-                            st.markdown("**📌 Checklist Standard Imacro:**")
+                            st.markdown("**📌 Checklist Progress Instalasi Imacro:**")
                             c_chk1, c_chk2 = st.columns(2)
                             with c_chk1:
                                 p1 = st.checkbox("Dismantle")
@@ -1408,6 +1375,16 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 p4 = st.checkbox("Material Terkirim/Lengkap")
                                 p5 = st.checkbox("PSB PLN")
                             proj_data['progress_imacro'] = [k for k, v in zip(["Dismantle", "Instalasi", "Penarikan Optik", "Material", "PSB PLN"], [p1, p2, p3, p4, p5]) if v]
+
+                        elif tipe_pekerjaan == "Relokasi NE":
+                            st.markdown("**📌 Detail Relokasi NE:**")
+                            c_rel1, c_rel2 = st.columns(2)
+                            with c_rel1:
+                                proj_data['site_asal'] = st.selectbox("Dari Site (Asal):", [""] + site_plk_list, key="po_asal") if site_plk_list else st.text_input("Dari Site (Asal):")
+                            with c_rel2:
+                                proj_data['site_tujuan'] = st.selectbox("Ke Site (Tujuan):", [""] + site_plk_list, key="po_tuj") if site_plk_list else st.text_input("Ke Site (Tujuan):")
+                            proj_data['program_relokasi'] = st.text_area("Program / Item Relokasi:", placeholder="Cth: Relokasi Rak BBU, Rectifier, Baterai...")
+                            proj_data['nilai_per_site'] = st.text_input("Nilai Per Site (Rp):", placeholder="Jika ada pecahan nilai per site...")
 
                     elif jenis_project == "SVA":
                         st.markdown("### 📋 Detail Site Verification / Audit (SVA)")
@@ -2052,23 +2029,14 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 wa_text = generate_wa_pbu(r)
             elif is_project:
                 pd_data = r.get('proj_data', {})
-                wa_text = f"*REPORT PROJECT ({pd_data.get('jenis_project', '')})* ⚡\n📍 *Project:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Tim/FME:* {r.get('teknisi', '-')}\n📊 *Status Laporan:* {r.get('status', '-')}\n"
+                wa_text = f"*REPORT PROJECT ({pd_data.get('jenis_project', '')})* ⚡\n📍 *Site / Target:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Tim/FME:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n"
                 
                 if pd_data.get('jenis_project') == "PO":
                     wa_text += f"\n*📋 DETAIL PO:*\n- No PO: {pd_data.get('no_po', '-')}\n- Mitra: {pd_data.get('mitra', '-')}\n- Pekerjaan: {pd_data.get('tipe_pekerjaan', '-')}\n"
-                    
-                    tabel_p = pd_data.get('tabel_pekerjaan', [])
-                    if tabel_p:
-                        wa_text += f"- Total List Target: {len(tabel_p)} Site\n"
-                        for idx, tp in enumerate(tabel_p):
-                            asal = tp.get('Site Asal','')
-                            tuj = tp.get('Site Tujuan','')
-                            stat_tp = tp.get('Status','')
-                            if asal or tuj:
-                                wa_text += f"  {idx+1}. {asal} ➡️ {tuj} ({stat_tp})\n"
-                            
                     if pd_data.get('tipe_pekerjaan') == "Instalasi Imacro":
-                        wa_text += f"\n*🛠️ Progress Imacro:* {', '.join(pd_data.get('progress_imacro', []))}\n"
+                        wa_text += f"- Progress: {', '.join(pd_data.get('progress_imacro', []))}\n"
+                    elif pd_data.get('tipe_pekerjaan') == "Relokasi NE":
+                        wa_text += f"- Rute: {pd_data.get('site_asal', '-')} ➡️ {pd_data.get('site_tujuan', '-')}\n- Program: {pd_data.get('program_relokasi', '-')}\n"
                 elif pd_data.get('jenis_project') == "SVA":
                     wa_text += f"\n*📋 DETAIL SVA:*\n- No Tiket: {pd_data.get('no_tiket', '-')}\n- Temuan: {pd_data.get('temuan_sva', '-')}\n"
                 
@@ -2173,24 +2141,10 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         
                         if pd_data.get('jenis_project') == 'PO':
                             st.info(f"**📋 Detail PO:** No PO: {pd_data.get('no_po','-')} | Mitra: {pd_data.get('mitra','-')} | Pekerjaan: {pd_data.get('tipe_pekerjaan','-')}")
-                            
-                            val_po = float(str(pd_data.get('nilai_po', '0')).replace('.', '').replace(',', '')) if pd_data.get('nilai_po') else 0.0
-                            t_cost = pd_data.get('total_cost', 0.0)
-                            t_margin = pd_data.get('margin', 0.0)
-                            
-                            c_mar1, c_mar2, c_mar3 = st.columns(3)
-                            c_mar1.metric("💰 Nilai PO Total", f"Rp {val_po:,.0f}")
-                            c_mar2.metric("💸 Total Cost Pelaksanaan", f"Rp {t_cost:,.0f}")
-                            c_mar3.metric("📈 Profit Margin", f"Rp {t_margin:,.0f}")
-                            
-                            tabel_p = pd_data.get('tabel_pekerjaan', [])
-                            if tabel_p:
-                                st.markdown("#### 🗺️ Rincian Timeline & Cost Per-Site")
-                                st.dataframe(pd.DataFrame(tabel_p), use_container_width=True)
-
                             if pd_data.get('tipe_pekerjaan') == 'Instalasi Imacro':
-                                st.warning(f"**🛠️ Progress Checklists:** {', '.join(pd_data.get('progress_imacro', []))}")
-                                
+                                st.warning(f"**🛠️ Progress:** {', '.join(pd_data.get('progress_imacro', []))}")
+                            elif pd_data.get('tipe_pekerjaan') == 'Relokasi NE':
+                                st.warning(f"**🔄 Rute Relokasi:** {pd_data.get('site_asal','-')} ➡️ {pd_data.get('site_tujuan','-')} | Program: {pd_data.get('program_relokasi','-')} | Nilai: {pd_data.get('nilai_per_site','-')}")
                         elif pd_data.get('jenis_project') == 'SVA':
                             st.info(f"**📋 Detail SVA:** No Tiket: {pd_data.get('no_tiket','-')} | Tanggal: {pd_data.get('tgl_sva','-')} | Temuan: {pd_data.get('temuan_sva','-')}")
                             
@@ -2204,6 +2158,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                             t1, t2 = st.tabs(["📸 View Site & Perangkat", "📸 Temuan / Defect"])
                             with t1: tampilkan_grid_foto(pd_data.get('url_sva1', []), "Foto View Site & Perangkat")
                             with t2: tampilkan_grid_foto(pd_data.get('url_sva2', []), "Foto Temuan Defect")
+
                     elif is_new_reguler:
                         st.markdown("### 📋 SITE REGULER REPORT")
                         st.markdown(f"**👨‍🔧 FME:** {r.get('teknisi', '-')} ({r.get('role_fme', '-')}) &nbsp;&nbsp;|&nbsp;&nbsp; **🚨 Problem:** {r.get('problem_alarm', '-')}")
@@ -3012,7 +2967,7 @@ elif menu == "📦 Logistik & SPMS":
 # -------------------------------------------------------------------------
 st.markdown("""
     <div class="footer-okta">
-        🚀 System Application & Database Management<br>
+        System Application & Database Management<br>
         <span>Create Data By Okta Pradika</span> © 2026
     </div>
 """, unsafe_allow_html=True)
