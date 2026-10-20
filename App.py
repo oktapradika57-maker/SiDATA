@@ -2066,6 +2066,34 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                             st.markdown("<br>", unsafe_allow_html=True)
                             tampilkan_grid_foto(r.get('pb_url_act', []), "📸 Foto Temuan / Action Lapangan")
 
+                   # =========================================================================
+                    # TAMPILAN PROJECT BARU
+                    # =========================================================================
+                    elif is_project:
+                        st.markdown("### 📋 REPORT PROJECT")
+                        pd_data = r.get('proj_data', {})
+                        st.markdown(f"**👨‍🔧 Tim:** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **🏷️ Kategori:** Project {pd_data.get('jenis_project', '-')}")
+                        
+                        if pd_data.get('jenis_project') == 'PO':
+                            st.info(f"**📋 Detail PO:** No PO: {pd_data.get('no_po','-')} | Mitra: {pd_data.get('mitra','-')} | Pekerjaan: {pd_data.get('tipe_pekerjaan','-')}")
+                            if pd_data.get('tipe_pekerjaan') == 'Instalasi Imacro':
+                                st.warning(f"**🛠️ Progress:** {', '.join(pd_data.get('progress_imacro', []))}")
+                            elif pd_data.get('tipe_pekerjaan') == 'Relokasi NE':
+                                st.warning(f"**🔄 Rute Relokasi:** {pd_data.get('site_asal','-')} ➡️ {pd_data.get('site_tujuan','-')} | Program: {pd_data.get('program_relokasi','-')} | Nilai: {pd_data.get('nilai_per_site','-')}")
+                        elif pd_data.get('jenis_project') == 'SVA':
+                            st.info(f"**📋 Detail SVA:** No Tiket: {pd_data.get('no_tiket','-')} | Tanggal: {pd_data.get('tgl_sva','-')} | Temuan: {pd_data.get('temuan_sva','-')}")
+                            
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        if pd_data.get('jenis_project') == 'PO':
+                            t1, t2, t3 = st.tabs(["📸 Foto Before", "📸 Foto On Progress", "📸 Foto After / BAST"])
+                            with t1: tampilkan_grid_foto(pd_data.get('url_awal', []), "Kondisi Awal")
+                            with t2: tampilkan_grid_foto(pd_data.get('url_proses', []), "Proses Pengerjaan")
+                            with t3: tampilkan_grid_foto(pd_data.get('url_akhir', []), "Hasil Akhir (BAST)")
+                        else:
+                            t1, t2 = st.tabs(["📸 View Site & Perangkat", "📸 Temuan / Defect"])
+                            with t1: tampilkan_grid_foto(pd_data.get('url_sva1', []), "Foto View Site & Perangkat")
+                            with t2: tampilkan_grid_foto(pd_data.get('url_sva2', []), "Foto Temuan Defect")
+
                     # =========================================================================
                     # TAMPILAN SITE REGULER (VERSI BARU)
                     # =========================================================================
