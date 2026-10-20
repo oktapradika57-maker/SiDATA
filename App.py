@@ -27,7 +27,7 @@ except ImportError:
 # -------------------------------------------------------------------------
 # SETUP HALAMAN & FUNGSI LOGO PRESISI (.WEBP)
 # -------------------------------------------------------------------------
-st.set_page_config(page_title="RPO - PLK & PBU", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Report SPS - Okta Pradika", page_icon="⚡", layout="wide")
 
 LOGO_UTAMA = "koperasi-jasa-konstruksi-tower-event-organizer-network-monitoring-telekomunikasi-kisel-group-logo-kut (2).webp"
 
@@ -373,8 +373,8 @@ if st.session_state['role'] is None:
     
     st.markdown("<br>", unsafe_allow_html=True)
     render_header_logo(is_login=True) 
-    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>RPO Kal-Teng</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Report Online & Monitoring Dasboard Kal-Teng</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Portal PM Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Sistem Pelaporan Terpadu Preventive Maintenance Site Telekomunikasi</p>", unsafe_allow_html=True)
     col_v, col_space, col_a = st.columns([4, 0.6, 4])
     
     with col_v:
@@ -737,6 +737,18 @@ if st.session_state['active_menu'] is None:
     st.markdown("<hr style='margin: 30px 0;'>", unsafe_allow_html=True)
     c_out1, c_out2, c_out3 = st.columns([3, 4, 3])
     with c_out2:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #9C27B0;'>
+                <div style='font-size: 46px; margin-bottom: 8px;'>📅</div>
+                <div class='login-title'>Daily Tracker Palangkaraya</div>
+                <div class='login-desc'>To Do List harian tim Onsite, sinkronisasi Site ID, update status pengerjaan, dan pencatatan FME.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("📅 BUKA DAILY TRACKER", type="primary", use_container_width=True, key="m_tracker"):
+            st.session_state['active_menu'] = "📅 Daily Tracker Palangkaraya"
+            st.rerun()
+            
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🚪 KELUAR AKUN (LOG OUT)", use_container_width=True, key="btn_logout_main"):
             st.session_state['role'] = None
             st.session_state['dashboard_area'] = None
@@ -1150,6 +1162,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
 
                 st.divider()
                 cond_data['note_action'] = st.text_area("📝 NOTE / REMARK Action Lapangan (WAJIB DIISI) *:", placeholder="Jelaskan secara spesifik hasil pengerjaan, part yang diganti, atau kendala di lapangan...")
+
             with tabs_reg[2]:
                 st.markdown("### 📤 Konfirmasi & Submit Laporan")
                 final_status_reg = st.radio("Status Akhir Site:", ["Normal", "Minor Issue", "Major/Critical", "Update Progress"], key="stat_reg")
@@ -1749,7 +1762,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         # ---------------------------------------------------------------------
         # TAMPILAN KARTU UI MODERN & URUTAN TERBARU DI ATAS
         # ---------------------------------------------------------------------
-        for i in filtered_indices:  # Dihapus 'reversed' agar data terbaru otomatis muncul paling atas!
+        for i in filtered_indices:
             r = db[i]
             site_id = r.get('site_name', 'Unknown')
             kategori_site = r.get('kategori', 'SPS')
@@ -1776,7 +1789,11 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')} ({r.get('role_fme', '-')})\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
                 cd = r.get('cond_data', {})
                 if cd:
-                    wa_text += f"\n*⚡ PARAMETER KELISTRIKAN:*\n- Teg AC (RN/SN/TN): {cd.get('v_rn','-')} / {cd.get('v_sn','-')} / {cd.get('v_tn','-')} V\n- Arus AC (R/S/T): {cd.get('i_r','-')} / {cd.get('i_s','-')} / {cd.get('i_t','-')} A\n- Load DC: {cd.get('load_dc', '-')} A\n- Set BCL: {cd.get('set_bcl', '-')}\n- Set Cap: {cd.get('set_cap', '-')}\n- Modul Rusak: {cd.get('mod_rusak', '-')}\n"
+                    if cd.get('v_rn'):
+                        wa_text += f"\n*⚡ PARAMETER AC/DC:*\n- Teg AC (R/S/T): {cd.get('v_rn','-')}/{cd.get('v_sn','-')}/{cd.get('v_tn','-')} V\n- Arus AC (R/S/T): {cd.get('i_r','-')}/{cd.get('i_s','-')}/{cd.get('i_t','-')} A\n- Load DC: {cd.get('load_dc', '-')} A\n- Set BCL: {cd.get('set_bcl', '-')} | Cap: {cd.get('set_cap', '-')}\n- Modul Rusak: {cd.get('mod_rusak', '-')}\n"
+                    if cd.get('gen_v'):
+                        wa_text += f"\n*⚙️ PARAMETER GENSET:*\n- Teg Output: {cd.get('gen_v','-')} V | Load: {cd.get('gen_i','-')} A\n- Status ATS: {cd.get('gen_ats','-')}\n- Issue Mesin: {cd.get('gen_issue','-')}\n- Hour Meter: {cd.get('gen_hm','-')} HM\n- Sisa BBM: {cd.get('gen_bbm','-')} Liter\n"
+                    
                     if cd.get('note_action'):
                         wa_text += f"\n*📝 NOTE/REMARK:*\n{cd.get('note_action')}\n"
             else:
@@ -1867,95 +1884,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     # TAMPILAN SITE REGULER (VERSI BARU)
                     # =========================================================================
                     elif is_new_reguler:
-                wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')} ({r.get('role_fme', '-')})\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
-                cd = r.get('cond_data', {})
-                if cd:
-                    if cd.get('v_rn'):
-                        wa_text += f"\n*⚡ PARAMETER AC/DC:*\n- Teg AC (R/S/T): {cd.get('v_rn','-')}/{cd.get('v_sn','-')}/{cd.get('v_tn','-')} V\n- Arus AC (R/S/T): {cd.get('i_r','-')}/{cd.get('i_s','-')}/{cd.get('i_t','-')} A\n- Load DC: {cd.get('load_dc', '-')} A\n- Set BCL: {cd.get('set_bcl', '-')} | Cap: {cd.get('set_cap', '-')}\n- Modul Rusak: {cd.get('mod_rusak', '-')}\n"
-                    if cd.get('gen_v'):
-                        wa_text += f"\n*⚙️ PARAMETER GENSET:*\n- Teg Output: {cd.get('gen_v','-')} V | Load: {cd.get('gen_i','-')} A\n- Status ATS: {cd.get('gen_ats','-')}\n- Issue Mesin: {cd.get('gen_issue','-')}\n- Hour Meter: {cd.get('gen_hm','-')} HM\n- Sisa BBM: {cd.get('gen_bbm','-')} Liter\n"
-                    
-                    if cd.get('note_action'):
-                        wa_text += f"\n*📝 NOTE/REMARK:*\n{cd.get('note_action')}\n"
-            else:
-                wa_text = f"*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({kategori_site} - {r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"
-            
-            wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
-
-            # BUNGKUSAN CARD UTAMA
-            with st.container(border=False):
-                fme_tampil = r.get('teknisi', '-') if kategori_site != "Pangkalan Bun" else r.get('pb_te', '-')
-                
-                st.markdown(f"""
-                    <div style="padding: 18px 20px; border-radius: 12px; border-left: 8px solid {warna_status}; background-color: var(--secondary-background-color); margin-bottom: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.08); border-top: 1px solid rgba(128,128,128,0.1); border-right: 1px solid rgba(128,128,128,0.1); border-bottom: 1px solid rgba(128,128,128,0.1);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                            <h3 style="margin: 0; padding: 0; font-size: 22px; font-weight: 800;">{icon} {site_id}</h3>
-                            <span style="font-size: 13px; font-weight: 700; color: #ffffff; background-color: {warna_status}; padding: 4px 12px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">📅 {r.get('timestamp', '')}</span>
-                        </div>
-                        <div style="font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>📝 Kategori:</b> {kategori_site} ({r.get('nop', '-')})</span>
-                            <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>👷 FME:</b> {fme_tampil}</span>
-                        </div>
-                        <div style="font-size: 15px; border-top: 1px dashed rgba(128,128,128,0.3); padding-top: 8px; margin-top: 8px;">
-                            <b>📊 Status Akhir:</b> <span style="color: {warna_status}; font-weight: 900; font-size: 16px;">{stat}</span>
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                c_btn1, c_btn2 = st.columns(2)
-                with c_btn1: st.link_button("📱 Share Rangkuman Laporan (WA)", wa_url, use_container_width=True)
-                with c_btn2:
-                    if kategori_site != "Pangkalan Bun" and not is_new_reguler:
-                        if st.checkbox("📄 Buat PDF Resmi", key=f"prep_pdf_{i}"):
-                            with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
-                                try:
-                                    pdf_bytes = build_pdf(r)
-                                    st.download_button(label="📥 Download PDF", data=pdf_bytes, file_name=f"Berita_Acara_{site_id}.pdf", mime="application/pdf", key=f"dl_pdf_{i}", type="primary", use_container_width=True)
-                                except Exception as e:
-                                    st.error(f"Gagal memproses PDF: {e}")
-                    else:
-                        st.button("📄 Format Tanpa PDF", disabled=True, key=f"dl_pdf_dis_{i}", use_container_width=True)
-
-                with st.expander("📂 BUKA DETAIL & DOKUMENTASI LAPORAN"):
-                    
-                    if kategori_site == "Pangkalan Bun":
-                        # ... (Kode Pangkalan Bun tidak diubah, sama persis seperti sebelumnya) ...
-                        st.markdown("### 📋 SITE VISIT REPORT (Pangkalan Bun)")
-                        st.write(f"**FME NAME:** {r.get('pb_te', '-')} | **Ticket:** {r.get('pb_ticket', '-')}")
-                        st.write(f"**Catuan Power:** {r.get('pb_power', '-')} | **Status Akhir:** {stat}")
-                        
-                        tpb1, tpb2, tpb3, tpb4 = st.tabs(["📌 Info & Recti", "⚡ Kelistrikan & ACPDB", "⛽ Genset & ENVA", "📝 Temuan & Activity"])
-                        with tpb1:
-                            st.markdown("**Data Rectifier:**")
-                            for rect in r.get('pb_rectifiers', []): st.write(f"🔹 **{rect.get('tipe')}** | BCL: {rect.get('bcl')}% | Beban: {rect.get('load')}A | Voltase: {rect.get('dc_v')}V")
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            tampilkan_grid_foto(r.get('pb_url_site', []), "📸 Foto Site / Kondisi Umum")
-                            tampilkan_grid_foto(r.get('pb_url_recti', []), "📸 Foto Rectifier & ENVA")
-                        with tpb2:
-                            kel = r.get('pb_kelistrikan', {})
-                            acp = r.get('pb_acpdb', {})
-                            st.write(f"**Kelistrikan:** Daya KWH: {kel.get('daya', '-')} | Phasa: {kel.get('phasa', '-')} | Teg. G-N: {kel.get('v_gn', '-')}")
-                            st.write(f"**ACPDB:** Tersedia: {acp.get('ada', '-')} | Teg. RST thd N: {acp.get('v_rst_n', '-')}")
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            tampilkan_grid_foto(r.get('pb_url_listrik', []), "📸 Foto Kelistrikan & ACPDB")
-                        with tpb3:
-                            gen = r.get('pb_genset', {})
-                            en = r.get('pb_enva', {})
-                            st.write(f"**Genset:** Ada: {gen.get('ada', '-')} | Kapasitas: {gen.get('cap', '-')} | Tangki: {gen.get('tangki', '-')} | Sisa: {gen.get('bbm', '-')}")
-                            st.write(f"**ENVA:** Main Fail: {en.get('main_fail', '-')} | Rectifier Fail: {en.get('rect_fail', '-')} | High Temp: {en.get('high_temp', '-')}")
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            tampilkan_grid_foto(r.get('pb_url_genset', []), "📸 Foto Genset / Tangki")
-                        with tpb4:
-                            st.markdown("**Catatan/Temuan Tim:**")
-                            st.info(r.get('action', '-'))
-                            st.markdown("**Activity Report:**")
-                            if r.get('pb_act_power'): st.write(f"- Power & CME: {', '.join(r.get('pb_act_power'))}")
-                            if r.get('pb_act_trans'): st.write(f"- Transport: {', '.join(r.get('pb_act_trans'))}")
-                            if r.get('pb_act_osa'): st.write(f"- OSA Impact: {', '.join(r.get('pb_act_osa'))}")
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            tampilkan_grid_foto(r.get('pb_url_act', []), "📸 Foto Temuan / Action Lapangan")
-
-                    elif is_new_reguler:
                         st.markdown("### 📋 SITE REGULER REPORT")
                         st.markdown(f"**👨‍🔧 FME:** {r.get('teknisi', '-')} ({r.get('role_fme', '-')}) &nbsp;&nbsp;|&nbsp;&nbsp; **🚨 Problem:** {r.get('problem_alarm', '-')}")
                         st.markdown(f"**🔧 Action Dikerjakan:** {', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}")
@@ -2006,7 +1934,8 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                 if not ada_foto:
                                     st.write("Belum ada foto parameter pengukuran pada laporan ini.")
                             else:
-                                st.write("Tidak ada parameter pengukuran yang dilaporkan.")                        
+                                st.write("Tidak ada parameter pengukuran yang dilaporkan.")
+                        
                         if st.session_state['role'] == 'Admin':
                             st.markdown("<br>", unsafe_allow_html=True)
                             with st.container(border=True):
@@ -2354,7 +2283,6 @@ elif menu == "📈 Monitoring Improvement":
             except Exception as e:
                 st.error(f"Terjadi kendala saat membaca sheet {sheet_choice}: {e}")
 
-
 # =========================================================================
 # MENU 4: DAPOT POWER HASIL PMS (MENU TERPISAH KHUSUS EXECUTIVE DASHBOARD)
 # =========================================================================
@@ -2572,6 +2500,121 @@ elif menu == "⚡ Dapot Power Hasil PMS":
 
         except Exception as e:
             st.error(f"Terjadi kesalahan saat memuat Dapot Power Executive Dashboard: {e}")
+
+# =========================================================================
+# MENU 5: DAILY TRACKER (TO DO LIST NOP PALANGKARAYA)
+# =========================================================================
+elif menu == "📅 Daily Tracker Palangkaraya":
+    st.markdown("<h1 style='text-align: center;'>📅 Daily Tracker & To Do List (Palangkaraya)</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.8;'>Update rencana kerja harian, realisasi site, dan pencocokan otomatis dengan Master Data Sidata.</p>", unsafe_allow_html=True)
+    
+    file_todo = "To Do List NOP Palangkaraya.xlsx"
+    
+    if not os.path.exists(file_todo):
+        st.error(f"❌ File '{file_todo}' tidak ditemukan di server. Pastikan file tersebut sudah di-upload satu folder dengan aplikasi `App.py`.")
+    else:
+        # Load list site & FME otomatis dari fungsi master yang sudah ada (Sinkronisasi Sidata)
+        fme_plk_list, _, site_plk_list, _ = load_master_lists()
+        
+        tab_harian, tab_database = st.tabs(["📝 Form Update Tim Onsite", "🗂️ Live Editor Master To-Do List"])
+        
+        with tab_harian:
+            st.info("💡 **Khusus Tim Onsite / FME:** Data Site ID dan Nama FME di bawah ini sudah otomatis membaca dari Repositori Sidata. Silakan pilih dan laporkan progress harian.")
+            
+            c_td1, c_td2 = st.columns(2)
+            with c_td1:
+                pilih_site_td = st.selectbox("📍 Pilih Site ID Target (Auto-sync):", [""] + site_plk_list, key="td_site")
+                pilih_fme_td = st.selectbox("👷 Nama FME / Tim Onsite:", [""] + fme_plk_list, key="td_fme")
+            with c_td2:
+                tanggal_td = st.date_input("📅 Tanggal Pengerjaan:", value=datetime.date.today())
+                status_td = st.selectbox("📊 Update Status Harian:", ["On Progress", "Done", "Pending", "Cancel / Reschedule"])
+            
+            catatan_td = st.text_area("📝 Keterangan / Remarks Lapangan:", placeholder="Ketik keterangan mengenai pengerjaan hari ini atau alasan jika pending...")
+            
+            if st.button("💾 Simpan Update ke To Do List", type="primary", use_container_width=True):
+                if not pilih_site_td or not pilih_fme_td:
+                    st.error("⚠️ Site ID dan Nama FME wajib dipilih!")
+                else:
+                    with st.spinner("Menyimpan ke file Excel To Do List..."):
+                        try:
+                            import openpyxl
+                            wb_todo = openpyxl.load_workbook(file_todo)
+                            
+                            sheet_target = "to do list" if "to do list" in wb_todo.sheetnames else wb_todo.sheetnames[0]
+                            ws_todo = wb_todo[sheet_target]
+                            
+                            next_row = ws_todo.max_row + 1
+                            
+                            ws_todo.cell(row=next_row, column=11).value = tanggal_td.strftime("%Y-%m-%d") # Start Date
+                            ws_todo.cell(row=next_row, column=3).value = pilih_site_td # Site ID
+                            ws_todo.cell(row=next_row, column=4).value = pilih_fme_td # FME Name
+                            ws_todo.cell(row=next_row, column=13).value = status_td # Status Task
+                            ws_todo.cell(row=next_row, column=14).value = catatan_td # Remark
+                            
+                            wb_todo.save(file_todo)
+                            st.success(f"✅ Laporan Diterima! Data kunjungan Site {pilih_site_td} oleh {pilih_fme_td} telah ter-update di file Tracker.")
+                        except Exception as e:
+                            st.error(f"Terjadi kesalahan saat menyimpan ke Excel: {e}")
+
+        with tab_database:
+            st.markdown("### 🗂️ Tabel Master To Do List (Bisa di-edit langsung oleh Admin)")
+            st.write("Klik dua kali pada tabel di bawah (khususnya bagian kolom Status) untuk mengubah data secara cepat.")
+            
+            try:
+                # Load Excel, deteksi jika sheet 'to do list' menggunakan header khusus di baris ke-2 (skiprows=2)
+                sheet_tujuan = "to do list"
+                
+                try:
+                    df_aktif = pd.read_excel(file_todo, sheet_name=sheet_tujuan, header=2)
+                    if df_aktif.empty or 'Site ID' not in df_aktif.columns:
+                        df_aktif = pd.read_excel(file_todo, sheet_name=sheet_tujuan)
+                except:
+                    df_aktif = pd.read_excel(file_todo, sheet_name=0) # Fallback jika nama beda
+                
+                edited_todo = st.data_editor(df_aktif, use_container_width=True, num_rows="dynamic", key="ed_todo_master")
+                
+                if st.button("💾 Simpan Perubahan Excel Permanen", type="primary"):
+                    state_todo = st.session_state["ed_todo_master"]
+                    if state_todo.get("edited_rows") or state_todo.get("added_rows"):
+                        with st.spinner("Menyuntikkan pembaruan formasi langsung ke file Excel..."):
+                            import openpyxl
+                            wb_t = openpyxl.load_workbook(file_todo)
+                            sheet_target = "to do list" if "to do list" in wb_t.sheetnames else wb_t.sheetnames[0]
+                            ws_t = wb_t[sheet_target]
+                            headers_t = list(df_aktif.columns)
+
+                            # Gunakan offset +3 karena header aslinya ada di baris ke-3 Excel
+                            offset_row = 3
+                            
+                            for r_idx_str, c_changes in state_todo.get("edited_rows", {}).items():
+                                xl_row = int(r_idx_str) + 1 + offset_row
+                                for c_name, n_val in c_changes.items():
+                                    if c_name in headers_t:
+                                        col_index = headers_t.index(c_name) + 1
+                                        ws_t.cell(row=xl_row, column=col_index).value = n_val
+
+                            for add_r in state_todo.get("added_rows", []):
+                                xl_row = ws_t.max_row + 1
+                                for c_name, n_val in add_r.items():
+                                    if c_name in headers_t:
+                                        col_index = headers_t.index(c_name) + 1
+                                        ws_t.cell(row=xl_row, column=col_index).value = n_val
+
+                            buf_t = BytesIO()
+                            wb_t.save(buf_t)
+                            st.success("✅ Perubahan berhasil disimpan permanen ke Master To Do List!")
+                            st.download_button(
+                                label="📥 Download File Tracker Terupdate",
+                                data=buf_t.getvalue(),
+                                file_name=f"Updated_To_Do_List_PLK.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                type="primary"
+                            )
+                    else:
+                        st.warning("Belum ada data pada tabel yang Bapak ubah.")
+                        
+            except Exception as e:
+                st.error(f"Gagal memproses Live Editor To Do List: {e}.")
 
 # -------------------------------------------------------------------------
 # FOOTER HAK CIPTA OKTA PRADIKA
