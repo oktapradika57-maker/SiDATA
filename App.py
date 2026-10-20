@@ -1076,7 +1076,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 # --- AUTO-BACA & SIMPAN ACTION BARU DARI DATABASE LAMA ---
                 base_act_opts = [
                     "Replace RRU", "Replace Optik", "Replace SFP", "Replace Module APR", 
-                    "Teg PLN Drop pelaporan PLN", "Reset Hardware", "MCB Trip", "Add Baterai",
+                    "Teg PLN Drop pelaporan PLN", "Reset Hardware", "MCB Trip", "Add Baterai", "Cek Kondisi Baterai",
                     "Cleaning Fan BTS", "Cleaning FAN Recti", "Cleaning FAN Perangkat TRM", "Cleaning FAN Shelter",
                     "Troubleshoot Genset / ATS"
                 ]
