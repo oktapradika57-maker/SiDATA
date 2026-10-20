@@ -2649,16 +2649,31 @@ elif menu == "📦 Logistik & SPMS":
     
     sheet_logistik = connect_gsheets("Data Logistik")
     if sheet_logistik is None:
-        st.error("⚠️ **PENTING:** Silakan buat Sheet baru bernama **'Data Logistik'** (tanpa tanda kutip) di dalam file Google Spreadsheet Database Utama Anda agar fitur ini bisa menyimpan data.")
+        st.error("⚠️ **PENTING:** Silakan buat Sheet baru bernama **'Data Logistik'** (tanpa tanda kutip) di dalam file Google Spreadsheet Database Utama Anda.")
         st.stop()
         
     data_log = sheet_logistik.get_all_values()
-    if not data_log:
-        headers = ["Tanggal", "Tipe Transaksi", "Kategori", "Merek / Nama Barang", "Untuk Genset/Mesin", "Jumlah", "PIC / Pengambil", "Site ID", "Keterangan"]
-        sheet_logistik.insert_row(headers, index=1)
-        data_log = [headers]
+    headers_standar = ["Tanggal", "Tipe Transaksi", "Kategori", "Merek / Nama Barang", "Untuk Genset/Mesin", "Jumlah", "PIC / Pengambil", "Site ID", "Keterangan"]
+    
+    # AUTO-FIX: Cek jika sheet kosong atau baris 1 berisi sel kosong/spasi gaib
+    if not data_log or len(data_log) == 0 or not any(str(c).strip() for c in data_log[0]):
+        sheet_logistik.clear() # Bersihkan sisa format/spasi di Sheet
+        sheet_logistik.insert_row(headers_standar, index=1)
+        data_log = [headers_standar]
         
-    df_log = pd.DataFrame(data_log[1:], columns=data_log[0]) if len(data_log) > 1 else pd.DataFrame(columns=data_log[0])
+    header_db = data_log[0]
+    data_rows = data_log[1:]
+    
+    # Ratakan panjang baris dengan panjang header agar tidak Error (KeyError) di Pandas
+    data_rows_padded = [row + [''] * (len(header_db) - len(row)) for row in data_rows]
+    
+    df_log = pd.DataFrame(data_rows_padded, columns=header_db)
+    
+    # Proteksi Darurat jika nama kolom masih belum terbaca sempurna
+    if 'Tipe Transaksi' not in df_log.columns: df_log['Tipe Transaksi'] = ''
+    if 'Merek / Nama Barang' not in df_log.columns: df_log['Merek / Nama Barang'] = ''
+    if 'Jumlah' not in df_log.columns: df_log['Jumlah'] = '0'
+    if 'Kategori' not in df_log.columns: df_log['Kategori'] = ''
     
     tab_in, tab_out, tab_dash = st.tabs(["📥 Inbound (Barang Masuk)", "📤 Outbound (Ambil Barang)", "📊 Dashboard Stok & Ekspor"])
     
