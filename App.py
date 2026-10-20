@@ -1289,6 +1289,165 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 st.error("⚠️ Gagal menyambung ke Server Database.")
 
 
+    elif site_category == "Project":
+            # -------------------------------------------------------------------------
+            # BLOK A.3: FORM KHUSUS PROJECT (PO & SVA)
+            # -------------------------------------------------------------------------
+            tabs_proj = st.tabs(["📌 Info Project", "📸 Bukti & Dokumentasi", "📤 Submit Project"])
+            proj_data = {}
+            proj_files = {}
+
+            with tabs_proj[0]:
+                st.markdown("#### Kategori Kunjungan: Project Lapangan")
+                jenis_project = st.selectbox("Pilih Jenis Project:", ["PO", "SVA"])
+                proj_data['jenis_project'] = jenis_project
+
+                if fme_plk_list:
+                    teknisi_proj = st.multiselect("Nama FME / Tim (Wajib):", fme_plk_list, key="proj_fme")
+                else:
+                    t_str = st.text_input("Nama FME / Tim (Wajib):", key="proj_fme")
+                    teknisi_proj = [t_str] if t_str else []
+
+                opsi_nop = ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"]
+                nop_area_proj = st.selectbox("NOP Area:", opsi_nop, index=0, key="proj_nop")
+                st.divider()
+
+                if jenis_project == "PO":
+                    st.markdown("### 📋 Detail Purchase Order (PO)")
+                    c_po1, c_po2 = st.columns(2)
+                    with c_po1:
+                        proj_data['no_po'] = st.text_input("Nomor PO *")
+                        proj_data['mitra'] = st.text_input("Mitra Pemberi Kerja *", placeholder="Cth: Telkomsel / Huawei...")
+                    with c_po2:
+                        proj_data['nilai_po'] = st.text_input("Nilai PO (Rp) *", placeholder="Cth: 15.000.000")
+                        tipe_pekerjaan = st.selectbox("Tipe Pekerjaan PO *", ["Instalasi Imacro", "Relokasi NE", "Lainnya"])
+                        proj_data['tipe_pekerjaan'] = tipe_pekerjaan
+
+                    if tipe_pekerjaan == "Instalasi Imacro":
+                        st.markdown("**📌 Checklist Progress Instalasi Imacro:**")
+                        c_chk1, c_chk2 = st.columns(2)
+                        with c_chk1:
+                            p1 = st.checkbox("Dismantle")
+                            p2 = st.checkbox("Instalasi")
+                            p3 = st.checkbox("Penarikan Optik")
+                        with c_chk2:
+                            p4 = st.checkbox("Material Terkirim/Lengkap")
+                            p5 = st.checkbox("PSB PLN")
+                        proj_data['progress_imacro'] = [k for k, v in zip(["Dismantle", "Instalasi", "Penarikan Optik", "Material", "PSB PLN"], [p1, p2, p3, p4, p5]) if v]
+
+                    elif tipe_pekerjaan == "Relokasi NE":
+                        st.markdown("**📌 Detail Relokasi NE:**")
+                        c_rel1, c_rel2 = st.columns(2)
+                        with c_rel1:
+                            proj_data['site_asal'] = st.selectbox("Dari Site (Asal):", [""] + site_plk_list, key="po_asal") if site_plk_list else st.text_input("Dari Site (Asal):")
+                        with c_rel2:
+                            proj_data['site_tujuan'] = st.selectbox("Ke Site (Tujuan):", [""] + site_plk_list, key="po_tuj") if site_plk_list else st.text_input("Ke Site (Tujuan):")
+                        proj_data['program_relokasi'] = st.text_area("Program / Item Relokasi:", placeholder="Cth: Relokasi Rak BBU, Rectifier, Baterai...")
+                        proj_data['nilai_per_site'] = st.text_input("Nilai Per Site (Rp):", placeholder="Jika ada pecahan nilai per site...")
+
+                elif jenis_project == "SVA":
+                    st.markdown("### 📋 Detail Site Verification / Audit (SVA)")
+                    c_sva1, c_sva2 = st.columns(2)
+                    with c_sva1:
+                        proj_data['site_sva'] = st.selectbox("Pilih Site ID *", [""] + site_plk_list, key="sva_site") if site_plk_list else st.text_input("Site ID *")
+                        proj_data['no_tiket'] = st.text_input("Nomor Tiket SVA *")
+                    with c_sva2:
+                        tgl_sva_val = st.date_input("Tanggal Pengerjaan SVA *", value=datetime.date.today())
+                        proj_data['tgl_sva'] = tgl_sva_val.strftime("%Y-%m-%d")
+                        proj_data['status_sva'] = st.selectbox("Status SVA", ["Done", "On Progress", "Pending Issue"])
+
+                    proj_data['temuan_sva'] = st.text_area("Temuan / Hasil Audit Lapangan:", placeholder="Catat detail temuan SVA di sini...")
+
+            with tabs_proj[1]:
+                st.markdown("### 📸 Lampiran Dokumentasi Project")
+                st.info("💡 Unggah foto progres pekerjaan secara lengkap dari awal hingga akhir.")
+
+                if jenis_project == "PO":
+                    foto_awal = st.file_uploader("📸 Foto Kondisi Awal (Before)", accept_multiple_files=True, key="p_awal")
+                    foto_proses = st.file_uploader("📸 Foto Proses Pengerjaan (On Progress)", accept_multiple_files=True, key="p_pros")
+                    foto_akhir = st.file_uploader("📸 Foto Hasil Akhir (After) / BAST", accept_multiple_files=True, key="p_akhir")
+                    proj_files['foto_awal'] = foto_awal
+                    proj_files['foto_proses'] = foto_proses
+                    proj_files['foto_akhir'] = foto_akhir
+                else:
+                    foto_sva_1 = st.file_uploader("📸 Foto View Site & Perangkat", accept_multiple_files=True, key="sva_1")
+                    foto_sva_2 = st.file_uploader("📸 Foto Temuan SVA / Defect", accept_multiple_files=True, key="sva_2")
+                    proj_files['foto_sva_1'] = foto_sva_1
+                    proj_files['foto_sva_2'] = foto_sva_2
+
+            with tabs_proj[2]:
+                st.markdown("### 📤 Konfirmasi & Submit Laporan Project")
+                proj_data['note_akhir'] = st.text_area("📝 Catatan Akhir Project:", placeholder="Kendala atau catatan penting lainnya...")
+                final_status_proj = st.radio("Status Laporan:", ["Done", "On Progress", "Pending"], key="stat_proj")
+
+                if st.button("🚀 UPLOAD & SINKRONKAN DATA PROJECT", type="primary", use_container_width=True):
+                    item_kurang = []
+                    if not teknisi_proj: item_kurang.append("Nama FME/Tim")
+
+                    if jenis_project == "PO":
+                        if not proj_data.get('no_po'): item_kurang.append("Nomor PO")
+                        if not proj_data.get('mitra'): item_kurang.append("Mitra Pemberi Kerja")
+                        if not proj_data.get('nilai_po'): item_kurang.append("Nilai PO")
+                        if not proj_files.get('foto_akhir') and not proj_files.get('foto_proses'): item_kurang.append("Minimal Foto Proses / Akhir")
+                    else:
+                        if not proj_data.get('site_sva'): item_kurang.append("Site ID SVA")
+                        if not proj_data.get('no_tiket'): item_kurang.append("Nomor Tiket SVA")
+                        if not proj_files.get('foto_sva_1'): item_kurang.append("Foto Dokumentasi SVA")
+
+                    if item_kurang:
+                        st.error(f"⚠️ **LAPORAN DITOLAK!** Mohon lengkapi isian berikut:\n- " + "\n- ".join(item_kurang))
+                    else:
+                        with st.spinner("⏳ Sedang memproses dan mengamankan data Project ke Cloud..."):
+                            url_awal, url_proses, url_akhir = [], [], []
+                            url_sva1, url_sva2 = [], []
+
+                            if jenis_project == "PO":
+                                url_awal = upload_multiple_images(proj_files['foto_awal'], "proj_po")
+                                url_proses = upload_multiple_images(proj_files['foto_proses'], "proj_po")
+                                url_akhir = upload_multiple_images(proj_files['foto_akhir'], "proj_po")
+                            else:
+                                url_sva1 = upload_multiple_images(proj_files['foto_sva_1'], "proj_sva")
+                                url_sva2 = upload_multiple_images(proj_files['foto_sva_2'], "proj_sva")
+
+                            proj_data['url_awal'] = url_awal
+                            proj_data['url_proses'] = url_proses
+                            proj_data['url_akhir'] = url_akhir
+                            proj_data['url_sva1'] = url_sva1
+                            proj_data['url_sva2'] = url_sva2
+
+                            tek_str_proj = ", ".join(teknisi_proj)
+                            nama_site_db = proj_data.get('site_sva') if jenis_project == "SVA" else f"Project PO: {proj_data.get('no_po')}"
+
+                            report_dict = {
+                                "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "site_name": nama_site_db,
+                                "kategori": "Project",
+                                "nop": nop_area_proj,
+                                "teknisi": tek_str_proj,
+                                "status": final_status_proj,
+                                "action": f"Project {jenis_project}",
+                                "sparepart": "-",
+                                "proj_data": proj_data,
+                                "url_sites": url_awal + url_sva1,
+                                "url_action": url_proses + url_akhir + url_sva2,
+                                "pln_status": "-", "rect_brand": "-", "rect_out_v": "-",
+                                "total_load": "-", "cond_data": {}
+                            }
+
+                            sheet = connect_gsheets("Report Preventive")
+                            if sheet:
+                                row_data = [
+                                    report_dict.get('timestamp', ''), report_dict.get('site_name', ''),
+                                    report_dict.get('nop', ''), report_dict.get('teknisi', ''),
+                                    report_dict.get('status', ''), json.dumps(report_dict)
+                                ]
+                                sheet.insert_row(row_data, index=2)
+                                st.cache_data.clear()
+                                st.session_state['laporan_db'].append(report_dict)
+                                st.success("✅ BERHASIL! Data Project telah diamankan ke Baris Teratas Spreadsheet.")
+                            else:
+                                st.error("⚠️ Gagal menyambung ke Server Database.")
+
     # -------------------------------------------------------------------------
     # BLOK B: FORM PANGKALAN BUN (LENGKAP DENGAN UPLOAD FOTO & AUTO WA)
     # -------------------------------------------------------------------------
