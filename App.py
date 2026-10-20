@@ -1066,7 +1066,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 st.markdown("### 🚨 Problem Alarm")
                 prob_alarm = st.selectbox(
                     "Pilih Problem Utama:", 
-                    ["Down power", "Fliker power", "Fliker Site Down", "Transmisi Problem", "Pengecekan Baterai "cell down"]
+                    ["Down power", "Fliker power", "Fliker Site Down", "Transmisi Problem", "Pengecekan Baterai", "cell down"]
                 )
                 foto_prob = st.file_uploader("📸 Foto Problem Alarm (WAJIB DILAMPIRKAN):", accept_multiple_files=True, key="f_prob")
 
