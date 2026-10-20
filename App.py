@@ -1057,10 +1057,9 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             else:
                                 st.error("⚠️ Gagal menyambung ke Server Database.")
 
-        else:
+        elif site_category == "Site Reguler":
             # -------------------------------------------------------------------------
             # BLOK A.2: FORM KHUSUS SITE REGULER BARU (PALANGKARAYA - WAJIB LENGKAP 100%)
-            # -------------------------------------------------------------------------
             tabs_reg = st.tabs(["📌 1. Info & Problem", "⚡ 2. Action & Parameter", "📤 3. Submit"])
             cond_data = {}
             cond_files = {}
