@@ -1060,59 +1060,96 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
 
             with tabs_reg[1]:
                 st.markdown("### 🔧 Action & Perbaikan")
-                act_opts = [
+                
+                # --- AUTO-BACA & SIMPAN ACTION BARU DARI DATABASE LAMA ---
+                base_act_opts = [
                     "Replace RRU", "Replace Optik", "Replace SFP", "Replace Module APR", 
                     "Teg PLN Drop pelaporan PLN", "Reset Hardware", "MCB Trip", "Add Baterai",
-                    "Cleaning Fan BTS", "Cleaning FAN Recti", "Cleaning FAN Perangkat TRM", "Cleaning FAN Shelter"
+                    "Cleaning Fan BTS", "Cleaning FAN Recti", "Cleaning FAN Perangkat TRM", "Cleaning FAN Shelter",
+                    "Troubleshoot Genset / ATS"
                 ]
-                act_sel = st.multiselect("Pilih Action Dikerjakan (WAJIB PILIH, Bisa Multiple):", act_opts)
-                foto_act = st.file_uploader("📸 Foto Action / Perbaikan Diluar Pengukuran Power (WAJIB DILAMPIRKAN):", accept_multiple_files=True, key="f_act")
-
-                st.divider()
-                st.warning("⚠️ **WAJIB DIISI 100%:** Seluruh kolom nilai ukur dan foto eviden di bawah ini wajib dilengkapi satu per satu tanpa terkecuali!")
+                existing_actions = set(base_act_opts)
+                if 'laporan_db' in st.session_state and st.session_state['laporan_db']:
+                    for r_db in st.session_state['laporan_db']:
+                        if r_db.get('kategori') == 'Site Reguler' and r_db.get('action_reguler'):
+                            acts = r_db.get('action_reguler')
+                            if isinstance(acts, list):
+                                for a in acts: existing_actions.add(a)
+                            elif isinstance(acts, str):
+                                existing_actions.add(acts)
                 
-                st.markdown("#### 1. Pengukuran Tegangan AC (Volt) & Eviden Foto")
-                cc1, cc2, cc3 = st.columns(3)
-                with cc1:
-                    cond_data['v_rn'] = st.text_input("Teg AC R-N [V] *", placeholder="Contoh: 220")
-                    cond_files['f_v_rn'] = st.file_uploader("📸 Foto Eviden Teg AC R-N *", key="f_v_rn")
-                with cc2:
-                    cond_data['v_sn'] = st.text_input("Teg AC S-N [V] *", placeholder="Contoh: 221")
-                    cond_files['f_v_sn'] = st.file_uploader("📸 Foto Eviden Teg AC S-N *", key="f_v_sn")
-                with cc3:
-                    cond_data['v_tn'] = st.text_input("Teg AC T-N [V] *", placeholder="Contoh: 219")
-                    cond_files['f_v_tn'] = st.file_uploader("📸 Foto Eviden Teg AC T-N *", key="f_v_tn")
+                act_opts = sorted(list(existing_actions))
+                act_sel = st.multiselect("Pilih Action Dikerjakan (WAJIB PILIH, Bisa Multiple):", act_opts)
+                
+                # Input Manual (Otomatis digabung ke daftar terpilih & history)
+                custom_act = st.text_input("➕ Tambah Action Manual (Ketik di sini jika tidak ada di pilihan atas):", placeholder="Contoh: Ganti Filter Oli Mesin...")
+                if custom_act:
+                    if custom_act not in act_sel:
+                        act_sel.append(custom_act)
+                        
+                foto_act = st.file_uploader("📸 Foto Action / Perbaikan Diluar Pengukuran (WAJIB DILAMPIRKAN):", accept_multiple_files=True, key="f_act")
 
-                st.markdown("#### 2. Pengukuran Load / Arus AC (Ampere) & Eviden Foto")
-                cc4, cc5, cc6 = st.columns(3)
-                with cc4:
-                    cond_data['i_r'] = st.text_input("Load AC R [A] *", placeholder="Contoh: 12.5")
-                    cond_files['f_i_r'] = st.file_uploader("📸 Foto Eviden Load AC R *", key="f_i_r")
-                with cc5:
-                    cond_data['i_s'] = st.text_input("Load AC S [A] *", placeholder="Contoh: 11.8")
-                    cond_files['f_i_s'] = st.file_uploader("📸 Foto Eviden Load AC S *", key="f_i_s")
-                with cc6:
-                    cond_data['i_t'] = st.text_input("Load AC T [A] *", placeholder="Contoh: 10.4")
-                    cond_files['f_i_t'] = st.file_uploader("📸 Foto Eviden Load AC T *", key="f_i_t")
+                trigger_fields_power = ["MCB Trip", "Teg PLN Drop pelaporan PLN", "Replace Module APR", "Add Baterai"]
+                show_cond_power = any(item in trigger_fields_power for item in act_sel)
+                show_cond_genset = any("Genset" in item or "ATS" in item for item in act_sel)
+                
+                if show_cond_power or show_cond_genset:
+                    st.divider()
+                    st.warning("⚠️ **WAJIB DIISI 100%:** Seluruh kolom nilai ukur dan foto eviden di bawah ini wajib dilengkapi satu per satu tanpa terkecuali!")
+                
+                if show_cond_power:
+                    st.markdown("#### ⚡ A. Pengukuran AC/DC & Eviden Foto")
+                    cc1, cc2, cc3 = st.columns(3)
+                    with cc1:
+                        cond_data['v_rn'] = st.text_input("Teg AC R-N [V] *", placeholder="Contoh: 220")
+                        cond_files['f_v_rn'] = st.file_uploader("📸 Foto Eviden Teg AC R-N *", key="f_v_rn")
+                        cond_data['i_r'] = st.text_input("Load AC R [A] *", placeholder="Contoh: 12.5")
+                        cond_files['f_i_r'] = st.file_uploader("📸 Foto Eviden Load AC R *", key="f_i_r")
+                    with cc2:
+                        cond_data['v_sn'] = st.text_input("Teg AC S-N [V] *", placeholder="Contoh: 221")
+                        cond_files['f_v_sn'] = st.file_uploader("📸 Foto Eviden Teg AC S-N *", key="f_v_sn")
+                        cond_data['i_s'] = st.text_input("Load AC S [A] *", placeholder="Contoh: 11.8")
+                        cond_files['f_i_s'] = st.file_uploader("📸 Foto Eviden Load AC S *", key="f_i_s")
+                    with cc3:
+                        cond_data['v_tn'] = st.text_input("Teg AC T-N [V] *", placeholder="Contoh: 219")
+                        cond_files['f_v_tn'] = st.file_uploader("📸 Foto Eviden Teg AC T-N *", key="f_v_tn")
+                        cond_data['i_t'] = st.text_input("Load AC T [A] *", placeholder="Contoh: 10.4")
+                        cond_files['f_i_t'] = st.file_uploader("📸 Foto Eviden Load AC T *", key="f_i_t")
 
-                st.markdown("#### 3. Parameter DC, Settingan & Modul Kontroler + Eviden Foto")
-                cc7, cc8 = st.columns(2)
-                with cc7:
-                    cond_data['load_dc'] = st.text_input("Load DC Keseluruhan [A] *", placeholder="Contoh: 45.2")
-                    cond_files['f_ldc'] = st.file_uploader("📸 Foto Eviden Load DC *", key="f_ldc")
-                    
-                    cond_data['set_bcl'] = st.text_input("Settingan BCL [%] *", placeholder="Contoh: 100%")
-                    cond_files['f_bcl'] = st.file_uploader("📸 Foto Eviden Settingan BCL *", key="f_bcl")
-                with cc8:
-                    cond_data['set_cap'] = st.text_input("Settingan Capacity [Ah] *", placeholder="Contoh: 400Ah")
-                    cond_files['f_cap'] = st.file_uploader("📸 Foto Eviden Settingan Capacity *", key="f_cap")
-                    
-                    cond_data['mod_rusak'] = st.text_input("Module Kontroler Rusak * (Isi 'Aman/0' jika normal)", placeholder="Contoh: Aman / SC200 Rusak")
-                    cond_files['f_mod'] = st.file_uploader("📸 Foto Eviden Module Kontroler *", key="f_mod")
-                    
+                    st.markdown("**Parameter DC & Modul**")
+                    cc7, cc8 = st.columns(2)
+                    with cc7:
+                        cond_data['load_dc'] = st.text_input("Load DC Total [A] *", placeholder="Contoh: 45.2")
+                        cond_files['f_ldc'] = st.file_uploader("📸 Foto Eviden Load DC *", key="f_ldc")
+                        cond_data['set_bcl'] = st.text_input("Settingan BCL [%] *", placeholder="Contoh: 100%")
+                        cond_files['f_bcl'] = st.file_uploader("📸 Foto Eviden Settingan BCL *", key="f_bcl")
+                    with cc8:
+                        cond_data['set_cap'] = st.text_input("Settingan Capacity [Ah] *", placeholder="Contoh: 400Ah")
+                        cond_files['f_cap'] = st.file_uploader("📸 Foto Eviden Settingan Cap *", key="f_cap")
+                        cond_data['mod_rusak'] = st.text_input("Module Kontroler Rusak * (Isi 'Aman/0' jika normal)")
+                        cond_files['f_mod'] = st.file_uploader("📸 Foto Eviden Module *", key="f_mod")
+
+                if show_cond_genset:
+                    st.markdown("#### ⚙️ B. Pengecekan Mesin Genset / ATS & Eviden Foto")
+                    cg1, cg2, cg3 = st.columns(3)
+                    with cg1:
+                        cond_data['gen_v'] = st.text_input("Tegangan Out Genset [V] *", placeholder="Cth: 220")
+                        cond_files['f_gen_v'] = st.file_uploader("📸 Foto Tegangan Genset *", key="f_gen_v")
+                        cond_data['gen_i'] = st.text_input("Load Arus Genset [A] *", placeholder="Cth: 25.4")
+                        cond_files['f_gen_i'] = st.file_uploader("📸 Foto Arus Genset *", key="f_gen_i")
+                    with cg2:
+                        cond_data['gen_ats'] = st.selectbox("Status Panel ATS *", ["Auto Normal", "Manual", "Rusak / Bypass"])
+                        cond_files['f_gen_ats'] = st.file_uploader("📸 Foto Panel ATS *", key="f_gen_ats")
+                        cond_data['gen_issue'] = st.selectbox("Issue Mesin Genset *", ["Normal / Aman", "Hunting / Suara Kasar", "Overheat", "Bocor Oli / BBM", "Mati Total / Tidak Bisa Start"])
+                        cond_files['f_gen_issue'] = st.file_uploader("📸 Foto Fisik Mesin *", key="f_gen_issue")
+                    with cg3:
+                        cond_data['gen_hm'] = st.text_input("Hour Meter (HM) *", placeholder="Cth: 1250.5")
+                        cond_files['f_gen_hm'] = st.file_uploader("📸 Foto Hour Meter *", key="f_gen_hm")
+                        cond_data['gen_bbm'] = st.text_input("Estimasi Sisa BBM [Liter] *", placeholder="Cth: 150")
+                        cond_files['f_gen_bbm'] = st.file_uploader("📸 Foto Tangki/Sisa BBM *", key="f_gen_bbm")
+
                 st.divider()
-                cond_data['note_action'] = st.text_area("📝 NOTE / REMARK Action Lapangan (WAJIB DIISI) *:", placeholder="Jelaskan secara singkat hasil pengerjaan dan kondisi akhir site...")
-
+                cond_data['note_action'] = st.text_area("📝 NOTE / REMARK Action Lapangan (WAJIB DIISI) *:", placeholder="Jelaskan secara spesifik hasil pengerjaan, part yang diganti, atau kendala di lapangan...")
             with tabs_reg[2]:
                 st.markdown("### 📤 Konfirmasi & Submit Laporan")
                 final_status_reg = st.radio("Status Akhir Site:", ["Normal", "Minor Issue", "Major/Critical", "Update Progress"], key="stat_reg")
@@ -1126,48 +1163,56 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                     if not act_sel: item_kurang.append("Pilihan Action Dikerjakan")
                     if not foto_act: item_kurang.append("Foto Action / Perbaikan Utama")
                     
-                    wajib_teks = [
-                        ('v_rn', 'Isian Teg AC R-N'), ('v_sn', 'Isian Teg AC S-N'), ('v_tn', 'Isian Teg AC T-N'),
-                        ('i_r', 'Isian Load AC R'), ('i_s', 'Isian Load AC S'), ('i_t', 'Isian Load AC T'),
-                        ('load_dc', 'Isian Load DC Keseluruhan'), ('set_bcl', 'Isian Settingan BCL'),
-                        ('set_cap', 'Isian Settingan Capacity'), ('mod_rusak', 'Isian Module Kontroler'),
-                        ('note_action', 'Isian Note / Remark Action')
-                    ]
+                    wajib_teks = []
+                    wajib_foto = []
+                    
+                    if show_cond_power:
+                        wajib_teks.extend([
+                            ('v_rn', 'Isian Teg AC R-N'), ('v_sn', 'Isian Teg AC S-N'), ('v_tn', 'Isian Teg AC T-N'),
+                            ('i_r', 'Isian Load AC R'), ('i_s', 'Isian Load AC S'), ('i_t', 'Isian Load AC T'),
+                            ('load_dc', 'Isian Load DC Total'), ('set_bcl', 'Isian Settingan BCL'),
+                            ('set_cap', 'Isian Capacity'), ('mod_rusak', 'Isian Module Kontroler')
+                        ])
+                        wajib_foto.extend([
+                            ('f_v_rn', 'Foto Teg AC R-N'), ('f_v_sn', 'Foto Teg AC S-N'), ('f_v_tn', 'Foto Teg AC T-N'),
+                            ('f_i_r', 'Foto Load AC R'), ('f_i_s', 'Foto Load AC S'), ('f_i_t', 'Foto Load AC T'),
+                            ('f_ldc', 'Foto Load DC'), ('f_bcl', 'Foto BCL'), ('f_cap', 'Foto Capacity'), ('f_mod', 'Foto Module')
+                        ])
+                        
+                    if show_cond_genset:
+                        wajib_teks.extend([
+                            ('gen_v', 'Isian Tegangan Output Genset'), ('gen_i', 'Isian Arus Load Genset'),
+                            ('gen_hm', 'Isian Hour Meter (HM)'), ('gen_bbm', 'Isian Sisa BBM (Liter)')
+                        ])
+                        wajib_foto.extend([
+                            ('f_gen_v', 'Foto Eviden Tegangan Genset'), ('f_gen_i', 'Foto Eviden Arus Genset'),
+                            ('f_gen_ats', 'Foto Eviden Panel ATS'), ('f_gen_issue', 'Foto Eviden Fisik Mesin'),
+                            ('f_gen_hm', 'Foto Eviden Hour Meter'), ('f_gen_bbm', 'Foto Eviden Tangki BBM')
+                        ])
+                        
+                    wajib_teks.append(('note_action', 'Isian Note / Remark Action'))
+                    
                     for k_teks, label_teks in wajib_teks:
-                        if not str(cond_data.get(k_teks, '')).strip():
-                            item_kurang.append(label_teks)
-                            
-                    wajib_foto = [
-                        ('f_v_rn', 'Foto Teg AC R-N'), ('f_v_sn', 'Foto Teg AC S-N'), ('f_v_tn', 'Foto Teg AC T-N'),
-                        ('f_i_r', 'Foto Load AC R'), ('f_i_s', 'Foto Load AC S'), ('f_i_t', 'Foto Load AC T'),
-                        ('f_ldc', 'Foto Load DC'), ('f_bcl', 'Foto Settingan BCL'),
-                        ('f_cap', 'Foto Settingan Capacity'), ('f_mod', 'Foto Module Kontroler')
-                    ]
+                        if not str(cond_data.get(k_teks, '')).strip(): item_kurang.append(label_teks)
                     for k_foto, label_foto in wajib_foto:
-                        if cond_files.get(k_foto) is None:
-                            item_kurang.append(label_foto)
+                        if cond_files.get(k_foto) is None: item_kurang.append(label_foto)
 
                     if item_kurang:
-                        st.error(f"⚠️ **LAPORAN DITOLAK!** Tim wajib mengisi seluruh kolom dan foto tanpa kurang 1 pun. Data yang masih kosong:\n- " + "\n- ".join(item_kurang))
+                        st.error(f"⚠️ **LAPORAN DITOLAK!** Tim wajib melengkapi seluruh data dan foto sesuai Action yang dipilih. Data yang masih kosong:\n- " + "\n- ".join(item_kurang))
                     else:
                         with st.spinner("⏳ Sedang memproses dan mengamankan seluruh foto eviden ke Cloud..."):
                             url_probs = upload_multiple_images(foto_prob, "reg_prob")
                             url_acts = upload_multiple_images(foto_act, "reg_act")
                             
-                            cond_data['url_v_rn'] = upload_image(cond_files.get('f_v_rn'), "reg_param")
-                            cond_data['url_v_sn'] = upload_image(cond_files.get('f_v_sn'), "reg_param")
-                            cond_data['url_v_tn'] = upload_image(cond_files.get('f_v_tn'), "reg_param")
-                            cond_data['url_i_r'] = upload_image(cond_files.get('f_i_r'), "reg_param")
-                            cond_data['url_i_s'] = upload_image(cond_files.get('f_i_s'), "reg_param")
-                            cond_data['url_i_t'] = upload_image(cond_files.get('f_i_t'), "reg_param")
-                            cond_data['url_ldc'] = upload_image(cond_files.get('f_ldc'), "reg_param")
-                            cond_data['url_bcl'] = upload_image(cond_files.get('f_bcl'), "reg_param")
-                            cond_data['url_cap'] = upload_image(cond_files.get('f_cap'), "reg_param")
-                            cond_data['url_mod'] = upload_image(cond_files.get('f_mod'), "reg_param")
-                            
-                            # Simpan gabungan ke format lama juga agar kompatibel dengan tabel/view lama
-                            cond_data['volt_ac_rst'] = f"{cond_data['v_rn']} / {cond_data['v_sn']} / {cond_data['v_tn']}"
-                            cond_data['load_ac_rst'] = f"{cond_data['i_r']} / {cond_data['i_s']} / {cond_data['i_t']}"
+                            if show_cond_power:
+                                for k_f in ['v_rn', 'v_sn', 'v_tn', 'i_r', 'i_s', 'i_t', 'ldc', 'bcl', 'cap', 'mod']:
+                                    cond_data[f'url_{k_f}'] = upload_image(cond_files.get(f'f_{k_f}'), "reg_param")
+                                cond_data['volt_ac_rst'] = f"{cond_data['v_rn']} / {cond_data['v_sn']} / {cond_data['v_tn']}"
+                                cond_data['load_ac_rst'] = f"{cond_data['i_r']} / {cond_data['i_s']} / {cond_data['i_t']}"
+                                
+                            if show_cond_genset:
+                                for k_g in ['gen_v', 'gen_i', 'gen_ats', 'gen_issue', 'gen_hm', 'gen_bbm']:
+                                    cond_data[f'url_{k_g}'] = upload_image(cond_files.get(f'f_{k_g}'), "reg_param")
                             
                             tek_str_reg = ", ".join(teknisi_reg)
                             report_dict = {
@@ -1185,8 +1230,6 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 "url_problem": url_probs,
                                 "url_action": url_acts,
                                 "cond_data": cond_data,
-                                
-                                # Parameter Fallback agar Dashboard Lama tidak kebingungan
                                 "pln_status": "-", "rect_brand": "-", "rect_out_v": "-", 
                                 "total_load": cond_data.get('load_dc', '-'),
                                 "url_sites": url_probs + url_acts, 
@@ -1824,35 +1867,136 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     # TAMPILAN SITE REGULER (VERSI BARU)
                     # =========================================================================
                     elif is_new_reguler:
+                wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')} ({r.get('role_fme', '-')})\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
+                cd = r.get('cond_data', {})
+                if cd:
+                    if cd.get('v_rn'):
+                        wa_text += f"\n*⚡ PARAMETER AC/DC:*\n- Teg AC (R/S/T): {cd.get('v_rn','-')}/{cd.get('v_sn','-')}/{cd.get('v_tn','-')} V\n- Arus AC (R/S/T): {cd.get('i_r','-')}/{cd.get('i_s','-')}/{cd.get('i_t','-')} A\n- Load DC: {cd.get('load_dc', '-')} A\n- Set BCL: {cd.get('set_bcl', '-')} | Cap: {cd.get('set_cap', '-')}\n- Modul Rusak: {cd.get('mod_rusak', '-')}\n"
+                    if cd.get('gen_v'):
+                        wa_text += f"\n*⚙️ PARAMETER GENSET:*\n- Teg Output: {cd.get('gen_v','-')} V | Load: {cd.get('gen_i','-')} A\n- Status ATS: {cd.get('gen_ats','-')}\n- Issue Mesin: {cd.get('gen_issue','-')}\n- Hour Meter: {cd.get('gen_hm','-')} HM\n- Sisa BBM: {cd.get('gen_bbm','-')} Liter\n"
+                    
+                    if cd.get('note_action'):
+                        wa_text += f"\n*📝 NOTE/REMARK:*\n{cd.get('note_action')}\n"
+            else:
+                wa_text = f"*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({kategori_site} - {r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"
+            
+            wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
+
+            # BUNGKUSAN CARD UTAMA
+            with st.container(border=False):
+                fme_tampil = r.get('teknisi', '-') if kategori_site != "Pangkalan Bun" else r.get('pb_te', '-')
+                
+                st.markdown(f"""
+                    <div style="padding: 18px 20px; border-radius: 12px; border-left: 8px solid {warna_status}; background-color: var(--secondary-background-color); margin-bottom: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.08); border-top: 1px solid rgba(128,128,128,0.1); border-right: 1px solid rgba(128,128,128,0.1); border-bottom: 1px solid rgba(128,128,128,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h3 style="margin: 0; padding: 0; font-size: 22px; font-weight: 800;">{icon} {site_id}</h3>
+                            <span style="font-size: 13px; font-weight: 700; color: #ffffff; background-color: {warna_status}; padding: 4px 12px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">📅 {r.get('timestamp', '')}</span>
+                        </div>
+                        <div style="font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>📝 Kategori:</b> {kategori_site} ({r.get('nop', '-')})</span>
+                            <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>👷 FME:</b> {fme_tampil}</span>
+                        </div>
+                        <div style="font-size: 15px; border-top: 1px dashed rgba(128,128,128,0.3); padding-top: 8px; margin-top: 8px;">
+                            <b>📊 Status Akhir:</b> <span style="color: {warna_status}; font-weight: 900; font-size: 16px;">{stat}</span>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                c_btn1, c_btn2 = st.columns(2)
+                with c_btn1: st.link_button("📱 Share Rangkuman Laporan (WA)", wa_url, use_container_width=True)
+                with c_btn2:
+                    if kategori_site != "Pangkalan Bun" and not is_new_reguler:
+                        if st.checkbox("📄 Buat PDF Resmi", key=f"prep_pdf_{i}"):
+                            with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
+                                try:
+                                    pdf_bytes = build_pdf(r)
+                                    st.download_button(label="📥 Download PDF", data=pdf_bytes, file_name=f"Berita_Acara_{site_id}.pdf", mime="application/pdf", key=f"dl_pdf_{i}", type="primary", use_container_width=True)
+                                except Exception as e:
+                                    st.error(f"Gagal memproses PDF: {e}")
+                    else:
+                        st.button("📄 Format Tanpa PDF", disabled=True, key=f"dl_pdf_dis_{i}", use_container_width=True)
+
+                with st.expander("📂 BUKA DETAIL & DOKUMENTASI LAPORAN"):
+                    
+                    if kategori_site == "Pangkalan Bun":
+                        # ... (Kode Pangkalan Bun tidak diubah, sama persis seperti sebelumnya) ...
+                        st.markdown("### 📋 SITE VISIT REPORT (Pangkalan Bun)")
+                        st.write(f"**FME NAME:** {r.get('pb_te', '-')} | **Ticket:** {r.get('pb_ticket', '-')}")
+                        st.write(f"**Catuan Power:** {r.get('pb_power', '-')} | **Status Akhir:** {stat}")
+                        
+                        tpb1, tpb2, tpb3, tpb4 = st.tabs(["📌 Info & Recti", "⚡ Kelistrikan & ACPDB", "⛽ Genset & ENVA", "📝 Temuan & Activity"])
+                        with tpb1:
+                            st.markdown("**Data Rectifier:**")
+                            for rect in r.get('pb_rectifiers', []): st.write(f"🔹 **{rect.get('tipe')}** | BCL: {rect.get('bcl')}% | Beban: {rect.get('load')}A | Voltase: {rect.get('dc_v')}V")
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            tampilkan_grid_foto(r.get('pb_url_site', []), "📸 Foto Site / Kondisi Umum")
+                            tampilkan_grid_foto(r.get('pb_url_recti', []), "📸 Foto Rectifier & ENVA")
+                        with tpb2:
+                            kel = r.get('pb_kelistrikan', {})
+                            acp = r.get('pb_acpdb', {})
+                            st.write(f"**Kelistrikan:** Daya KWH: {kel.get('daya', '-')} | Phasa: {kel.get('phasa', '-')} | Teg. G-N: {kel.get('v_gn', '-')}")
+                            st.write(f"**ACPDB:** Tersedia: {acp.get('ada', '-')} | Teg. RST thd N: {acp.get('v_rst_n', '-')}")
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            tampilkan_grid_foto(r.get('pb_url_listrik', []), "📸 Foto Kelistrikan & ACPDB")
+                        with tpb3:
+                            gen = r.get('pb_genset', {})
+                            en = r.get('pb_enva', {})
+                            st.write(f"**Genset:** Ada: {gen.get('ada', '-')} | Kapasitas: {gen.get('cap', '-')} | Tangki: {gen.get('tangki', '-')} | Sisa: {gen.get('bbm', '-')}")
+                            st.write(f"**ENVA:** Main Fail: {en.get('main_fail', '-')} | Rectifier Fail: {en.get('rect_fail', '-')} | High Temp: {en.get('high_temp', '-')}")
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            tampilkan_grid_foto(r.get('pb_url_genset', []), "📸 Foto Genset / Tangki")
+                        with tpb4:
+                            st.markdown("**Catatan/Temuan Tim:**")
+                            st.info(r.get('action', '-'))
+                            st.markdown("**Activity Report:**")
+                            if r.get('pb_act_power'): st.write(f"- Power & CME: {', '.join(r.get('pb_act_power'))}")
+                            if r.get('pb_act_trans'): st.write(f"- Transport: {', '.join(r.get('pb_act_trans'))}")
+                            if r.get('pb_act_osa'): st.write(f"- OSA Impact: {', '.join(r.get('pb_act_osa'))}")
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            tampilkan_grid_foto(r.get('pb_url_act', []), "📸 Foto Temuan / Action Lapangan")
+
+                    elif is_new_reguler:
                         st.markdown("### 📋 SITE REGULER REPORT")
                         st.markdown(f"**👨‍🔧 FME:** {r.get('teknisi', '-')} ({r.get('role_fme', '-')}) &nbsp;&nbsp;|&nbsp;&nbsp; **🚨 Problem:** {r.get('problem_alarm', '-')}")
                         st.markdown(f"**🔧 Action Dikerjakan:** {', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}")
                         
-                        cond_data = r.get('cond_data', {})
-                        if cond_data:
-                            v_rst = cond_data.get('volt_ac_rst') or f"{cond_data.get('v_rn','-')}/{cond_data.get('v_sn','-')}/{cond_data.get('v_tn','-')}"
-                            i_rst = cond_data.get('load_ac_rst') or f"{cond_data.get('i_r','-')}/{cond_data.get('i_s','-')}/{cond_data.get('i_t','-')}"
-                            st.info(f"**⚡ Parameter Kelistrikan:** Teg AC ({v_rst} V) | Arus AC ({i_rst} A) | Load DC ({cond_data.get('load_dc','-')} A) | BCL ({cond_data.get('set_bcl','-')}) | Capacity ({cond_data.get('set_cap','-')})")
-                            if cond_data.get('note_action'):
-                                st.warning(f"**📝 NOTE/REMARK Lapangan:** {cond_data.get('note_action')}")
+                        cd = r.get('cond_data', {})
+                        if cd:
+                            teks_info = ""
+                            if cd.get('v_rn'):
+                                v_rst = cd.get('volt_ac_rst') or f"{cd.get('v_rn','-')}/{cd.get('v_sn','-')}/{cd.get('v_tn','-')}"
+                                i_rst = cd.get('load_ac_rst') or f"{cd.get('i_r','-')}/{cd.get('i_s','-')}/{cd.get('i_t','-')}"
+                                teks_info += f"**⚡ Power AC/DC:** Teg AC ({v_rst} V) | Arus AC ({i_rst} A) | Load DC ({cd.get('load_dc','-')} A) | BCL ({cd.get('set_bcl','-')}) | Cap ({cd.get('set_cap','-')})<br>"
+                            if cd.get('gen_v'):
+                                teks_info += f"**⚙️ Genset/ATS:** Teg Out ({cd.get('gen_v','-')} V) | Arus ({cd.get('gen_i','-')} A) | ATS ({cd.get('gen_ats','-')}) | Issue ({cd.get('gen_issue','-')}) | HM ({cd.get('gen_hm','-')}) | BBM ({cd.get('gen_bbm','-')} L)<br>"
+                                
+                            if teks_info: st.info(teks_info, unsafe_allow_html=True)
+                            if cd.get('note_action'):
+                                st.warning(f"**📝 NOTE/REMARK Lapangan:** {cd.get('note_action')}")
                             
                         st.markdown("<br>", unsafe_allow_html=True)
-                        t1, t2, t3 = st.tabs(["📸 Foto Problem Alarm", "📸 Foto Perbaikan", "📸 Eviden Parameter"])
+                        t1, t2, t3 = st.tabs(["📸 Problem Alarm", "📸 Action Perbaikan", "📸 Eviden Parameter"])
                         with t1: tampilkan_grid_foto(r.get('url_problem', []), "Dokumentasi Problem Alarm")
                         with t2: tampilkan_grid_foto(r.get('url_action', []), "Dokumentasi Perbaikan / Action")
                         with t3: 
-                            if cond_data:
+                            if cd:
                                 eviden_list = [
-                                    (cond_data.get('url_v_rn'), f"Teg AC R-N: {cond_data.get('v_rn', '-')} V"),
-                                    (cond_data.get('url_v_sn'), f"Teg AC S-N: {cond_data.get('v_sn', '-')} V"),
-                                    (cond_data.get('url_v_tn'), f"Teg AC T-N: {cond_data.get('v_tn', '-')} V"),
-                                    (cond_data.get('url_i_r'), f"Load AC R: {cond_data.get('i_r', '-')} A"),
-                                    (cond_data.get('url_i_s'), f"Load AC S: {cond_data.get('i_s', '-')} A"),
-                                    (cond_data.get('url_i_t'), f"Load AC T: {cond_data.get('i_t', '-')} A"),
-                                    (cond_data.get('url_ldc'), f"Load DC Total: {cond_data.get('load_dc', '-')} A"),
-                                    (cond_data.get('url_bcl'), f"Settingan BCL: {cond_data.get('set_bcl', '-')}"),
-                                    (cond_data.get('url_cap'), f"Settingan Capacity: {cond_data.get('set_cap', '-')}"),
-                                    (cond_data.get('url_mod'), f"Module Kontroler: {cond_data.get('mod_rusak', '-')}")
+                                    (cd.get('url_v_rn'), f"Teg AC R-N: {cd.get('v_rn', '-')} V"),
+                                    (cd.get('url_v_sn'), f"Teg AC S-N: {cd.get('v_sn', '-')} V"),
+                                    (cd.get('url_v_tn'), f"Teg AC T-N: {cd.get('v_tn', '-')} V"),
+                                    (cd.get('url_i_r'), f"Load AC R: {cd.get('i_r', '-')} A"),
+                                    (cd.get('url_i_s'), f"Load AC S: {cd.get('i_s', '-')} A"),
+                                    (cd.get('url_i_t'), f"Load AC T: {cd.get('i_t', '-')} A"),
+                                    (cd.get('url_ldc'), f"Load DC Total: {cd.get('load_dc', '-')} A"),
+                                    (cd.get('url_bcl'), f"Set BCL: {cd.get('set_bcl', '-')}"),
+                                    (cd.get('url_cap'), f"Set Capacity: {cd.get('set_cap', '-')}"),
+                                    (cd.get('url_mod'), f"Module Kontroler: {cd.get('mod_rusak', '-')}"),
+                                    (cd.get('url_gen_v'), f"Tegangan Out Genset: {cd.get('gen_v', '-')} V"),
+                                    (cd.get('url_gen_i'), f"Load Arus Genset: {cd.get('gen_i', '-')} A"),
+                                    (cd.get('url_gen_ats'), f"Panel ATS: {cd.get('gen_ats', '-')}"),
+                                    (cd.get('url_gen_issue'), f"Kondisi Mesin: {cd.get('gen_issue', '-')}"),
+                                    (cd.get('url_gen_hm'), f"Hour Meter: {cd.get('gen_hm', '-')} HM"),
+                                    (cd.get('url_gen_bbm'), f"Sisa BBM: {cd.get('gen_bbm', '-')} Liter")
                                 ]
                                 ada_foto = False
                                 for u_ev, cap_ev in eviden_list:
@@ -1862,8 +2006,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                 if not ada_foto:
                                     st.write("Belum ada foto parameter pengukuran pada laporan ini.")
                             else:
-                                st.write("Tidak ada parameter kelistrikan yang dilaporkan.")
-                        
+                                st.write("Tidak ada parameter pengukuran yang dilaporkan.")                        
                         if st.session_state['role'] == 'Admin':
                             st.markdown("<br>", unsafe_allow_html=True)
                             with st.container(border=True):
