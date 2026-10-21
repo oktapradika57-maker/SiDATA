@@ -1376,7 +1376,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             proj_data['tipe_pekerjaan'] = tipe_pekerjaan
 
                         st.markdown("### 🗺️ Tabel Multi-Site, Rincian Pekerjaan, Timeline & Alokasi Biaya")
-                        st.info("💡 **Klik baris di bawah (atau klik tanda `+` di baris paling bawah tabel)** untuk menambahkan 5, 10, atau puluhan rute site sekaligus dalam 1 PO!")
+                        st.info("💡 **Klik baris di bawah (atau klik tanda `+` di baris paling bawah tabel)** untuk menambahkan banyak rute site sekaligus, termasuk **Dana Tersupport (Cair)** dan **Alasan jika Mandek**!")
                         
                         df_po = pd.DataFrame([
                             {
@@ -1384,10 +1384,12 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 "Site Tujuan": "",
                                 "Pekerjaan Spesifik": "",
                                 "Budget Per Site": 0,
+                                "Dana Tersupport": 0,
                                 "Start Date": datetime.date.today().strftime("%Y-%m-%d"),
                                 "End Date": datetime.date.today().strftime("%Y-%m-%d"),
                                 "Progress (%)": 0,
                                 "Status": "Not Started",
+                                "Kategori Kendala": "Lancar / Normal",
                                 "Remark": ""
                             }
                         ])
@@ -1400,12 +1402,20 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 "Site Asal": st.column_config.TextColumn("Site Asal (Dari)"),
                                 "Site Tujuan": st.column_config.TextColumn("Site Tujuan (Ke)"),
                                 "Pekerjaan Spesifik": st.column_config.TextColumn("Pekerjaan di Site"),
-                                "Budget Per Site": st.column_config.NumberColumn("Nilai / Cost Site (Rp)", min_value=0, default=0, step=100000),
+                                "Budget Per Site": st.column_config.NumberColumn("Total Budget Site (Rp)", min_value=0, default=0, step=100000),
+                                "Dana Tersupport": st.column_config.NumberColumn("Dana Tersupport / Cair (Rp)", min_value=0, default=0, step=100000),
                                 "Start Date": st.column_config.TextColumn("Tgl Mulai (YYYY-MM-DD)"),
                                 "End Date": st.column_config.TextColumn("Target Selesai (YYYY-MM-DD)"),
                                 "Progress (%)": st.column_config.NumberColumn("Progress (%)", min_value=0, max_value=100, default=0),
                                 "Status": st.column_config.SelectboxColumn("Status Site", options=["Not Started", "On Progress", "Done", "Pending Issue"]),
-                                "Remark": st.column_config.TextColumn("Keterangan / Issue")
+                                "Kategori Kendala": st.column_config.SelectboxColumn("Kenapa Mandek / Kendala", options=[
+                                    "Lancar / Normal",
+                                    "Mandek - Pending Keuangan (Dana Belum Cair)",
+                                    "Mandek - Pending Material / Sparepart",
+                                    "Mandek - Izin Site / Community Issue",
+                                    "Mandek - Kendala Teknis / Cuaca"
+                                ]),
+                                "Remark": st.column_config.TextColumn("Detail Kendala / Catatan")
                             },
                             key="tabel_po_input"
                         )
@@ -1415,24 +1425,29 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                         except:
                             val_po = 0.0
                             
-                        # Bersihkan baris yang benar-benar kosong
                         df_clean_po = edited_po.copy()
                         if not df_clean_po.empty:
                             df_clean_po["Budget Per Site"] = pd.to_numeric(df_clean_po["Budget Per Site"], errors='coerce').fillna(0.0)
+                            df_clean_po["Dana Tersupport"] = pd.to_numeric(df_clean_po["Dana Tersupport"], errors='coerce').fillna(0.0)
                             df_clean_po["Progress (%)"] = pd.to_numeric(df_clean_po["Progress (%)"], errors='coerce').fillna(0.0)
                             
                         total_cost = df_clean_po["Budget Per Site"].sum() if not df_clean_po.empty else 0.0
+                        total_sup = df_clean_po["Dana Tersupport"].sum() if not df_clean_po.empty else 0.0
+                        pending_fin = max(total_cost - total_sup, 0.0)
                         margin = val_po - total_cost
                         avg_progress = df_clean_po["Progress (%)"].mean() if not df_clean_po.empty else 0.0
                         
-                        cm1, cm2, cm3, cm4 = st.columns(4)
+                        cm1, cm2, cm3, cm4, cm5 = st.columns(5)
                         cm1.metric("💰 Total Nilai PO", f"Rp {val_po:,.0f}")
-                        cm2.metric("💸 Total Biaya Rute", f"Rp {total_cost:,.0f}")
-                        cm3.metric("📈 Estimasi Margin", f"Rp {margin:,.0f}", delta=f"{(margin/val_po*100):.1f}%" if val_po > 0 else "")
-                        cm4.metric("📊 Rata-Rata Progress", f"{avg_progress:.1f}%")
+                        cm2.metric("💸 Total Budget Site", f"Rp {total_cost:,.0f}")
+                        cm3.metric("✅ Dana Tersupport", f"Rp {total_sup:,.0f}")
+                        cm4.metric("🚨 Pending Keuangan", f"Rp {pending_fin:,.0f}")
+                        cm5.metric("📈 Estimasi Margin", f"Rp {margin:,.0f}", delta=f"{avg_progress:.0f}% Progress")
                         
                         proj_data['tabel_pekerjaan'] = df_clean_po.astype(str).to_dict('records')
                         proj_data['total_cost'] = float(total_cost)
+                        proj_data['total_support'] = float(total_sup)
+                        proj_data['pending_finance'] = float(pending_fin)
                         proj_data['margin'] = float(margin)
                         proj_data['avg_progress'] = float(avg_progress)
 
@@ -3167,21 +3182,21 @@ elif menu == "💎 Executive Project Dashboard":
             border: 1px solid rgba(255,255,255,0.1);
             border-left: 5px solid #FFD700;
             border-radius: 16px;
-            padding: 20px 22px;
+            padding: 18px 20px;
             color: white;
             box-shadow: 0 8px 20px rgba(0,0,0,0.18);
             margin-bottom: 15px;
         }
-        .lux-kpi-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: #9ca3af; font-weight: 700; margin-bottom: 6px; }
-        .lux-kpi-val { font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: 0.5px; }
-        .lux-kpi-sub { font-size: 12px; color: #10b981; font-weight: 700; margin-top: 4px; }
+        .lux-kpi-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: #9ca3af; font-weight: 700; margin-bottom: 6px; }
+        .lux-kpi-val { font-size: 21px; font-weight: 900; color: #ffffff; letter-spacing: 0.5px; }
+        .lux-kpi-sub { font-size: 11px; color: #10b981; font-weight: 700; margin-top: 4px; }
         .tl-card {
             background: var(--secondary-background-color);
-            border: 1px solid rgba(128,128,128,0.2);
+            border: 1px solid rgba(128,128,128,0.25);
             border-radius: 14px;
             padding: 16px 20px;
             margin-bottom: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
         }
         .badge-done { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 800; }
         .badge-prog { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid #f59e0b; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 800; }
@@ -3196,7 +3211,7 @@ elif menu == "💎 Executive Project Dashboard":
             <div class="lux-header">
                 <div style="font-size: 12px; color: #FFD700; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">💎 Enterprise Portfolio & Financial Intelligence</div>
                 <h1 style="color: #ffffff !important; font-size: 32px; font-weight: 900; margin: 5px 0 8px 0;">Executive Project & Timeline Command Center</h1>
-                <div style="color: #cbd5e1; font-size: 14px;">Monitoring Real-Time Purchase Order (PO), Relokasi Multi-Site, Costing Margin, Timeline Tracker & SVA Audit.</div>
+                <div style="color: #cbd5e1; font-size: 14px;">Monitoring Real-Time Purchase Order (PO), Grafik Budget vs Dana Tersupport, Pending Keuangan & Analisa Project Mandek.</div>
             </div>
         """, unsafe_allow_html=True)
     with c_hd2:
@@ -3217,8 +3232,10 @@ elif menu == "💎 Executive Project Dashboard":
     else:
         total_po_val = 0.0
         total_cost_val = 0.0
+        total_support_val = 0.0
         total_routes = 0
         routes_done = 0
+        routes_mandek = 0
         all_timeline_rows = []
 
         for idx in proj_indices:
@@ -3232,104 +3249,203 @@ elif menu == "💎 Executive Project Dashboard":
                 total_po_val += v_po
                 
                 tbl_p = pd_p.get('tabel_pekerjaan', [])
-                for row_t in tbl_p:
+                if not tbl_p:
+                    tbl_p = [{
+                        "Site Asal": r_p.get('site_name', 'PO Utama'),
+                        "Site Tujuan": "-",
+                        "Pekerjaan Spesifik": pd_p.get('tipe_pekerjaan', 'Project PO'),
+                        "Budget Per Site": v_po,
+                        "Dana Tersupport": 0,
+                        "Start Date": r_p.get('timestamp', '')[:10],
+                        "End Date": r_p.get('timestamp', '')[:10],
+                        "Progress (%)": pd_p.get('avg_progress', 0),
+                        "Status": r_p.get('status', 'Not Started'),
+                        "Kategori Kendala": "Lancar / Normal",
+                        "Remark": pd_p.get('note_akhir', '-')
+                    }]
+
+                for r_i, row_t in enumerate(tbl_p):
                     asal_s = str(row_t.get('Site Asal', '')).strip()
                     tuj_s = str(row_t.get('Site Tujuan', '')).strip()
                     pek_s = str(row_t.get('Pekerjaan Spesifik', '')).strip()
-                    if not asal_s and not tuj_s and not pek_s:
-                        continue
-                        
-                    total_routes += 1
                     try:
                         c_site = float(str(row_t.get('Budget Per Site', '0')).replace('.', '').replace(',', ''))
                     except:
                         c_site = 0.0
+                    try:
+                        sup_site = float(str(row_t.get('Dana Tersupport', '0')).replace('.', '').replace(',', ''))
+                    except:
+                        sup_site = 0.0
+
+                    # Fallback jika budget per site masih 0 pada baris tunggal agar grafik langsung tampil proporsional
+                    if c_site == 0 and len(tbl_p) == 1 and v_po > 0:
+                        c_site = v_po
+
+                    if not asal_s or asal_s == 'nan':
+                        asal_s = f"Site-{r_i+1}"
+                    if not pek_s or pek_s == 'nan':
+                        pek_s = str(pd_p.get('tipe_pekerjaan', 'Pekerjaan PO'))
+
+                    total_routes += 1
                     total_cost_val += c_site
+                    total_support_val += sup_site
+                    pending_fin_site = max(c_site - sup_site, 0.0)
                     
-                    st_site = str(row_t.get('Status', 'Not Started'))
+                    st_site = str(row_t.get('Status', 'Not Started') or 'Not Started')
+                    kendala_site = str(row_t.get('Kategori Kendala', 'Lancar / Normal') or 'Lancar / Normal')
+                    if kendala_site == 'nan':
+                        kendala_site = 'Lancar / Normal'
+                        
                     try:
                         pr_site = float(row_t.get('Progress (%)', 0) or 0)
                     except:
                         pr_site = 0.0
+
+                    # Auto-deteksi jika dana belum tersupport 100% dan status belum Done
+                    if st_site != 'Done' and pr_site < 100 and pending_fin_site > 0 and kendala_site == 'Lancar / Normal':
+                        kendala_site = "Mandek - Pending Keuangan (Dana Belum Cair)"
+                        
                     if st_site == 'Done' or pr_site >= 100:
                         routes_done += 1
+                    elif st_site == 'Pending Issue' or "Mandek" in kendala_site or pending_fin_site > 0:
+                        routes_mandek += 1
                         
+                    rute_label = f"{asal_s} ➔ {tuj_s}" if tuj_s and tuj_s not in ['-', 'nan', ''] else asal_s
                     all_timeline_rows.append({
-                        "No PO": pd_p.get('no_po', '-'),
-                        "Mitra": pd_p.get('mitra', '-'),
-                        "Program": pd_p.get('tipe_pekerjaan', '-'),
-                        "Site Asal": asal_s or '-',
-                        "Site Tujuan": tuj_s or '-',
-                        "Rute Site": f"{asal_s or '-'} ➔ {tuj_s or '-'}",
-                        "Pekerjaan Spesifik": pek_s or '-',
-                        "Budget (Rp)": c_site,
-                        "Start Date": str(row_t.get('Start Date', '') or '-'),
-                        "End Date": str(row_t.get('End Date', '') or '-'),
+                        "No PO": str(pd_p.get('no_po', '-')),
+                        "Mitra": str(pd_p.get('mitra', '-')),
+                        "Program": str(pd_p.get('tipe_pekerjaan', '-')),
+                        "Site Asal": asal_s,
+                        "Site Tujuan": tuj_s if tuj_s not in ['nan', ''] else '-',
+                        "Rute Site": f"[{pd_p.get('no_po', '-')}] {rute_label}",
+                        "Pekerjaan Spesifik": pek_s,
+                        "Total Budget (Rp)": c_site,
+                        "Dana Tersupport (Rp)": sup_site,
+                        "Pending Keuangan (Rp)": pending_fin_site,
+                        "Start Date": str(row_t.get('Start Date', '') or r_p.get('timestamp', '')[:10]),
+                        "End Date": str(row_t.get('End Date', '') or r_p.get('timestamp', '')[:10]),
                         "Progress (%)": pr_site,
                         "Status": st_site,
-                        "Remark": str(row_t.get('Remark', '') or '-'),
+                        "Kategori Kendala": kendala_site,
+                        "Remark": str(row_t.get('Remark', '') or pd_p.get('note_akhir', '-') or '-'),
                         "PIC Tim": r_p.get('teknisi', '-')
                     })
 
         total_margin_val = total_po_val - total_cost_val
+        total_pending_fin = max(total_cost_val - total_support_val, 0.0)
+        support_ratio = (total_support_val / total_cost_val * 100) if total_cost_val > 0 else 0.0
         margin_pct = (total_margin_val / total_po_val * 100) if total_po_val > 0 else 0.0
         route_completion_pct = (routes_done / total_routes * 100) if total_routes > 0 else 0.0
 
-        # 4 LUXURY KPI CARDS
-        k1, k2, k3, k4 = st.columns(4)
+        # 6 LUXURY KPI CARDS
+        k1, k2, k3 = st.columns(3)
         with k1:
             st.markdown(f"""
                 <div class="lux-kpi" style="border-left-color: #3b82f6;">
                     <div class="lux-kpi-title">💰 Total Nilai Kontrak PO</div>
                     <div class="lux-kpi-val">Rp {total_po_val:,.0f}</div>
-                    <div class="lux-kpi-sub" style="color: #60a5fa;">{len(proj_indices)} Total Project Terdaftar</div>
+                    <div class="lux-kpi-sub" style="color: #60a5fa;">{len(proj_indices)} Kontrak Project Terdaftar</div>
                 </div>
             """, unsafe_allow_html=True)
         with k2:
             st.markdown(f"""
                 <div class="lux-kpi" style="border-left-color: #f59e0b;">
-                    <div class="lux-kpi-title">💸 Total Alokasi Cost Site</div>
+                    <div class="lux-kpi-title">💸 Total Budget / RAB Rute</div>
                     <div class="lux-kpi-val">Rp {total_cost_val:,.0f}</div>
-                    <div class="lux-kpi-sub" style="color: #fbbf24;">Dari {total_routes} Rute / Titik Site</div>
+                    <div class="lux-kpi-sub" style="color: #fbbf24;">Alokasi untuk {total_routes} Rute Site</div>
                 </div>
             """, unsafe_allow_html=True)
         with k3:
             warna_m = "#10b981" if total_margin_val >= 0 else "#ef4444"
             st.markdown(f"""
                 <div class="lux-kpi" style="border-left-color: {warna_m};">
-                    <div class="lux-kpi-title">📈 Estimasi Net Margin</div>
+                    <div class="lux-kpi-title">📈 Estimasi Net Margin PO</div>
                     <div class="lux-kpi-val" style="color: {warna_m};">Rp {total_margin_val:,.0f}</div>
-                    <div class="lux-kpi-sub" style="color: {warna_m};">Profitability Ratio: {margin_pct:.1f}%</div>
+                    <div class="lux-kpi-sub" style="color: {warna_m};">Profitability: {margin_pct:.1f}% dari Nilai PO</div>
                 </div>
             """, unsafe_allow_html=True)
+
+        k4, k5, k6 = st.columns(3)
         with k4:
             st.markdown(f"""
+                <div class="lux-kpi" style="border-left-color: #10b981;">
+                    <div class="lux-kpi-title">✅ Dana Sudah Tersupport (Cair)</div>
+                    <div class="lux-kpi-val" style="color: #10b981;">Rp {total_support_val:,.0f}</div>
+                    <div class="lux-kpi-sub" style="color: #34d399;">{support_ratio:.1f}% dari Total Budget Rute</div>
+                </div>
+            """, unsafe_allow_html=True)
+        with k5:
+            st.markdown(f"""
+                <div class="lux-kpi" style="border-left-color: #ef4444;">
+                    <div class="lux-kpi-title">🚨 Pending Keuangan (Belum Cair)</div>
+                    <div class="lux-kpi-val" style="color: #ef4444;">Rp {total_pending_fin:,.0f}</div>
+                    <div class="lux-kpi-sub" style="color: #f87171;">Dana tertahan / belum disupport</div>
+                </div>
+            """, unsafe_allow_html=True)
+        with k6:
+            st.markdown(f"""
                 <div class="lux-kpi" style="border-left-color: #a855f7;">
-                    <div class="lux-kpi-title">🎯 Clearance / Selesai</div>
-                    <div class="lux-kpi-val">{routes_done} / {total_routes} Rute</div>
-                    <div class="lux-kpi-sub" style="color: #c084fc;">{route_completion_pct:.1f}% Rute Site Clear</div>
+                    <div class="lux-kpi-title">🎯 Clearance & Bottleneck</div>
+                    <div class="lux-kpi-val">{routes_done}/{total_routes} Clear | <span style="color:#ef4444;">{routes_mandek} Tertahan</span></div>
+                    <div class="lux-kpi-sub" style="color: #c084fc;">{route_completion_pct:.1f}% Rute Site Selesai</div>
                 </div>
             """, unsafe_allow_html=True)
 
         tab_tl, tab_po_list, tab_export = st.tabs([
-            "🗓️ Interactive Timeline & Absensi Site",
-            "📂 Klik Nomor PO / SVA (Update Progress & Foto)",
+            "📊 Grafik Budget vs Support, Timeline & Analisa Mandek",
+            "📂 Klik Nomor PO / SVA (Update Dana Support, Timeline & Foto)",
             "📥 Executive Financial Export"
         ])
 
         with tab_tl:
-            st.markdown("### 🗓️ Interactive Project Timeline & Site Clearance Tracker")
             if not all_timeline_rows:
-                st.info("Belum ada rincian rute site pada PO yang dimasukkan.")
+                st.info("Belum ada rincian PO yang dimasukkan.")
             else:
                 df_tl = pd.DataFrame(all_timeline_rows)
+
+                # =====================================================================
+                # 1. GRAFIK KOMPARASI TOTAL BUDGET VS DANA TERSUPPORT VS PENDING KEUANGAN
+                # =====================================================================
+                st.markdown("### 📊 1. Grafik Komparasi Budget vs Dana Tersupport & Pending Keuangan")
+                cg_1, cg_2 = st.columns([1.4, 1])
+                with cg_1:
+                    with st.container(border=True):
+                        st.markdown("**💰 Komparasi Total Budget vs Sudah Tersupport vs Pending Keuangan (Per Rute Site)**")
+                        df_chart_fin = df_tl.set_index("Rute Site")[["Total Budget (Rp)", "Dana Tersupport (Rp)", "Pending Keuangan (Rp)"]]
+                        st.bar_chart(df_chart_fin, color=["#3b82f6", "#10b981", "#ef4444"])
+                        st.caption("Biru = Total Budget Site | Hijau = Dana Sudah Tersupport | Merah = Pending Keuangan (Belum Cair)")
+
+                with cg_2:
+                    with st.container(border=True):
+                        st.markdown("**🛑 Analisa Bottleneck: Kenapa Project Mandek / Tertahan?**")
+                        df_kendala = df_tl["Kategori Kendala"].value_counts().reset_index()
+                        df_kendala.columns = ["Alasan / Kendala", "Jumlah Site"]
+                        st.bar_chart(df_kendala.set_index("Alasan / Kendala"), color="#f59e0b")
+                        
+                        df_stuck = df_tl[(df_tl["Pending Keuangan (Rp)"] > 0) | (df_tl["Status"] != "Done")]
+                        if not df_stuck.empty:
+                            st.markdown("**🚨 Daftar Rute Site Tertahan / Butuh Support Keuangan:**")
+                            for _, r_st in df_stuck.head(5).iterrows():
+                                st.markdown(
+                                    f"<div style='font-size:12px; padding:6px 10px; margin-bottom:4px; border-left:4px solid #ef4444; background:rgba(239,68,68,0.08); border-radius:6px;'>"
+                                    f"<b>{r_st['Rute Site']}</b> — Pending Keuangan: <b style='color:#ef4444;'>Rp {r_st['Pending Keuangan (Rp)']:,.0f}</b><br>"
+                                    f"📌 <i>Kendala: {r_st['Kategori Kendala']} | Remark: {r_st['Remark']}</i></div>",
+                                    unsafe_allow_html=True
+                                )
+
+                st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
+
+                # =====================================================================
+                # 2. VISUAL TIMELINE GANTT & ABSENSI PENGERJAAN SITE
+                # =====================================================================
+                st.markdown("### 🗓️ 2. Visual Timeline Chart & Absensi Progress Per-Site")
                 cf1, cf2, cf3 = st.columns(3)
                 with cf1:
                     flt_po = st.selectbox("🔍 Filter Nomor PO:", ["Semua PO"] + sorted(df_tl["No PO"].unique().tolist()))
                 with cf2:
                     flt_stat = st.selectbox("📊 Filter Status Site:", ["Semua Status", "Done", "On Progress", "Not Started", "Pending Issue"])
                 with cf3:
-                    flt_cari = st.text_input("🔎 Cari Site Asal / Tujuan / Pekerjaan:", placeholder="Ketik Site ID...")
+                    flt_cari = st.text_input("🔎 Cari Site Asal / Tujuan / Kendala:", placeholder="Ketik Site ID atau Kendala...")
 
                 df_tl_view = df_tl.copy()
                 if flt_po != "Semua PO":
@@ -3340,11 +3456,27 @@ elif menu == "💎 Executive Project Dashboard":
                     q_tl = flt_cari.strip().lower()
                     df_tl_view = df_tl_view[
                         df_tl_view["Rute Site"].str.lower().str.contains(q_tl) |
-                        df_tl_view["Pekerjaan Spesifik"].str.lower().str.contains(q_tl)
+                        df_tl_view["Pekerjaan Spesifik"].str.lower().str.contains(q_tl) |
+                        df_tl_view["Kategori Kendala"].str.lower().str.contains(q_tl)
                     ]
+
+                with st.container(border=True):
+                    st.markdown("**📈 Grafik Perbandingan Progress Fisik (%) vs Persentase Support Keuangan (%)**")
+                    df_prog_cmp = df_tl_view.copy()
+                    df_prog_cmp["Support Keuangan (%)"] = df_prog_cmp.apply(
+                        lambda x: min((x["Dana Tersupport (Rp)"] / x["Total Budget (Rp)"] * 100), 100.0) if x["Total Budget (Rp)"] > 0 else 0.0,
+                        axis=1
+                    ).round(1)
+                    st.bar_chart(df_prog_cmp.set_index("Rute Site")[["Progress (%)", "Support Keuangan (%)"]], color=["#a855f7", "#10b981"])
+                    st.caption("Ungu = Progress Fisik Lapangan (%) | Hijau = Persentase Dana Sudah Disupport Keuangan (%)")
 
                 for _, row_item in df_tl_view.iterrows():
                     prog_val = float(row_item["Progress (%)"])
+                    b_tot = float(row_item["Total Budget (Rp)"])
+                    b_sup = float(row_item["Dana Tersupport (Rp)"])
+                    b_pend = float(row_item["Pending Keuangan (Rp)"])
+                    sup_pct = min((b_sup / b_tot * 100), 100.0) if b_tot > 0 else 0.0
+
                     stat_val = row_item["Status"]
                     if stat_val == "Done" or prog_val >= 100:
                         b_cls = "badge-done"
@@ -3352,39 +3484,48 @@ elif menu == "💎 Executive Project Dashboard":
                     elif stat_val == "On Progress":
                         b_cls = "badge-prog"
                         bar_col = "#f59e0b"
-                    elif stat_val == "Pending Issue":
+                    elif stat_val == "Pending Issue" or "Mandek" in str(row_item["Kategori Kendala"]):
                         b_cls = "badge-issue"
                         bar_col = "#ef4444"
                     else:
                         b_cls = "badge-wait"
                         bar_col = "#6b7280"
 
+                    warna_kendala = "#ef4444" if ("Mandek" in str(row_item["Kategori Kendala"]) or b_pend > 0) and stat_val != "Done" else "#10b981"
+
                     st.markdown(f"""
-                        <div class="tl-card">
+                        <div class="tl-card" style="border-left: 6px solid {bar_col};">
                             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
                                 <div>
                                     <span style="font-size:12px; font-weight:800; color:#3b82f6; background:rgba(59,130,246,0.12); padding:3px 8px; border-radius:6px; margin-right:8px;">PO: {row_item['No PO']}</span>
                                     <span style="font-size:17px; font-weight:900;">📍 {row_item['Site Asal']} ➡️ {row_item['Site Tujuan']}</span>
                                 </div>
-                                <div>
+                                <div style="display:flex; gap:8px; align-items:center;">
+                                    <span style="font-size:12px; font-weight:800; color:{warna_kendala}; background:rgba(239,68,68,0.1); padding:3px 10px; border-radius:20px; border:1px solid {warna_kendala};">🚦 {row_item['Kategori Kendala']}</span>
                                     <span class="{b_cls}">{stat_val} ({prog_val:.0f}%)</span>
                                 </div>
                             </div>
-                            <div style="font-size:13px; opacity:0.88; margin-bottom:10px; display:flex; gap:18px; flex-wrap:wrap;">
+                            <div style="font-size:13px; opacity:0.92; margin-bottom:10px; display:flex; gap:16px; flex-wrap:wrap;">
                                 <span>🛠️ <b>Pekerjaan:</b> {row_item['Pekerjaan Spesifik']}</span>
-                                <span>💰 <b>Budget Site:</b> Rp {row_item['Budget (Rp)']:,.0f}</span>
-                                <span>🗓️ <b>Timeline:</b> {row_item['Start Date']} s/d {row_item['End Date']}</span>
-                                <span>👷 <b>Tim:</b> {row_item['PIC Tim']}</span>
+                                <span>💰 <b>Total Budget:</b> Rp {b_tot:,.0f}</span>
+                                <span style="color:#10b981; font-weight:700;">✅ <b>Tersupport:</b> Rp {b_sup:,.0f} ({sup_pct:.0f}%)</span>
+                                <span style="color:#ef4444; font-weight:700;">🚨 <b>Pending Keuangan:</b> Rp {b_pend:,.0f}</span>
+                                <span>🗓️ <b>Timeline:</b> {row_item['Start Date']} ➔ {row_item['End Date']}</span>
                             </div>
-                            <div style="width:100%; background:rgba(128,128,128,0.2); height:10px; border-radius:10px; overflow:hidden; margin-bottom:6px;">
+                            <div style="font-size:11px; font-weight:700; margin-bottom:2px;">🛠️ Progress Fisik Lapangan ({prog_val:.0f}%)</div>
+                            <div style="width:100%; background:rgba(128,128,128,0.2); height:8px; border-radius:10px; overflow:hidden; margin-bottom:6px;">
                                 <div style="width:{min(max(prog_val, 0), 100)}%; background:{bar_col}; height:100%; border-radius:10px;"></div>
                             </div>
-                            <div style="font-size:12px; opacity:0.75;">📝 <b>Catatan/Remark:</b> {row_item['Remark']}</div>
+                            <div style="font-size:11px; font-weight:700; margin-bottom:2px;">💳 Pencairan / Support Keuangan ({sup_pct:.0f}%)</div>
+                            <div style="width:100%; background:rgba(128,128,128,0.2); height:8px; border-radius:10px; overflow:hidden; margin-bottom:6px;">
+                                <div style="width:{min(max(sup_pct, 0), 100)}%; background:#10b981; height:100%; border-radius:10px;"></div>
+                            </div>
+                            <div style="font-size:12px; opacity:0.8;">📝 <b>Keterangan / Kenapa Mandek:</b> {row_item['Remark']} | 👷 <b>PIC:</b> {row_item['PIC Tim']}</div>
                         </div>
                     """, unsafe_allow_html=True)
 
         with tab_po_list:
-            st.markdown("### 📂 Pilih Nomor PO / SVA untuk Update Progress & Foto Susulan")
+            st.markdown("### 📂 Pilih Nomor PO / SVA untuk Update Dana Support, Timeline & Foto")
             opsi_proj_select = {
                 idx: f"[{db_all[idx].get('proj_data',{}).get('jenis_project','PO')}] {db_all[idx].get('site_name','Project')} — Mitra: {db_all[idx].get('proj_data',{}).get('mitra','-')} ({db_all[idx].get('status','-')})"
                 for idx in proj_indices
@@ -3399,23 +3540,35 @@ elif menu == "💎 Executive Project Dashboard":
                 if pd_data.get('jenis_project') == 'PO':
                     val_po = float(str(pd_data.get('nilai_po', '0')).replace('.', '').replace(',', '')) if pd_data.get('nilai_po') else 0.0
                     t_cost = float(pd_data.get('total_cost', 0.0) or 0.0)
+                    t_sup = float(pd_data.get('total_support', 0.0) or 0.0)
                     t_margin = float(pd_data.get('margin', 0.0) or 0.0)
-                    avg_prog = float(pd_data.get('avg_progress', 0.0) or 0.0)
 
-                    c_m1, c_m2, c_m3, c_m4 = st.columns(4)
+                    c_m1, c_m2, c_m3, c_m4, c_m5 = st.columns(5)
                     c_m1.metric("💰 Nilai PO", f"Rp {val_po:,.0f}")
-                    c_m2.metric("💸 Total Cost Rute", f"Rp {t_cost:,.0f}")
-                    c_m3.metric("📈 Net Margin PO", f"Rp {t_margin:,.0f}")
-                    c_m4.metric("📊 Rata-Rata Progress", f"{avg_prog:.1f}%")
+                    c_m2.metric("💸 Total Budget Site", f"Rp {t_cost:,.0f}")
+                    c_m3.metric("✅ Dana Tersupport", f"Rp {t_sup:,.0f}")
+                    c_m4.metric("🚨 Pending Keuangan", f"Rp {max(t_cost - t_sup, 0.0):,.0f}")
+                    c_m5.metric("📈 Net Margin PO", f"Rp {t_margin:,.0f}")
 
-                    st.markdown("#### 🛠️ Live Editor: Update Rute Site, Tanggal Selesai, Biaya & Progress (%)")
-                    st.info("💡 Klik dua kali pada sel tabel di bawah ini untuk mengupdate tanggal selesai, mengubah status menjadi Done, atau menambah rute baru.")
+                    st.markdown("#### 🛠️ Live Editor: Update Rute Site, Dana Tersupport, Alasan Mandek & Progress (%)")
+                    st.info("💡 Klik dua kali pada sel tabel di bawah ini untuk mengisi **Dana Tersupport (Rp)** dari keuangan, memilih **Kategori Kendala (Kenapa Mandek)**, atau mengupdate tanggal & progress.")
 
                     df_edit_po = pd.DataFrame(pd_data.get('tabel_pekerjaan', []))
+                    cols_standar = ["Site Asal", "Site Tujuan", "Pekerjaan Spesifik", "Budget Per Site", "Dana Tersupport", "Start Date", "End Date", "Progress (%)", "Status", "Kategori Kendala", "Remark"]
                     if df_edit_po.empty:
-                        df_edit_po = pd.DataFrame(columns=["Site Asal", "Site Tujuan", "Pekerjaan Spesifik", "Budget Per Site", "Start Date", "End Date", "Progress (%)", "Status", "Remark"])
+                        df_edit_po = pd.DataFrame(columns=cols_standar)
                     else:
+                        for c_st in cols_standar:
+                            if c_st not in df_edit_po.columns:
+                                if c_st in ["Budget Per Site", "Dana Tersupport", "Progress (%)"]:
+                                    df_edit_po[c_st] = 0
+                                elif c_st == "Kategori Kendala":
+                                    df_edit_po[c_st] = "Lancar / Normal"
+                                else:
+                                    df_edit_po[c_st] = ""
+                        df_edit_po = df_edit_po[cols_standar]
                         df_edit_po["Budget Per Site"] = pd.to_numeric(df_edit_po["Budget Per Site"], errors='coerce').fillna(0)
+                        df_edit_po["Dana Tersupport"] = pd.to_numeric(df_edit_po["Dana Tersupport"], errors='coerce').fillna(0)
                         df_edit_po["Progress (%)"] = pd.to_numeric(df_edit_po["Progress (%)"], errors='coerce').fillna(0)
 
                     updated_po_table = st.data_editor(
@@ -3426,11 +3579,20 @@ elif menu == "💎 Executive Project Dashboard":
                             "Site Asal": st.column_config.TextColumn("Site Asal (Dari)"),
                             "Site Tujuan": st.column_config.TextColumn("Site Tujuan (Ke)"),
                             "Pekerjaan Spesifik": st.column_config.TextColumn("Pekerjaan"),
-                            "Budget Per Site": st.column_config.NumberColumn("Budget / Cost (Rp)", min_value=0, default=0, step=100000),
+                            "Budget Per Site": st.column_config.NumberColumn("Total Budget (Rp)", min_value=0, default=0, step=100000),
+                            "Dana Tersupport": st.column_config.NumberColumn("Dana Tersupport (Rp)", min_value=0, default=0, step=100000),
                             "Start Date": st.column_config.TextColumn("Mulai (YYYY-MM-DD)"),
                             "End Date": st.column_config.TextColumn("Selesai (YYYY-MM-DD)"),
                             "Progress (%)": st.column_config.NumberColumn("Progress (%)", min_value=0, max_value=100, default=0),
-                            "Status": st.column_config.SelectboxColumn("Status", options=["Not Started", "On Progress", "Done", "Pending Issue"])
+                            "Status": st.column_config.SelectboxColumn("Status", options=["Not Started", "On Progress", "Done", "Pending Issue"]),
+                            "Kategori Kendala": st.column_config.SelectboxColumn("Kenapa Mandek / Kendala", options=[
+                                "Lancar / Normal",
+                                "Mandek - Pending Keuangan (Dana Belum Cair)",
+                                "Mandek - Pending Material / Sparepart",
+                                "Mandek - Izin Site / Community Issue",
+                                "Mandek - Kendala Teknis / Cuaca"
+                            ]),
+                            "Remark": st.column_config.TextColumn("Detail Kendala / Catatan")
                         },
                         key=f"lux_edit_po_{sel_proj_idx}"
                     )
@@ -3454,7 +3616,7 @@ elif menu == "💎 Executive Project Dashboard":
                         up_p_akh = st.file_uploader("➕ Tambah Foto After / BAST", accept_multiple_files=True, key=f"lux_f_akh_{sel_proj_idx}")
 
                     if st.button("💾 SIMPAN UPDATE PO & KALKULASI ULANG MARGIN", type="primary", use_container_width=True, key=f"btn_save_lux_{sel_proj_idx}"):
-                        with st.spinner("⏳ Menyimpan perubahan tabel & mengunggah foto susulan ke Cloud..."):
+                        with st.spinner("⏳ Menyimpan perubahan tabel, dana support & mengunggah foto susulan ke Cloud..."):
                             r['proj_data']['tabel_pekerjaan'] = updated_po_table.astype(str).to_dict('records')
                             r['proj_data']['nilai_po'] = new_nilai_po
                             r['proj_data']['note_akhir'] = new_note_proj
@@ -3463,9 +3625,12 @@ elif menu == "💎 Executive Project Dashboard":
                             except:
                                 v_po_new = 0.0
                             t_cost_new = pd.to_numeric(updated_po_table["Budget Per Site"], errors='coerce').fillna(0).sum() if not updated_po_table.empty else 0.0
+                            t_sup_new = pd.to_numeric(updated_po_table["Dana Tersupport"], errors='coerce').fillna(0).sum() if not updated_po_table.empty else 0.0
                             avg_p_new = pd.to_numeric(updated_po_table["Progress (%)"], errors='coerce').fillna(0).mean() if not updated_po_table.empty else 0.0
 
                             r['proj_data']['total_cost'] = float(t_cost_new)
+                            r['proj_data']['total_support'] = float(t_sup_new)
+                            r['proj_data']['pending_finance'] = float(max(t_cost_new - t_sup_new, 0.0))
                             r['proj_data']['margin'] = float(v_po_new - t_cost_new)
                             r['proj_data']['avg_progress'] = float(avg_p_new)
                             r['status'] = new_status_proj
@@ -3482,7 +3647,7 @@ elif menu == "💎 Executive Project Dashboard":
                                 sheet.update_cell(r.get('_row', sel_proj_idx + 2), 5, new_status_proj)
                                 sheet.update_cell(r.get('_row', sel_proj_idx + 2), 6, json.dumps(r, default=str))
                                 st.cache_data.clear()
-                        st.success("✅ BERHASIL! Data Rute, Timeline, Margin & Foto PO telah diperbarui.")
+                        st.success("✅ BERHASIL! Data Rute, Dana Tersupport, Timeline, Margin & Foto PO telah diperbarui.")
                         st.rerun()
 
                     st.markdown("#### 🖼️ Galeri Dokumentasi PO Saat Ini")
@@ -3511,8 +3676,7 @@ elif menu == "💎 Executive Project Dashboard":
                     csv_p = df_exp_proj.to_csv(index=False).encode('utf-8')
                     st.download_button("💎 Download Executive Project Report (.csv)", data=csv_p, file_name=f"Executive_Project_Report_{datetime.date.today()}.csv", mime="text/csv", type="primary", use_container_width=True)
             else:
-                st.info("Belum ada rincian tabel rute PO untuk diekspor.")
-# -------------------------------------------------------------------------
+                st.info("Belum ada rincian tabel rute PO untuk diekspor.")# -------------------------------------------------------------------------
 # FOOTER HAK CIPTA OKTA PRADIKA
 # -------------------------------------------------------------------------
 st.markdown("""
