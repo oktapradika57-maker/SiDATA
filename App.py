@@ -763,13 +763,13 @@ if st.session_state['active_menu'] is None:
             st.rerun()
 
     st.markdown("<hr style='margin: 30px 0;'>", unsafe_allow_html=True)
-    c_out1, c_out2, c_out3 = st.columns([3, 4, 3])
+    c_out1, c_out2, c_out3, c_out4 = st.columns(4)
     with c_out1:
         st.markdown("""
             <div class='area-card' style='border-top-color: #9C27B0;'>
-                <div style='font-size: 46px; margin-bottom: 8px;'>📅</div>
-                <div class='login-title'>Daily Tracker PLK</div>
-                <div class='login-desc'>To Do List harian tim Onsite, update status pengerjaan, dan pencatatan FME.</div>
+                <div style='font-size: 42px; margin-bottom: 8px;'>📅</div>
+                <div class='login-title' style='font-size: 20px;'>Daily Tracker PLK</div>
+                <div class='login-desc' style='font-size: 13px;'>To Do List harian tim Onsite, update status pengerjaan, dan pencatatan FME.</div>
             </div>
         """, unsafe_allow_html=True)
         if st.button("📅 BUKA DAILY TRACKER", type="primary", use_container_width=True, key="m_tracker"):
@@ -777,33 +777,46 @@ if st.session_state['active_menu'] is None:
             st.rerun()
             
     with c_out2:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #FFD700; background: linear-gradient(145deg, #0f172a, #1e293b);'>
+                <div style='font-size: 42px; margin-bottom: 8px;'>💎</div>
+                <div class='login-title' style='font-size: 20px; color: #FFD700 !important;'>Executive Project</div>
+                <div class='login-desc' style='font-size: 13px; color: #cbd5e1 !important;'>Dashboard Khusus PO & SVA: Interactive Timeline, Margin & Live Update.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("💎 BUKA EXECUTIVE PROJECT", type="primary", use_container_width=True, key="m_proj_dash"):
+            st.session_state['active_menu'] = "💎 Executive Project Dashboard"
+            st.rerun()
+
+    with c_out3:
         if st.session_state['role'] in ['Admin', 'Logistik']:
             st.markdown("""
                 <div class='area-card' style='border-top-color: #FF9800;'>
-                    <div style='font-size: 46px; margin-bottom: 8px;'>📦</div>
-                    <div class='login-title'>Logistik & SPMS</div>
-                    <div class='login-desc'>Manajemen Inbound/Outbound stok material, oli, filter genset, dan riwayat gudang.</div>
+                    <div style='font-size: 42px; margin-bottom: 8px;'>📦</div>
+                    <div class='login-title' style='font-size: 20px;'>Logistik & SPMS</div>
+                    <div class='login-desc' style='font-size: 13px;'>Manajemen Inbound/Outbound stok material, oli, filter genset, dan gudang.</div>
                 </div>
             """, unsafe_allow_html=True)
-            if st.button("📦 BUKA MANAJEMEN LOGISTIK", type="secondary", use_container_width=True, key="m_log"):
+            if st.button("📦 BUKA LOGISTIK", type="secondary", use_container_width=True, key="m_log"):
                 st.session_state['active_menu'] = "📦 Logistik & SPMS"
                 st.rerun()
                 
-    with c_out3:
+    with c_out4:
         st.markdown("""
             <div class='area-card' style='border-top-color: #9E9E9E;'>
-                <div style='font-size: 46px; margin-bottom: 8px;'>🚪</div>
-                <div class='login-title'>Log Out</div>
-                <div class='login-desc'>Keluar dari sesi akun Anda dengan aman untuk melindungi data operasional.</div>
+                <div style='font-size: 42px; margin-bottom: 8px;'>🚪</div>
+                <div class='login-title' style='font-size: 20px;'>Log Out</div>
+                <div class='login-desc' style='font-size: 13px;'>Keluar dari sesi akun Anda dengan aman untuk melindungi data operasional.</div>
             </div>
         """, unsafe_allow_html=True)
         if st.button("🚪 KELUAR AKUN", type="primary", use_container_width=True, key="btn_logout_main"):
             st.session_state['role'] = None
             st.session_state['dashboard_area'] = None
             st.session_state['active_menu'] = None
+            st.session_state['proj_dash_unlocked'] = False
+            st.session_state['proj_unlocked'] = False
             st.rerun()
     st.stop()
-
 else:
     menu = st.session_state['active_menu']
     c_top1, c_top2, c_top3 = st.columns([2.2, 5.6, 2.2])
@@ -1331,7 +1344,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                         else:
                             st.error("❌ Kata sandi salah! Akses ditolak.")
             else:
-                tabs_proj = st.tabs(["📌 Info Project", "📸 Bukti & Dokumentasi", "📤 Submit Project"])
+                tabs_proj = st.tabs(["📌 1. Info & Multi-Site PO/SVA", "📸 2. Dokumentasi (Opsional Jika Belum Mulai)", "📤 3. Submit Project"])
                 proj_data = {}
                 proj_files = {}
 
@@ -1351,21 +1364,34 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                     st.divider()
 
                     if jenis_project == "PO":
-                        st.markdown("### 📋 Detail Purchase Order (PO)")
+                        st.markdown("### 📋 Detail Kontrak Purchase Order (PO)")
                         c_po1, c_po2 = st.columns(2)
                         with c_po1:
                             proj_data['no_po'] = st.text_input("Nomor PO *")
-                            proj_data['mitra'] = st.text_input("Mitra Pemberi Kerja *", placeholder="Cth: Telkomsel / Huawei...")
+                            proj_data['mitra'] = st.text_input("Mitra Pemberi Kerja *", placeholder="Cth: Telkomsel / Huawei / Kisel...")
                         with c_po2:
-                            proj_data['nilai_po'] = st.text_input("Nilai PO (Rp) *", placeholder="Cth: 15.000.000")
-                            tipe_pekerjaan = st.selectbox("Tipe Pekerjaan PO *", ["Instalasi Imacro", "Relokasi NE", "Lainnya"])
+                            nilai_po_str = st.text_input("Total Nilai PO (Rp) *", value="0", help="Ketik angka saja, misal: 50000000")
+                            proj_data['nilai_po'] = nilai_po_str
+                            tipe_pekerjaan = st.selectbox("Program Utama PO *", ["Relokasi NE", "Instalasi Imacro", "Perbaikan / Modernisasi", "Lainnya"])
                             proj_data['tipe_pekerjaan'] = tipe_pekerjaan
 
-                        st.markdown("### 🗺️ Rincian Multi-Site, Pekerjaan, Timeline & Budget")
-                        st.info("💡 **Tabel Dinamis Enterprise:** Tambahkan baris baru di tabel bawah ini untuk memasukkan banyak Site sekaligus. Margin & Progress akan dikalkulasi otomatis!")
+                        st.markdown("### 🗺️ Tabel Multi-Site, Rincian Pekerjaan, Timeline & Alokasi Biaya")
+                        st.info("💡 **Klik baris di bawah (atau klik tanda `+` di baris paling bawah tabel)** untuk menambahkan 5, 10, atau puluhan rute site sekaligus dalam 1 PO!")
                         
-                        # Format Tabel Enterprise
-                        df_po = pd.DataFrame(columns=["Site Asal", "Site Tujuan", "Pekerjaan Spesifik", "Budget Per Site", "Start Date", "End Date", "Progress (%)", "Status", "Remark"])
+                        df_po = pd.DataFrame([
+                            {
+                                "Site Asal": "",
+                                "Site Tujuan": "",
+                                "Pekerjaan Spesifik": "",
+                                "Budget Per Site": 0,
+                                "Start Date": datetime.date.today().strftime("%Y-%m-%d"),
+                                "End Date": datetime.date.today().strftime("%Y-%m-%d"),
+                                "Progress (%)": 0,
+                                "Status": "Not Started",
+                                "Remark": ""
+                            }
+                        ])
+                        
                         edited_po = st.data_editor(
                             df_po, 
                             num_rows="dynamic", 
@@ -1373,39 +1399,45 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             column_config={
                                 "Site Asal": st.column_config.TextColumn("Site Asal (Dari)"),
                                 "Site Tujuan": st.column_config.TextColumn("Site Tujuan (Ke)"),
-                                "Pekerjaan Spesifik": st.column_config.TextColumn("Pekerjaan"),
-                                "Budget Per Site": st.column_config.NumberColumn("Budget / Cost (Rp)", min_value=0, default=0, step=100000),
-                                "Start Date": st.column_config.DateColumn("Mulai", format="YYYY-MM-DD"),
-                                "End Date": st.column_config.DateColumn("Target Selesai", format="YYYY-MM-DD"),
+                                "Pekerjaan Spesifik": st.column_config.TextColumn("Pekerjaan di Site"),
+                                "Budget Per Site": st.column_config.NumberColumn("Nilai / Cost Site (Rp)", min_value=0, default=0, step=100000),
+                                "Start Date": st.column_config.TextColumn("Tgl Mulai (YYYY-MM-DD)"),
+                                "End Date": st.column_config.TextColumn("Target Selesai (YYYY-MM-DD)"),
                                 "Progress (%)": st.column_config.NumberColumn("Progress (%)", min_value=0, max_value=100, default=0),
-                                "Status": st.column_config.SelectboxColumn("Status", options=["Not Started", "On Progress", "Done", "Pending Issue"])
+                                "Status": st.column_config.SelectboxColumn("Status Site", options=["Not Started", "On Progress", "Done", "Pending Issue"]),
+                                "Remark": st.column_config.TextColumn("Keterangan / Issue")
                             },
                             key="tabel_po_input"
                         )
                         
-                        # Kalkulasi Otomatis (Auto-Math)
                         try:
-                            val_po = float(proj_data['nilai_po'].replace('.', '').replace(',', ''))
+                            val_po = float(str(nilai_po_str).replace('.', '').replace(',', ''))
                         except:
                             val_po = 0.0
                             
-                        total_cost = edited_po["Budget Per Site"].sum() if not edited_po.empty else 0.0
+                        # Bersihkan baris yang benar-benar kosong
+                        df_clean_po = edited_po.copy()
+                        if not df_clean_po.empty:
+                            df_clean_po["Budget Per Site"] = pd.to_numeric(df_clean_po["Budget Per Site"], errors='coerce').fillna(0.0)
+                            df_clean_po["Progress (%)"] = pd.to_numeric(df_clean_po["Progress (%)"], errors='coerce').fillna(0.0)
+                            
+                        total_cost = df_clean_po["Budget Per Site"].sum() if not df_clean_po.empty else 0.0
                         margin = val_po - total_cost
-                        avg_progress = edited_po["Progress (%)"].mean() if not edited_po.empty else 0.0
+                        avg_progress = df_clean_po["Progress (%)"].mean() if not df_clean_po.empty else 0.0
                         
                         cm1, cm2, cm3, cm4 = st.columns(4)
-                        cm1.metric("💰 Nilai PO Total", f"Rp {val_po:,.0f}")
-                        cm2.metric("💸 Total Cost (Modal)", f"Rp {total_cost:,.0f}")
-                        cm3.metric("📈 Profit Margin", f"Rp {margin:,.0f}", delta=f"{(margin/val_po*100):.1f}%" if val_po > 0 else "")
+                        cm1.metric("💰 Total Nilai PO", f"Rp {val_po:,.0f}")
+                        cm2.metric("💸 Total Biaya Rute", f"Rp {total_cost:,.0f}")
+                        cm3.metric("📈 Estimasi Margin", f"Rp {margin:,.0f}", delta=f"{(margin/val_po*100):.1f}%" if val_po > 0 else "")
                         cm4.metric("📊 Rata-Rata Progress", f"{avg_progress:.1f}%")
                         
-                        proj_data['tabel_pekerjaan'] = edited_po.to_dict('records')
+                        proj_data['tabel_pekerjaan'] = df_clean_po.astype(str).to_dict('records')
                         proj_data['total_cost'] = float(total_cost)
                         proj_data['margin'] = float(margin)
                         proj_data['avg_progress'] = float(avg_progress)
 
                         if tipe_pekerjaan == "Instalasi Imacro":
-                            st.markdown("**📌 Checklist Standard Imacro:**")
+                            st.markdown("**📌 Checklist Milestone Imacro:**")
                             c_chk1, c_chk2 = st.columns(2)
                             with c_chk1:
                                 p1 = st.checkbox("Dismantle")
@@ -1415,6 +1447,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 p4 = st.checkbox("Material Terkirim/Lengkap")
                                 p5 = st.checkbox("PSB PLN")
                             proj_data['progress_imacro'] = [k for k, v in zip(["Dismantle", "Instalasi", "Penarikan Optik", "Material", "PSB PLN"], [p1, p2, p3, p4, p5]) if v]
+
                     elif jenis_project == "SVA":
                         st.markdown("### 📋 Detail Site Verification / Audit (SVA)")
                         c_sva1, c_sva2 = st.columns(2)
@@ -1424,13 +1457,13 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                         with c_sva2:
                             tgl_sva_val = st.date_input("Tanggal Pengerjaan SVA *", value=datetime.date.today())
                             proj_data['tgl_sva'] = tgl_sva_val.strftime("%Y-%m-%d")
-                            proj_data['status_sva'] = st.selectbox("Status SVA", ["Done", "On Progress", "Pending Issue"])
+                            proj_data['status_sva'] = st.selectbox("Status SVA", ["Not Started", "On Progress", "Done", "Pending Issue"])
 
                         proj_data['temuan_sva'] = st.text_area("Temuan / Hasil Audit Lapangan:", placeholder="Catat detail temuan SVA di sini...")
 
                 with tabs_proj[1]:
                     st.markdown("### 📸 Lampiran Dokumentasi Project")
-                    st.info("💡 Unggah foto progres pekerjaan secara lengkap dari awal hingga akhir.")
+                    st.info("💡 ** Catatan Penting:** Jika pekerjaan belum dimulai (*Not Started*) atau baru perencanaan PO, foto di bawah ini **BOLEH DIKOSONGKAN** dan dapat di-update menyusul di *Executive Project Dashboard*.")
 
                     if jenis_project == "PO":
                         foto_awal = st.file_uploader("📸 Foto Kondisi Awal (Before)", accept_multiple_files=True, key="p_awal")
@@ -1448,31 +1481,20 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 with tabs_proj[2]:
                     st.markdown("### 📤 Konfirmasi & Submit Laporan Project")
                     proj_data['note_akhir'] = st.text_area("📝 Catatan Akhir Project:", placeholder="Kendala atau catatan penting lainnya...")
-                    
-                    # Tambahan Status 'Not Started'
-                    final_status_proj = st.radio("Status Laporan:", ["Not Started", "On Progress", "Done", "Pending"], key="stat_proj")
+                    final_status_proj = st.radio("Status Keseluruhan Project:", ["Not Started", "On Progress", "Done", "Pending"], key="stat_proj")
 
-                    if st.button("🚀 UPLOAD & SINKRONKAN DATA PROJECT", type="primary", use_container_width=True):
+                    if st.button("🚀 SIMPAN & SINKRONKAN PROJECT KE CLOUD", type="primary", use_container_width=True):
                         item_kurang = []
                         if not teknisi_proj: item_kurang.append("Nama FME/Tim")
 
                         if jenis_project == "PO":
                             if not proj_data.get('no_po'): item_kurang.append("Nomor PO")
                             if not proj_data.get('mitra'): item_kurang.append("Mitra Pemberi Kerja")
-                            if not proj_data.get('nilai_po'): item_kurang.append("Nilai PO")
-                            
-                            # FOTO HANYA WAJIB JIKA STATUS DONE
-                            if final_status_proj == "Done":
-                                if not proj_files.get('foto_akhir') and not proj_files.get('foto_proses'): 
-                                    item_kurang.append("Minimal Foto Proses / Akhir (Wajib karena status Done)")
+                            if final_status_proj == "Done" and not proj_files.get('foto_akhir') and not proj_files.get('foto_proses'):
+                                item_kurang.append("Minimal Foto Proses / Akhir (Wajib karena status dipilih Done)")
                         else:
                             if not proj_data.get('site_sva'): item_kurang.append("Site ID SVA")
                             if not proj_data.get('no_tiket'): item_kurang.append("Nomor Tiket SVA")
-                            
-                            # FOTO HANYA WAJIB JIKA STATUS DONE
-                            if final_status_proj == "Done":
-                                if not proj_files.get('foto_sva_1'): 
-                                    item_kurang.append("Foto Dokumentasi SVA (Wajib karena status Done)")
 
                         if item_kurang:
                             st.error(f"⚠️ **LAPORAN DITOLAK!** Mohon lengkapi isian berikut:\n- " + "\n- ".join(item_kurang))
@@ -1482,12 +1504,12 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 url_sva1, url_sva2 = [], []
 
                                 if jenis_project == "PO":
-                                    url_awal = upload_multiple_images(proj_files['foto_awal'], "proj_po")
-                                    url_proses = upload_multiple_images(proj_files['foto_proses'], "proj_po")
-                                    url_akhir = upload_multiple_images(proj_files['foto_akhir'], "proj_po")
+                                    url_awal = upload_multiple_images(proj_files.get('foto_awal'), "proj_po")
+                                    url_proses = upload_multiple_images(proj_files.get('foto_proses'), "proj_po")
+                                    url_akhir = upload_multiple_images(proj_files.get('foto_akhir'), "proj_po")
                                 else:
-                                    url_sva1 = upload_multiple_images(proj_files['foto_sva_1'], "proj_sva")
-                                    url_sva2 = upload_multiple_images(proj_files['foto_sva_2'], "proj_sva")
+                                    url_sva1 = upload_multiple_images(proj_files.get('foto_sva_1'), "proj_sva")
+                                    url_sva2 = upload_multiple_images(proj_files.get('foto_sva_2'), "proj_sva")
 
                                 proj_data['url_awal'] = url_awal
                                 proj_data['url_proses'] = url_proses
@@ -1496,7 +1518,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 proj_data['url_sva2'] = url_sva2
 
                                 tek_str_proj = ", ".join(teknisi_proj)
-                                nama_site_db = proj_data.get('site_sva') if jenis_project == "SVA" else f"Project PO: {proj_data.get('no_po')}"
+                                nama_site_db = proj_data.get('site_sva') if jenis_project == "SVA" else f"PO: {proj_data.get('no_po')}"
 
                                 report_dict = {
                                     "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1519,7 +1541,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                     row_data = [
                                         report_dict.get('timestamp', ''), report_dict.get('site_name', ''),
                                         report_dict.get('nop', ''), report_dict.get('teknisi', ''),
-                                        report_dict.get('status', ''), json.dumps(report_dict)
+                                        report_dict.get('status', ''), json.dumps(report_dict, default=str)
                                     ]
                                     try:
                                         sheet.insert_row(row_data, index=2)
@@ -1528,13 +1550,10 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                         sheet.insert_row(row_data, index=2)
                                         
                                     st.cache_data.clear()
-                                    report_dict['_sheet'] = "Project"
-                                    if 'laporan_db' in st.session_state:
-                                        st.session_state['laporan_db'].append(report_dict)
-                                    st.success("✅ BERHASIL! Data Project telah diamankan ke Sheet 'Project'.")
+                                    st.session_state['laporan_db'] = fetch_data_from_gsheets()
+                                    st.success("✅ BERHASIL! Data Project telah tersimpan dan siap dipantau di menu 💎 Executive Project.")
                                 else:
-                                    st.error("⚠️ Gagal menyambung ke Sheet 'Project'. Pastikan sheet tersebut sudah dibuat di Database Utama Anda.")
-
+                                    st.error("⚠️ Gagal menyambung ke Sheet 'Project'. Pastikan sheet bernama 'Project' sudah dibuat di Spreadsheet Utama Anda.")
 
     # -------------------------------------------------------------------------
     # BLOK B: FORM PANGKALAN BUN (LENGKAP DENGAN UPLOAD FOTO & AUTO WA)
@@ -1745,7 +1764,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
     if not db:
         st.warning("⚠ Belum ada data di Server / Koneksi Sedang Proses.")
     else:
-        idx_plk = [idx for idx, r in enumerate(db) if r.get('kategori') != 'Pangkalan Bun']
+        idx_plk = [idx for idx, r in enumerate(db) if r.get('kategori') not in ['Pangkalan Bun', 'Project']]
         idx_pbu = [idx for idx, r in enumerate(db) if r.get('kategori') == 'Pangkalan Bun']
 
         # ---------------------------------------------------------------------
@@ -1815,7 +1834,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         if aktif_area == "Palangkaraya":
             c_flt1, c_flt2 = st.columns([2, 2])
             with c_flt1:
-                filter_kat = st.radio("Sub-Kategori Site Palangkaraya:", ["Semua (Palangkaraya)", "SPS", "Site Reguler", "Project"], horizontal=True)
+                filter_kat = st.radio("Sub-Kategori Site Palangkaraya:", ["Semua (Palangkaraya)", "SPS", "Site Reguler"], horizontal=True)
             with c_flt2:
                 cari_site = st.text_input("🔍 Cari Nama Site / Teknisi:", placeholder="Ketik ID atau Nama Site...")
                 
@@ -3102,7 +3121,397 @@ elif menu == "📦 Logistik & SPMS":
                     
             except Exception as e:
                 st.error(f"Terjadi kesalahan saat mengalkulasi stok: {e}")
+# =========================================================================
+# MENU 7: EXECUTIVE PROJECT DASHBOARD (TERPISAH & TERPROTEKSI SANDI)
+# =========================================================================
+elif menu == "💎 Executive Project Dashboard":
+    if 'proj_dash_unlocked' not in st.session_state:
+        st.session_state['proj_dash_unlocked'] = False
 
+    if not st.session_state['proj_dash_unlocked']:
+        st.markdown("<br>", unsafe_allow_html=True)
+        c_lk1, c_lk2, c_lk3 = st.columns([2.5, 5, 2.5])
+        with c_lk2:
+            st.markdown("""
+                <div style="background: linear-gradient(145deg, #0f172a, #1e293b); padding: 40px 30px; border-radius: 20px; border: 2px solid #FFD700; box-shadow: 0 15px 35px rgba(0,0,0,0.4); text-align: center; color: white;">
+                    <div style="font-size: 60px; margin-bottom: 10px;">🔐</div>
+                    <h2 style="color: #FFD700 !important; margin-bottom: 8px; font-weight: 900; letter-spacing: 1px;">EXECUTIVE PROJECT VAULT</h2>
+                    <p style="color: #cbd5e1; font-size: 14px; margin-bottom: 25px;">Area Rahasia Finansial PO, SVA, Profit Margin & Interactive Timeline.<br>Masukkan kata sandi otorisasi untuk membuka dashboard.</p>
+                </div>
+            """, unsafe_allow_html=True)
+            st.write("")
+            pwd_vault = st.text_input("Kata Sandi Otorisasi Project:", type="password", placeholder="Masukkan kata sandi rahasia...", key="input_pwd_vault")
+            if st.button("🔓 BUKA EXECUTIVE DASHBOARD", type="primary", use_container_width=True):
+                import base64
+                if base64.b64encode(pwd_vault.encode()).decode() == "WXVpMjAyNSM=":
+                    st.session_state['proj_dash_unlocked'] = True
+                    st.rerun()
+                else:
+                    st.error("❌ Kata sandi otorisasi salah! Akses ke Executive Project ditolak.")
+        st.stop()
+
+    # DESAIN LUXURY INTERNATIONAL PMO DASHBOARD
+    st.markdown("""
+        <style>
+        .lux-header {
+            background: linear-gradient(135deg, #090d16 0%, #172554 50%, #0f172a 100%);
+            padding: 30px 35px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 215, 0, 0.35);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+            color: white;
+            margin-bottom: 24px;
+        }
+        .lux-kpi {
+            background: linear-gradient(145deg, #111827, #1f2937);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-left: 5px solid #FFD700;
+            border-radius: 16px;
+            padding: 20px 22px;
+            color: white;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+            margin-bottom: 15px;
+        }
+        .lux-kpi-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: #9ca3af; font-weight: 700; margin-bottom: 6px; }
+        .lux-kpi-val { font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: 0.5px; }
+        .lux-kpi-sub { font-size: 12px; color: #10b981; font-weight: 700; margin-top: 4px; }
+        .tl-card {
+            background: var(--secondary-background-color);
+            border: 1px solid rgba(128,128,128,0.2);
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .badge-done { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 800; }
+        .badge-prog { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid #f59e0b; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 800; }
+        .badge-wait { background: rgba(107, 114, 128, 0.15); color: #9ca3af; border: 1px solid #9ca3af; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 800; }
+        .badge-issue { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid #ef4444; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 800; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    c_hd1, c_hd2 = st.columns([8, 2])
+    with c_hd1:
+        st.markdown("""
+            <div class="lux-header">
+                <div style="font-size: 12px; color: #FFD700; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">💎 Enterprise Portfolio & Financial Intelligence</div>
+                <h1 style="color: #ffffff !important; font-size: 32px; font-weight: 900; margin: 5px 0 8px 0;">Executive Project & Timeline Command Center</h1>
+                <div style="color: #cbd5e1; font-size: 14px;">Monitoring Real-Time Purchase Order (PO), Relokasi Multi-Site, Costing Margin, Timeline Tracker & SVA Audit.</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with c_hd2:
+        st.write("")
+        if st.button("🔒 Kunci Vault", use_container_width=True):
+            st.session_state['proj_dash_unlocked'] = False
+            st.rerun()
+        if st.button("🔄 Sync Cloud", type="primary", use_container_width=True):
+            st.cache_data.clear()
+            st.session_state['laporan_db'] = fetch_data_from_gsheets()
+            st.rerun()
+
+    db_all = st.session_state.get('laporan_db', [])
+    proj_indices = [idx for idx, r in enumerate(db_all) if r.get('kategori') == 'Project']
+
+    if not proj_indices:
+        st.info("💡 Belum ada data Project (PO / SVA) yang di-submit. Silakan input melalui menu Form Pelaporan -> Kategori: Project.")
+    else:
+        total_po_val = 0.0
+        total_cost_val = 0.0
+        total_routes = 0
+        routes_done = 0
+        all_timeline_rows = []
+
+        for idx in proj_indices:
+            r_p = db_all[idx]
+            pd_p = r_p.get('proj_data', {})
+            if pd_p.get('jenis_project') == 'PO':
+                try:
+                    v_po = float(str(pd_p.get('nilai_po', '0')).replace('.', '').replace(',', ''))
+                except:
+                    v_po = 0.0
+                total_po_val += v_po
+                
+                tbl_p = pd_p.get('tabel_pekerjaan', [])
+                for row_t in tbl_p:
+                    asal_s = str(row_t.get('Site Asal', '')).strip()
+                    tuj_s = str(row_t.get('Site Tujuan', '')).strip()
+                    pek_s = str(row_t.get('Pekerjaan Spesifik', '')).strip()
+                    if not asal_s and not tuj_s and not pek_s:
+                        continue
+                        
+                    total_routes += 1
+                    try:
+                        c_site = float(str(row_t.get('Budget Per Site', '0')).replace('.', '').replace(',', ''))
+                    except:
+                        c_site = 0.0
+                    total_cost_val += c_site
+                    
+                    st_site = str(row_t.get('Status', 'Not Started'))
+                    try:
+                        pr_site = float(row_t.get('Progress (%)', 0) or 0)
+                    except:
+                        pr_site = 0.0
+                    if st_site == 'Done' or pr_site >= 100:
+                        routes_done += 1
+                        
+                    all_timeline_rows.append({
+                        "No PO": pd_p.get('no_po', '-'),
+                        "Mitra": pd_p.get('mitra', '-'),
+                        "Program": pd_p.get('tipe_pekerjaan', '-'),
+                        "Site Asal": asal_s or '-',
+                        "Site Tujuan": tuj_s or '-',
+                        "Rute Site": f"{asal_s or '-'} ➔ {tuj_s or '-'}",
+                        "Pekerjaan Spesifik": pek_s or '-',
+                        "Budget (Rp)": c_site,
+                        "Start Date": str(row_t.get('Start Date', '') or '-'),
+                        "End Date": str(row_t.get('End Date', '') or '-'),
+                        "Progress (%)": pr_site,
+                        "Status": st_site,
+                        "Remark": str(row_t.get('Remark', '') or '-'),
+                        "PIC Tim": r_p.get('teknisi', '-')
+                    })
+
+        total_margin_val = total_po_val - total_cost_val
+        margin_pct = (total_margin_val / total_po_val * 100) if total_po_val > 0 else 0.0
+        route_completion_pct = (routes_done / total_routes * 100) if total_routes > 0 else 0.0
+
+        # 4 LUXURY KPI CARDS
+        k1, k2, k3, k4 = st.columns(4)
+        with k1:
+            st.markdown(f"""
+                <div class="lux-kpi" style="border-left-color: #3b82f6;">
+                    <div class="lux-kpi-title">💰 Total Nilai Kontrak PO</div>
+                    <div class="lux-kpi-val">Rp {total_po_val:,.0f}</div>
+                    <div class="lux-kpi-sub" style="color: #60a5fa;">{len(proj_indices)} Total Project Terdaftar</div>
+                </div>
+            """, unsafe_allow_html=True)
+        with k2:
+            st.markdown(f"""
+                <div class="lux-kpi" style="border-left-color: #f59e0b;">
+                    <div class="lux-kpi-title">💸 Total Alokasi Cost Site</div>
+                    <div class="lux-kpi-val">Rp {total_cost_val:,.0f}</div>
+                    <div class="lux-kpi-sub" style="color: #fbbf24;">Dari {total_routes} Rute / Titik Site</div>
+                </div>
+            """, unsafe_allow_html=True)
+        with k3:
+            warna_m = "#10b981" if total_margin_val >= 0 else "#ef4444"
+            st.markdown(f"""
+                <div class="lux-kpi" style="border-left-color: {warna_m};">
+                    <div class="lux-kpi-title">📈 Estimasi Net Margin</div>
+                    <div class="lux-kpi-val" style="color: {warna_m};">Rp {total_margin_val:,.0f}</div>
+                    <div class="lux-kpi-sub" style="color: {warna_m};">Profitability Ratio: {margin_pct:.1f}%</div>
+                </div>
+            """, unsafe_allow_html=True)
+        with k4:
+            st.markdown(f"""
+                <div class="lux-kpi" style="border-left-color: #a855f7;">
+                    <div class="lux-kpi-title">🎯 Clearance / Selesai</div>
+                    <div class="lux-kpi-val">{routes_done} / {total_routes} Rute</div>
+                    <div class="lux-kpi-sub" style="color: #c084fc;">{route_completion_pct:.1f}% Rute Site Clear</div>
+                </div>
+            """, unsafe_allow_html=True)
+
+        tab_tl, tab_po_list, tab_export = st.tabs([
+            "🗓️ Interactive Timeline & Absensi Site",
+            "📂 Klik Nomor PO / SVA (Update Progress & Foto)",
+            "📥 Executive Financial Export"
+        ])
+
+        with tab_tl:
+            st.markdown("### 🗓️ Interactive Project Timeline & Site Clearance Tracker")
+            if not all_timeline_rows:
+                st.info("Belum ada rincian rute site pada PO yang dimasukkan.")
+            else:
+                df_tl = pd.DataFrame(all_timeline_rows)
+                cf1, cf2, cf3 = st.columns(3)
+                with cf1:
+                    flt_po = st.selectbox("🔍 Filter Nomor PO:", ["Semua PO"] + sorted(df_tl["No PO"].unique().tolist()))
+                with cf2:
+                    flt_stat = st.selectbox("📊 Filter Status Site:", ["Semua Status", "Done", "On Progress", "Not Started", "Pending Issue"])
+                with cf3:
+                    flt_cari = st.text_input("🔎 Cari Site Asal / Tujuan / Pekerjaan:", placeholder="Ketik Site ID...")
+
+                df_tl_view = df_tl.copy()
+                if flt_po != "Semua PO":
+                    df_tl_view = df_tl_view[df_tl_view["No PO"] == flt_po]
+                if flt_stat != "Semua Status":
+                    df_tl_view = df_tl_view[df_tl_view["Status"] == flt_stat]
+                if flt_cari.strip():
+                    q_tl = flt_cari.strip().lower()
+                    df_tl_view = df_tl_view[
+                        df_tl_view["Rute Site"].str.lower().str.contains(q_tl) |
+                        df_tl_view["Pekerjaan Spesifik"].str.lower().str.contains(q_tl)
+                    ]
+
+                for _, row_item in df_tl_view.iterrows():
+                    prog_val = float(row_item["Progress (%)"])
+                    stat_val = row_item["Status"]
+                    if stat_val == "Done" or prog_val >= 100:
+                        b_cls = "badge-done"
+                        bar_col = "#10b981"
+                    elif stat_val == "On Progress":
+                        b_cls = "badge-prog"
+                        bar_col = "#f59e0b"
+                    elif stat_val == "Pending Issue":
+                        b_cls = "badge-issue"
+                        bar_col = "#ef4444"
+                    else:
+                        b_cls = "badge-wait"
+                        bar_col = "#6b7280"
+
+                    st.markdown(f"""
+                        <div class="tl-card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                                <div>
+                                    <span style="font-size:12px; font-weight:800; color:#3b82f6; background:rgba(59,130,246,0.12); padding:3px 8px; border-radius:6px; margin-right:8px;">PO: {row_item['No PO']}</span>
+                                    <span style="font-size:17px; font-weight:900;">📍 {row_item['Site Asal']} ➡️ {row_item['Site Tujuan']}</span>
+                                </div>
+                                <div>
+                                    <span class="{b_cls}">{stat_val} ({prog_val:.0f}%)</span>
+                                </div>
+                            </div>
+                            <div style="font-size:13px; opacity:0.88; margin-bottom:10px; display:flex; gap:18px; flex-wrap:wrap;">
+                                <span>🛠️ <b>Pekerjaan:</b> {row_item['Pekerjaan Spesifik']}</span>
+                                <span>💰 <b>Budget Site:</b> Rp {row_item['Budget (Rp)']:,.0f}</span>
+                                <span>🗓️ <b>Timeline:</b> {row_item['Start Date']} s/d {row_item['End Date']}</span>
+                                <span>👷 <b>Tim:</b> {row_item['PIC Tim']}</span>
+                            </div>
+                            <div style="width:100%; background:rgba(128,128,128,0.2); height:10px; border-radius:10px; overflow:hidden; margin-bottom:6px;">
+                                <div style="width:{min(max(prog_val, 0), 100)}%; background:{bar_col}; height:100%; border-radius:10px;"></div>
+                            </div>
+                            <div style="font-size:12px; opacity:0.75;">📝 <b>Catatan/Remark:</b> {row_item['Remark']}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+        with tab_po_list:
+            st.markdown("### 📂 Pilih Nomor PO / SVA untuk Update Progress & Foto Susulan")
+            opsi_proj_select = {
+                idx: f"[{db_all[idx].get('proj_data',{}).get('jenis_project','PO')}] {db_all[idx].get('site_name','Project')} — Mitra: {db_all[idx].get('proj_data',{}).get('mitra','-')} ({db_all[idx].get('status','-')})"
+                for idx in proj_indices
+            }
+            sel_proj_idx = st.selectbox("📌 Klik / Pilih Nomor PO atau Tiket SVA:", options=proj_indices, format_func=lambda x: opsi_proj_select[x])
+
+            if sel_proj_idx is not None:
+                r = db_all[sel_proj_idx]
+                pd_data = r.get('proj_data', {})
+
+                st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
+                if pd_data.get('jenis_project') == 'PO':
+                    val_po = float(str(pd_data.get('nilai_po', '0')).replace('.', '').replace(',', '')) if pd_data.get('nilai_po') else 0.0
+                    t_cost = float(pd_data.get('total_cost', 0.0) or 0.0)
+                    t_margin = float(pd_data.get('margin', 0.0) or 0.0)
+                    avg_prog = float(pd_data.get('avg_progress', 0.0) or 0.0)
+
+                    c_m1, c_m2, c_m3, c_m4 = st.columns(4)
+                    c_m1.metric("💰 Nilai PO", f"Rp {val_po:,.0f}")
+                    c_m2.metric("💸 Total Cost Rute", f"Rp {t_cost:,.0f}")
+                    c_m3.metric("📈 Net Margin PO", f"Rp {t_margin:,.0f}")
+                    c_m4.metric("📊 Rata-Rata Progress", f"{avg_prog:.1f}%")
+
+                    st.markdown("#### 🛠️ Live Editor: Update Rute Site, Tanggal Selesai, Biaya & Progress (%)")
+                    st.info("💡 Klik dua kali pada sel tabel di bawah ini untuk mengupdate tanggal selesai, mengubah status menjadi Done, atau menambah rute baru.")
+
+                    df_edit_po = pd.DataFrame(pd_data.get('tabel_pekerjaan', []))
+                    if df_edit_po.empty:
+                        df_edit_po = pd.DataFrame(columns=["Site Asal", "Site Tujuan", "Pekerjaan Spesifik", "Budget Per Site", "Start Date", "End Date", "Progress (%)", "Status", "Remark"])
+                    else:
+                        df_edit_po["Budget Per Site"] = pd.to_numeric(df_edit_po["Budget Per Site"], errors='coerce').fillna(0)
+                        df_edit_po["Progress (%)"] = pd.to_numeric(df_edit_po["Progress (%)"], errors='coerce').fillna(0)
+
+                    updated_po_table = st.data_editor(
+                        df_edit_po,
+                        num_rows="dynamic",
+                        use_container_width=True,
+                        column_config={
+                            "Site Asal": st.column_config.TextColumn("Site Asal (Dari)"),
+                            "Site Tujuan": st.column_config.TextColumn("Site Tujuan (Ke)"),
+                            "Pekerjaan Spesifik": st.column_config.TextColumn("Pekerjaan"),
+                            "Budget Per Site": st.column_config.NumberColumn("Budget / Cost (Rp)", min_value=0, default=0, step=100000),
+                            "Start Date": st.column_config.TextColumn("Mulai (YYYY-MM-DD)"),
+                            "End Date": st.column_config.TextColumn("Selesai (YYYY-MM-DD)"),
+                            "Progress (%)": st.column_config.NumberColumn("Progress (%)", min_value=0, max_value=100, default=0),
+                            "Status": st.column_config.SelectboxColumn("Status", options=["Not Started", "On Progress", "Done", "Pending Issue"])
+                        },
+                        key=f"lux_edit_po_{sel_proj_idx}"
+                    )
+
+                    c_up1, c_up2 = st.columns(2)
+                    with c_up1:
+                        stat_opts_p = ["Not Started", "On Progress", "Done", "Pending"]
+                        cur_st_p = r.get('status', 'On Progress')
+                        new_status_proj = st.selectbox("Status Keseluruhan PO:", stat_opts_p, index=stat_opts_p.index(cur_st_p) if cur_st_p in stat_opts_p else 1, key=f"lux_stat_{sel_proj_idx}")
+                        new_nilai_po = st.text_input("Revisi Nilai PO Total (Rp):", value=str(pd_data.get('nilai_po', '0')), key=f"lux_valpo_{sel_proj_idx}")
+                    with c_up2:
+                        new_note_proj = st.text_area("Update Catatan / Remark PO:", value=str(pd_data.get('note_akhir', '')), key=f"lux_note_{sel_proj_idx}")
+
+                    st.markdown("#### 📸 Upload Dokumentasi Foto Susulan (Saat Pekerjaan Dimulai / Selesai)")
+                    cu_f1, cu_f2, cu_f3 = st.columns(3)
+                    with cu_f1:
+                        up_p_awal = st.file_uploader("➕ Tambah Foto Before", accept_multiple_files=True, key=f"lux_f_awal_{sel_proj_idx}")
+                    with cu_f2:
+                        up_p_pros = st.file_uploader("➕ Tambah Foto On Progress", accept_multiple_files=True, key=f"lux_f_pros_{sel_proj_idx}")
+                    with cu_f3:
+                        up_p_akh = st.file_uploader("➕ Tambah Foto After / BAST", accept_multiple_files=True, key=f"lux_f_akh_{sel_proj_idx}")
+
+                    if st.button("💾 SIMPAN UPDATE PO & KALKULASI ULANG MARGIN", type="primary", use_container_width=True, key=f"btn_save_lux_{sel_proj_idx}"):
+                        with st.spinner("⏳ Menyimpan perubahan tabel & mengunggah foto susulan ke Cloud..."):
+                            r['proj_data']['tabel_pekerjaan'] = updated_po_table.astype(str).to_dict('records')
+                            r['proj_data']['nilai_po'] = new_nilai_po
+                            r['proj_data']['note_akhir'] = new_note_proj
+                            try:
+                                v_po_new = float(str(new_nilai_po).replace('.', '').replace(',', ''))
+                            except:
+                                v_po_new = 0.0
+                            t_cost_new = pd.to_numeric(updated_po_table["Budget Per Site"], errors='coerce').fillna(0).sum() if not updated_po_table.empty else 0.0
+                            avg_p_new = pd.to_numeric(updated_po_table["Progress (%)"], errors='coerce').fillna(0).mean() if not updated_po_table.empty else 0.0
+
+                            r['proj_data']['total_cost'] = float(t_cost_new)
+                            r['proj_data']['margin'] = float(v_po_new - t_cost_new)
+                            r['proj_data']['avg_progress'] = float(avg_p_new)
+                            r['status'] = new_status_proj
+
+                            if up_p_awal:
+                                r['proj_data']['url_awal'] = r['proj_data'].get('url_awal', []) + upload_multiple_images(up_p_awal, "proj_po")
+                            if up_p_pros:
+                                r['proj_data']['url_proses'] = r['proj_data'].get('url_proses', []) + upload_multiple_images(up_p_pros, "proj_po")
+                            if up_p_akh:
+                                r['proj_data']['url_akhir'] = r['proj_data'].get('url_akhir', []) + upload_multiple_images(up_p_akh, "proj_po")
+
+                            sheet = connect_gsheets(r.get('_sheet', 'Project'))
+                            if sheet:
+                                sheet.update_cell(r.get('_row', sel_proj_idx + 2), 5, new_status_proj)
+                                sheet.update_cell(r.get('_row', sel_proj_idx + 2), 6, json.dumps(r, default=str))
+                                st.cache_data.clear()
+                        st.success("✅ BERHASIL! Data Rute, Timeline, Margin & Foto PO telah diperbarui.")
+                        st.rerun()
+
+                    st.markdown("#### 🖼️ Galeri Dokumentasi PO Saat Ini")
+                    gt1, gt2, gt3 = st.tabs(["📸 Foto Kondisi Awal (Before)", "📸 Foto Pengerjaan (On Progress)", "📸 Foto Selesai (After / BAST)"])
+                    with gt1: tampilkan_grid_foto(pd_data.get('url_awal', []), "Dokumentasi Kondisi Awal")
+                    with gt2: tampilkan_grid_foto(pd_data.get('url_proses', []), "Dokumentasi On Progress")
+                    with gt3: tampilkan_grid_foto(pd_data.get('url_akhir', []), "Dokumentasi Akhir / BAST")
+
+                else:
+                    st.info(f"**📋 Detail SVA:** Site: {pd_data.get('site_sva','-')} | No Tiket: {pd_data.get('no_tiket','-')} | Tanggal: {pd_data.get('tgl_sva','-')} | Temuan: {pd_data.get('temuan_sva','-')}")
+                    gt_s1, gt_s2 = st.tabs(["📸 View Site & Perangkat", "📸 Temuan / Defect SVA"])
+                    with gt_s1: tampilkan_grid_foto(pd_data.get('url_sva1', []), "Foto View Site & Perangkat")
+                    with gt_s2: tampilkan_grid_foto(pd_data.get('url_sva2', []), "Foto Temuan Defect")
+
+        with tab_export:
+            st.markdown("### 📥 Unduh Rekapitulasi Finansial & Timeline Project (Excel)")
+            if all_timeline_rows:
+                df_exp_proj = pd.DataFrame(all_timeline_rows)
+                st.dataframe(df_exp_proj, use_container_width=True)
+                try:
+                    buf_p = BytesIO()
+                    with pd.ExcelWriter(buf_p, engine='xlsxwriter') as writer:
+                        df_exp_proj.to_excel(writer, index=False, sheet_name='Executive_Project')
+                    st.download_button("💎 Download Executive Project Report (.xlsx)", data=buf_p.getvalue(), file_name=f"Executive_Project_Report_{datetime.date.today()}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
+                except Exception:
+                    csv_p = df_exp_proj.to_csv(index=False).encode('utf-8')
+                    st.download_button("💎 Download Executive Project Report (.csv)", data=csv_p, file_name=f"Executive_Project_Report_{datetime.date.today()}.csv", mime="text/csv", type="primary", use_container_width=True)
+            else:
+                st.info("Belum ada rincian tabel rute PO untuk diekspor.")
 # -------------------------------------------------------------------------
 # FOOTER HAK CIPTA OKTA PRADIKA
 # -------------------------------------------------------------------------
