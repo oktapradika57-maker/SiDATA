@@ -1371,9 +1371,9 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             num_rows="dynamic", 
                             use_container_width=True,
                             column_config={
-                                "Site Asal": st.column_config.TextColumn("Site Asal (Dari)", placeholder="Cth: PKY001"),
-                                "Site Tujuan": st.column_config.TextColumn("Site Tujuan (Ke)", placeholder="Cth: PKY002"),
-                                "Pekerjaan Spesifik": st.column_config.TextColumn("Pekerjaan", placeholder="Cth: Relokasi Rak & Penarikan FO"),
+                                "Site Asal": st.column_config.TextColumn("Site Asal (Dari)"),
+                                "Site Tujuan": st.column_config.TextColumn("Site Tujuan (Ke)"),
+                                "Pekerjaan Spesifik": st.column_config.TextColumn("Pekerjaan"),
                                 "Budget Per Site": st.column_config.NumberColumn("Budget / Cost (Rp)", min_value=0, default=0, step=100000),
                                 "Start Date": st.column_config.DateColumn("Mulai", format="YYYY-MM-DD"),
                                 "End Date": st.column_config.DateColumn("Target Selesai", format="YYYY-MM-DD"),
@@ -1448,7 +1448,9 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 with tabs_proj[2]:
                     st.markdown("### 📤 Konfirmasi & Submit Laporan Project")
                     proj_data['note_akhir'] = st.text_area("📝 Catatan Akhir Project:", placeholder="Kendala atau catatan penting lainnya...")
-                    final_status_proj = st.radio("Status Laporan:", ["Done", "On Progress", "Pending"], key="stat_proj")
+                    
+                    # Tambahan Status 'Not Started'
+                    final_status_proj = st.radio("Status Laporan:", ["Not Started", "On Progress", "Done", "Pending"], key="stat_proj")
 
                     if st.button("🚀 UPLOAD & SINKRONKAN DATA PROJECT", type="primary", use_container_width=True):
                         item_kurang = []
@@ -1458,11 +1460,19 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             if not proj_data.get('no_po'): item_kurang.append("Nomor PO")
                             if not proj_data.get('mitra'): item_kurang.append("Mitra Pemberi Kerja")
                             if not proj_data.get('nilai_po'): item_kurang.append("Nilai PO")
-                            if not proj_files.get('foto_akhir') and not proj_files.get('foto_proses'): item_kurang.append("Minimal Foto Proses / Akhir")
+                            
+                            # FOTO HANYA WAJIB JIKA STATUS DONE
+                            if final_status_proj == "Done":
+                                if not proj_files.get('foto_akhir') and not proj_files.get('foto_proses'): 
+                                    item_kurang.append("Minimal Foto Proses / Akhir (Wajib karena status Done)")
                         else:
                             if not proj_data.get('site_sva'): item_kurang.append("Site ID SVA")
                             if not proj_data.get('no_tiket'): item_kurang.append("Nomor Tiket SVA")
-                            if not proj_files.get('foto_sva_1'): item_kurang.append("Foto Dokumentasi SVA")
+                            
+                            # FOTO HANYA WAJIB JIKA STATUS DONE
+                            if final_status_proj == "Done":
+                                if not proj_files.get('foto_sva_1'): 
+                                    item_kurang.append("Foto Dokumentasi SVA (Wajib karena status Done)")
 
                         if item_kurang:
                             st.error(f"⚠️ **LAPORAN DITOLAK!** Mohon lengkapi isian berikut:\n- " + "\n- ".join(item_kurang))
@@ -2381,22 +2391,86 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     if st.session_state['role'] == 'Admin':
                         st.markdown("<br>", unsafe_allow_html=True)
                         with st.container(border=True):
-                            st.markdown("<h4 style='color: var(--primary-color);'>🛠 REVISI NAMA SITE / FME</h4>", unsafe_allow_html=True)
-                            ce1, ce2 = st.columns(2)
-                            with ce1: new_sreg = st.text_input("Edit Nama Site", r.get('site_name',''), key=f"esreg_{i}")
-                            with ce2: new_freg = st.text_input("Edit Nama FME / Tim", r.get('teknisi',''), key=f"efreg_{i}")
                             
-                            if st.button("💾 Simpan Perubahan", key=f"breg_{i}"):
-                                with st.spinner("Menyimpan..."):
-                                    r['site_name'], r['teknisi'] = new_sreg, new_freg
-                                    sheet = connect_gsheets(r.get('_sheet', 'Report Preventive'))
-                                    if sheet:
-                                        sheet.update_cell(r.get('_row', i + 2), 2, new_sreg)
-                                        sheet.update_cell(r.get('_row', i + 2), 4, new_freg)
-                                        sheet.update_cell(r.get('_row', i + 2), 6, json.dumps(r))
-                                        st.cache_data.clear() 
-                                st.success("✅ REVISI BERHASIL!")
-                                st.rerun()
+                            # JIKA INI PROJECT PO, TAMPILKAN EDITOR TABEL & UPLOAD FOTO SUSULAN
+                            if is_project and r.get('proj_data', {}).get('jenis_project') == 'PO':
+                                st.markdown("<h4 style='color: var(--primary-color);'>🛠 UPDATE PROGRESS PROJECT & FOTO SUSULAN</h4>", unsafe_allow_html=True)
+                                st.info("💡 Update progress di tabel ini. Saat disimpan, Margin & Progress % akan dikalkulasi ulang otomatis!")
+                                
+                                df_edit_po = pd.DataFrame(r.get('proj_data', {}).get('tabel_pekerjaan', []))
+                                if df_edit_po.empty:
+                                    df_edit_po = pd.DataFrame(columns=["Site Asal", "Site Tujuan", "Pekerjaan Spesifik", "Budget Per Site", "Start Date", "End Date", "Progress (%)", "Status", "Remark"])
+                                
+                                updated_po_table = st.data_editor(
+                                    df_edit_po, 
+                                    num_rows="dynamic", 
+                                    use_container_width=True,
+                                    column_config={
+                                        "Site Asal": st.column_config.TextColumn("Site Asal (Dari)"),
+                                        "Site Tujuan": st.column_config.TextColumn("Site Tujuan (Ke)"),
+                                        "Pekerjaan Spesifik": st.column_config.TextColumn("Pekerjaan"),
+                                        "Budget Per Site": st.column_config.NumberColumn("Budget / Cost (Rp)", min_value=0, default=0, step=100000),
+                                        "Start Date": st.column_config.DateColumn("Mulai", format="YYYY-MM-DD"),
+                                        "End Date": st.column_config.DateColumn("Target Selesai", format="YYYY-MM-DD"),
+                                        "Progress (%)": st.column_config.NumberColumn("Progress (%)", min_value=0, max_value=100, default=0),
+                                        "Status": st.column_config.SelectboxColumn("Status", options=["Not Started", "On Progress", "Done", "Pending Issue"])
+                                    },
+                                    key=f"edit_po_tbl_{i}"
+                                )
+                                
+                                new_status_proj = st.selectbox("Update Status Keseluruhan Project:", ["Not Started", "On Progress", "Done", "Pending"], index=["Not Started", "On Progress", "Done", "Pending"].index(r.get('status', 'Not Started')) if r.get('status', 'Not Started') in ["Not Started", "On Progress", "Done", "Pending"] else 0, key=f"estat_proj_{i}")
+                                
+                                st.markdown("**Tambah Lampiran Foto Susulan (Otomatis ditambahkan ke laporan):**")
+                                up_p_pros = st.file_uploader("📸 Tambah Foto On Progress", accept_multiple_files=True, key=f"up_p_pros_{i}")
+                                up_p_akh = st.file_uploader("📸 Tambah Foto Hasil Akhir/BAST", accept_multiple_files=True, key=f"up_p_akh_{i}")
+                                
+                                if st.button("💾 Simpan Update Project", key=f"bproj_{i}", type="primary"):
+                                    with st.spinner("Menyimpan Update Project..."):
+                                        r['proj_data']['tabel_pekerjaan'] = updated_po_table.to_dict('records')
+                                        
+                                        # Hitung ulang Margin & Progress
+                                        try: val_po = float(str(r['proj_data'].get('nilai_po', '0')).replace('.', '').replace(',', ''))
+                                        except: val_po = 0.0
+                                        t_cost = updated_po_table["Budget Per Site"].sum() if not updated_po_table.empty else 0.0
+                                        r['proj_data']['total_cost'] = float(t_cost)
+                                        r['proj_data']['margin'] = float(val_po - t_cost)
+                                        r['proj_data']['avg_progress'] = float(updated_po_table["Progress (%)"].mean() if not updated_po_table.empty else 0.0)
+                                        
+                                        r['status'] = new_status_proj
+                                        
+                                        # Menambah foto ke cloud
+                                        if up_p_pros:
+                                            r['proj_data']['url_proses'] = r['proj_data'].get('url_proses', []) + upload_multiple_images(up_p_pros, "proj_po")
+                                        if up_p_akh:
+                                            r['proj_data']['url_akhir'] = r['proj_data'].get('url_akhir', []) + upload_multiple_images(up_p_akh, "proj_po")
+                                            
+                                        # Simpan ke Sheet Project
+                                        sheet = connect_gsheets(r.get('_sheet', 'Project'))
+                                        if sheet:
+                                            sheet.update_cell(r.get('_row', i + 2), 5, new_status_proj)
+                                            sheet.update_cell(r.get('_row', i + 2), 6, json.dumps(r))
+                                            st.cache_data.clear()
+                                    st.success("✅ UPDATE PROJECT BERHASIL TERSIMPAN!")
+                                    st.rerun()
+
+                            else:
+                                # JIKA BUKAN PROJECT PO (SPS & REGULER BISA REVISI NAMA SITE)
+                                st.markdown("<h4 style='color: var(--primary-color);'>🛠 REVISI NAMA SITE / FME</h4>", unsafe_allow_html=True)
+                                ce1, ce2 = st.columns(2)
+                                with ce1: new_sreg = st.text_input("Edit Nama Site", r.get('site_name',''), key=f"esreg_{i}")
+                                with ce2: new_freg = st.text_input("Edit Nama FME / Tim", r.get('teknisi',''), key=f"efreg_{i}")
+                                
+                                if st.button("💾 Simpan Perubahan", key=f"breg_{i}"):
+                                    with st.spinner("Menyimpan..."):
+                                        r['site_name'], r['teknisi'] = new_sreg, new_freg
+                                        sheet = connect_gsheets(r.get('_sheet', 'Report Preventive'))
+                                        if sheet:
+                                            sheet.update_cell(r.get('_row', i + 2), 2, new_sreg)
+                                            sheet.update_cell(r.get('_row', i + 2), 4, new_freg)
+                                            sheet.update_cell(r.get('_row', i + 2), 6, json.dumps(r))
+                                            st.cache_data.clear() 
+                                    st.success("✅ REVISI BERHASIL!")
+                                    st.rerun()
 
 # =========================================================================
 # MENU 3: EXCEL LIVE-EDITOR (MONITORING IMPROVEMENT)
