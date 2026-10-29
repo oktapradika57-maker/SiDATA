@@ -32,11 +32,11 @@ st.set_page_config(page_title="RPO - PLK & PBU", page_icon="⚡", layout="wide")
 LOGO_UTAMA = "koperasi-jasa-konstruksi-tower-event-organizer-network-monitoring-telekomunikasi-kisel-group-logo-kut (2).webp"
 
 def get_base64_of_bin_file(bin_file):
+    # Hasil di-cache (kunci = nama file + waktu ubah) supaya logo tidak di-encode ulang di setiap klik
     try:
-        with open(bin_file, 'rb') as f:
-            data = f.read()
-        return base64.b64encode(data).decode()
-    except:
+        stt = os.stat(bin_file)
+        return _b64_cached(bin_file, (stt.st_mtime_ns, stt.st_size))
+    except Exception:
         return None
 
 def render_header_logo(is_login=False):
@@ -62,6 +62,588 @@ def render_header_logo(is_login=False):
                     unsafe_allow_html=True
                 )
                 return
+
+# =============================================================================
+# 💎 PREMIUM UI KIT — tema mewah • tampilan Web/HP • grafik ringan (tanpa JavaScript)
+#   Cara kerja singkat:
+#   - Semua gaya dibuat dengan CSS (transform/opacity saja) -> ringan di HP.
+#   - Grafik digambar sebagai SVG/HTML murni (bukan Vega/Altair) -> cepat & tanpa lag.
+#   - Pilihan tampilan 🖥️ Web | 📱 HP ada di pojok kanan atas; link HP: ?view=hp
+# =============================================================================
+import html as _html
+import math as _math
+import numpy as _np
+from xml.sax.saxutils import escape as _xesc
+
+UI_THEME = "auto"   # "auto" = ikuti tema Streamlit/perangkat | "light" | "dark"
+
+_PAL_LIGHT = dict(bg="#F3F6FC", card="#FFFFFF", card2="#F7F9FE", line="#E1E7F3", ink="#0B1730", muted="#5A6A86",
+                  accent="#2563EB", gold="#B8891A", gold2="#E2B93B", ok="#059669", warn="#D97706", bad="#E11D48",
+                  btn1="#1D4ED8", btn2="#4F46E5", glow="rgba(37,99,235,.10)", gglow="rgba(184,137,26,.08)",
+                  shadow="0 1px 2px rgba(11,23,48,.06),0 10px 28px rgba(11,23,48,.07)")
+_PAL_DARK = dict(bg="#0A1020", card="#111A30", card2="#16213C", line="#243253", ink="#EAF0FF", muted="#93A4C7",
+                 accent="#5B9BFF", gold="#E8C547", gold2="#F6DE8D", ok="#34D399", warn="#FBBF24", bad="#FB7185",
+                 btn1="#1D4ED8", btn2="#4F46E5", glow="rgba(91,155,255,.12)", gglow="rgba(232,197,71,.06)",
+                 shadow="0 1px 2px rgba(0,0,0,.45),0 12px 32px rgba(0,0,0,.38)")
+
+def _theme_mode():
+    """Tentukan palet. Kalau config.toml memaksa tema, ikuti; kalau tidak, ikuti mode gelap/terang perangkat."""
+    if UI_THEME in ("light", "dark"):
+        return UI_THEME
+    try:
+        base = st.get_option("theme.base")
+        if base in ("light", "dark"):
+            return base
+    except Exception:
+        pass
+    return "auto"
+
+def _tok(d):
+    return ";".join("--ux-%s:%s" % (k, v) for k, v in d.items())
+
+def _root_css(mode):
+    if mode == "light": return ":root{" + _tok(_PAL_LIGHT) + "}"
+    if mode == "dark":  return ":root{" + _tok(_PAL_DARK) + "}"
+    return ":root{" + _tok(_PAL_LIGHT) + "}@media (prefers-color-scheme:dark){:root{" + _tok(_PAL_DARK) + "}}"
+
+def _svg_style(mode):
+    def c(d):
+        return ".tx{fill:%s}.ik{fill:%s}.gr{stroke:%s}.bs{stroke:%s}" % (d["muted"], d["ink"], d["line"], d["card"])
+    if mode == "light": return c(_PAL_LIGHT)
+    if mode == "dark":  return c(_PAL_DARK)
+    return c(_PAL_LIGHT) + "@media (prefers-color-scheme:dark){" + c(_PAL_DARK) + "}"
+
+# ----------------------------------------------------------------------------
+# CSS UTAMA (dipakai Web & HP)
+# ----------------------------------------------------------------------------
+_UX_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+__ROOT__
+html,body,.stApp{font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+.stApp{background:radial-gradient(900px 380px at 10% -8%,var(--ux-glow),transparent 70%),radial-gradient(760px 340px at 94% -6%,var(--ux-gglow),transparent 70%),var(--ux-bg) !important}
+
+/* --- buang elemen bawaan Streamlit yang mengganggu --- */
+#MainMenu,footer,header[data-testid="stHeader"],div[data-testid="stToolbar"],div[data-testid="stDecoration"],
+[data-testid="stSidebar"],[data-testid="collapsedControl"],[data-testid="stSidebarCollapsedControl"],[data-testid="stExpandSidebarButton"]{display:none !important}
+
+/* --- kanvas --- */
+[data-testid="stMainBlockContainer"],.stMainBlockContainer,.main .block-container{max-width:1240px !important;margin:0 auto !important;padding:.5rem 1.25rem 4rem !important}
+
+/* --- indikator loading tipis (hanya saat skrip berjalan) --- */
+.stApp[data-test-script-state="running"]::after{content:"";position:fixed;left:0;top:0;height:3px;width:100%;z-index:99999;
+  background:linear-gradient(90deg,var(--ux-gold),var(--ux-accent),var(--ux-gold2));transform-origin:0 50%;animation:ux-run 1.1s ease-in-out infinite}
+@keyframes ux-run{0%{transform:scaleX(.05)}60%{transform:scaleX(.8)}100%{transform:scaleX(1);opacity:.2}}
+@keyframes ux-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* --- tipografi --- */
+h1{font-weight:800 !important;letter-spacing:-.02em}
+h1::after{content:"";display:block;width:54px;height:3px;border-radius:3px;margin:10px 0 0;background:linear-gradient(90deg,var(--ux-gold),var(--ux-gold2))}
+h1[style*="center"]::after{margin-left:auto;margin-right:auto}
+h2,h3,h4{font-weight:700 !important;letter-spacing:-.01em}
+hr{border:0 !important;height:1px !important;background:linear-gradient(90deg,transparent,var(--ux-line) 15%,var(--ux-line) 85%,transparent) !important;margin:1.4rem 0 !important}
+
+/* --- tombol --- */
+div[data-testid="stButton"] button,div[data-testid="stFormSubmitButton"] button,div[data-testid="stDownloadButton"] button,a[data-testid="stLinkButton"]{
+  border-radius:12px !important;font-weight:700 !important;letter-spacing:.01em;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+button[kind="primary"],button[data-testid="stBaseButton-primary"],button[data-testid="stBaseButton-primaryFormSubmit"]{
+  background:linear-gradient(135deg,var(--ux-btn1),var(--ux-btn2)) !important;color:#fff !important;border:1px solid rgba(255,255,255,.16) !important;
+  box-shadow:0 8px 18px -6px rgba(37,99,235,.55),inset 0 1px 0 rgba(255,255,255,.2) !important}
+button[kind="secondary"],button[data-testid="stBaseButton-secondary"],button[data-testid="stBaseButton-secondaryFormSubmit"]{
+  background:var(--ux-card) !important;color:var(--ux-ink) !important;border:1.5px solid var(--ux-line) !important;box-shadow:0 1px 2px rgba(11,23,48,.05) !important}
+div[data-testid="stButton"] button p,div[data-testid="stFormSubmitButton"] button p{color:inherit !important}
+button[kind="primary"]:hover,button[data-testid="stBaseButton-primary"]:hover{transform:translateY(-2px);box-shadow:0 12px 22px -6px rgba(37,99,235,.6),inset 0 1px 0 rgba(255,255,255,.22) !important}
+button[kind="secondary"]:hover,button[data-testid="stBaseButton-secondary"]:hover{transform:translateY(-1px);border-color:var(--ux-accent) !important;box-shadow:0 8px 18px -8px rgba(37,99,235,.35) !important}
+button:active{transform:scale(.985) !important}
+button:disabled{opacity:.55 !important;filter:saturate(.6)}
+
+/* --- input --- */
+div[data-baseweb="input"],div[data-baseweb="base-input"],div[data-baseweb="textarea"],div[data-baseweb="select"] > div{
+  background:var(--ux-card2) !important;border:1.5px solid var(--ux-line) !important;border-radius:12px !important;transition:border-color .15s ease,box-shadow .15s ease}
+div[data-baseweb="input"]:focus-within,div[data-baseweb="base-input"]:focus-within,div[data-baseweb="textarea"]:focus-within,div[data-baseweb="select"] > div:focus-within{
+  border-color:var(--ux-accent) !important;box-shadow:0 0 0 3px var(--ux-glow) !important}
+div[data-testid="stWidgetLabel"] p,div[data-testid="stWidgetLabel"] label{font-weight:700 !important;font-size:.9rem !important}
+span[data-baseweb="tag"]{border-radius:8px !important}
+
+/* --- tab --- */
+.stTabs [data-baseweb="tab-list"]{gap:4px;border-bottom:1px solid var(--ux-line)}
+.stTabs [data-baseweb="tab"]{font-weight:700;border-radius:10px 10px 0 0;padding:10px 16px}
+.stTabs [data-baseweb="tab"][aria-selected="true"]{color:var(--ux-accent) !important;background:var(--ux-card)}
+.stTabs [data-baseweb="tab-highlight"]{height:3px !important;border-radius:3px;background:linear-gradient(90deg,var(--ux-gold),var(--ux-accent)) !important}
+
+/* --- expander, container border, alert, tabel --- */
+div[data-testid="stExpander"] details{border:1px solid var(--ux-line) !important;border-left:4px solid var(--ux-gold) !important;border-radius:14px !important;background:var(--ux-card) !important;box-shadow:var(--ux-shadow);margin-bottom:12px}
+div[data-testid="stExpander"] summary{font-weight:700 !important;padding:12px 16px}
+div[data-testid="stVerticalBlockBorderWrapper"]{border-radius:16px}
+div[data-testid="stAlert"]{border-radius:14px !important}
+div[data-testid="stDataFrame"],div[data-testid="stDataEditor"]{border-radius:14px;overflow:hidden;border:1px solid var(--ux-line)}
+section[data-testid="stFileUploaderDropzone"]{border-radius:14px !important;border:1.5px dashed var(--ux-line) !important;background:var(--ux-card2) !important}
+
+/* --- KPI (st.metric dibuat jadi kartu premium) --- */
+div[data-testid="stMetric"]{position:relative;overflow:hidden;background:var(--ux-card);border:1px solid var(--ux-line);border-radius:16px;padding:14px 16px 12px 20px;box-shadow:var(--ux-shadow);animation:ux-in .35s ease both}
+div[data-testid="stMetric"]::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:linear-gradient(180deg,var(--ux-gold2),var(--ux-gold))}
+div[data-testid="stMetricLabel"] p{font-size:.74rem !important;font-weight:700 !important;text-transform:uppercase;letter-spacing:.05em;color:var(--ux-muted) !important}
+div[data-testid="stMetric"]{container-type:inline-size}
+div[data-testid="stMetricValue"]{font-weight:800 !important;font-size:1.3rem !important;font-size:clamp(1.05rem,7.5cqw,1.7rem) !important;letter-spacing:-.01em;line-height:1.25}
+div[data-testid="stMetricValue"] > div{white-space:normal !important;overflow:visible !important;text-overflow:clip !important;word-break:normal !important;overflow-wrap:normal !important}
+
+/* --- kartu menu / login (kelas lama dipertahankan) --- */
+.area-card,.login-box{position:relative;background:var(--ux-card);border:1px solid var(--ux-line);border-top:4px solid var(--ux-accent);
+  border-radius:20px;padding:28px 22px;text-align:center;box-shadow:var(--ux-shadow);margin-bottom:12px;
+  transition:transform .22s ease,box-shadow .22s ease;animation:ux-in .4s ease both}
+.area-card:hover,.login-box:hover{transform:translateY(-4px);box-shadow:0 18px 40px -12px rgba(11,23,48,.28)}
+.login-title{color:var(--ux-ink);font-size:1.25rem;font-weight:800;margin-bottom:10px;letter-spacing:-.01em}
+.login-desc{color:var(--ux-muted);font-size:.9rem;line-height:1.6;margin-bottom:16px}
+.area-badge{display:inline-block;padding:5px 14px;border-radius:30px;font-weight:800;font-size:.72rem;letter-spacing:.08em;margin-bottom:12px;
+  background:rgba(37,99,235,.12);color:#2563EB;border:1px solid rgba(37,99,235,.55)}
+.footer-okta{text-align:center;padding:24px;margin-top:48px;color:var(--ux-muted);font-size:.9rem;border-top:1px solid var(--ux-line)}
+.footer-okta span{color:var(--ux-gold);font-weight:800;letter-spacing:1px}
+
+/* --- HERO --- */
+.ux-hero{position:relative;overflow:hidden;border-radius:24px;padding:30px 28px 26px;margin:6px 0 22px;color:#EAF0FF;text-align:center;
+  background:linear-gradient(135deg,#070C18 0%,#13245A 55%,#0B1226 100%);border:1px solid rgba(226,185,59,.35);
+  box-shadow:0 22px 50px -18px rgba(7,12,24,.65);animation:ux-in .45s ease both}
+.ux-hero::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(520px 220px at 85% -10%,rgba(226,185,59,.20),transparent 70%),radial-gradient(480px 240px at 5% 110%,rgba(91,155,255,.20),transparent 70%)}
+.ux-hero > *{position:relative}
+.ux-kicker{display:inline-block;padding:6px 16px;border-radius:99px;font-size:.72rem;font-weight:800;letter-spacing:.09em;color:#F6DE8D;background:rgba(226,185,59,.12);border:1px solid rgba(226,185,59,.45)}
+.ux-hero-title{font-size:clamp(1.5rem,3.2vw,2.3rem);font-weight:800;letter-spacing:-.02em;margin:14px 0 6px;color:#FFFFFF}
+.ux-hero-sub{margin:0 auto;max-width:640px;font-size:.95rem;line-height:1.6;color:#B7C4E4}
+.ux-stats{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:20px}
+.ux-stat{min-width:120px;flex:1 1 120px;max-width:200px;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
+.ux-stat b{display:block;font-size:1.55rem;font-weight:800;color:#FFFFFF;line-height:1.1}
+.ux-stat span{display:block;margin-top:4px;font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9FB1D9}
+.ux-split{display:flex;height:9px;border-radius:99px;overflow:hidden;margin:20px auto 8px;max-width:560px;background:rgba(255,255,255,.12)}
+.ux-split i{display:block;height:100%}
+.ux-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;font-size:.74rem;color:#B7C4E4}
+.ux-legend em{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:baseline;font-style:normal}
+
+/* --- grafik --- */
+img.ux-chart{display:block;width:100%;height:auto;border-radius:12px}
+.ux-bars{display:flex;flex-direction:column;gap:12px;padding:4px 2px}
+.ux-bleg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.78rem;font-weight:600;color:var(--ux-muted);margin-bottom:2px}
+.ux-bleg em{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;font-style:normal}
+.ux-brow{display:grid;grid-template-columns:minmax(80px,32%) 1fr;gap:6px 12px;align-items:center}
+.ux-blbl{font-size:.82rem;font-weight:700;color:var(--ux-ink);overflow-wrap:anywhere;line-height:1.3}
+.ux-bset{display:flex;flex-direction:column;gap:5px}
+.ux-bline{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.ux-btrack{height:10px;border-radius:99px;background:var(--ux-line);overflow:hidden}
+.ux-btrack i{display:block;height:100%;border-radius:99px;min-width:3px}
+.ux-bval{font-size:.76rem;font-weight:800;color:var(--ux-ink);font-variant-numeric:tabular-nums;min-width:48px;text-align:right}
+.ux-note{font-size:.76rem;color:var(--ux-muted);margin-top:4px}
+.ux-prog{display:flex;height:16px;border-radius:99px;overflow:hidden;background:var(--ux-line);margin:6px 0 10px}
+.ux-prog i{display:block;height:100%}
+.ux-plegend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.82rem;font-weight:600;color:var(--ux-ink)}
+.ux-plegend em{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;font-style:normal}
+
+/* --- saklar tampilan Web | HP --- */
+.st-key-view_switch{display:flex;justify-content:flex-end;padding:10px 0 2px}
+.st-key-view_switch div[role="radiogroup"]{display:inline-flex;gap:2px;background:var(--ux-line);padding:3px;border-radius:99px}
+.st-key-view_switch div[role="radiogroup"] label{margin:0 !important;padding:6px 16px !important;border-radius:99px;cursor:pointer}
+.st-key-view_switch div[role="radiogroup"] label > div:first-child{display:none !important}
+.st-key-view_switch div[role="radiogroup"] label:has(input:checked){background:var(--ux-card);box-shadow:0 1px 3px rgba(11,23,48,.2)}
+.st-key-view_switch div[role="radiogroup"] label p{font-size:.82rem !important;font-weight:800 !important;margin:0 !important}
+
+@media (hover:none){button:hover,.area-card:hover,.login-box:hover{transform:none !important}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none !important;transition:none !important}}
+</style>
+"""
+
+# ----------------------------------------------------------------------------
+# CSS KHUSUS MODE HP (satu kolom, area sentuh besar, navigasi atas menempel)
+# ----------------------------------------------------------------------------
+_UX_CSS_HP = """
+<style>
+.stApp{background:var(--ux-bg) !important}
+[data-testid="stMainBlockContainer"],.stMainBlockContainer,.main .block-container{max-width:480px !important;padding:.3rem .8rem 5rem !important;background:var(--ux-bg)}
+@media (min-width:700px){[data-testid="stMainBlockContainer"],.stMainBlockContainer,.main .block-container{min-height:100vh;box-shadow:0 0 0 1px var(--ux-line),0 24px 60px rgba(11,23,48,.14)}}
+.st-key-view_switch{justify-content:stretch}
+.st-key-view_switch div[role="radiogroup"]{display:flex;width:100%}
+.st-key-view_switch div[role="radiogroup"] label{flex:1;justify-content:center;padding:10px 0 !important}
+
+/* kolom ditumpuk; 4 kolom (kartu menu, lat/long) -> 2x2; deretan metrik -> 2 per baris */
+div[data-testid="stHorizontalBlock"]{flex-direction:row !important;flex-wrap:wrap !important;gap:.6rem !important}
+div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"],div[data-testid="stHorizontalBlock"] > div[data-testid="column"]{flex:1 1 100% !important;width:100% !important;min-width:100% !important}
+div[data-testid="stHorizontalBlock"]:has(> div:nth-child(4):last-child) > div[data-testid="stColumn"],
+div[data-testid="stHorizontalBlock"]:has(> div:nth-child(4):last-child) > div[data-testid="column"],
+div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div[data-testid="stColumn"],
+div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div[data-testid="column"]{flex:1 1 calc(50% - .3rem) !important;width:calc(50% - .3rem) !important;min-width:calc(50% - .3rem) !important}
+
+/* baris navigasi atas halaman dalam: judul di atas, tombol Kembali & Keluar sebaris, menempel saat scroll */
+div[data-testid="stHorizontalBlock"]:has(.st-key-btn_back_main){display:grid !important;grid-template-columns:1fr 1fr;gap:.5rem !important;position:sticky;top:0;z-index:60;background:var(--ux-bg);padding:8px 0 6px;margin-bottom:6px}
+div[data-testid="stHorizontalBlock"]:has(.st-key-btn_back_main) > div{width:100% !important;min-width:0 !important}
+div[data-testid="stHorizontalBlock"]:has(.st-key-btn_back_main) > div:nth-child(2){grid-column:1 / -1;order:-1}
+
+/* tipografi & kartu */
+h1{font-size:1.45rem !important;line-height:1.25 !important}
+h2{font-size:1.2rem !important} h3{font-size:1.05rem !important} h4{font-size:1rem !important}
+.area-card,.login-box{padding:20px 16px;border-radius:18px}
+.login-title{font-size:1.1rem} .login-desc{font-size:.84rem}
+.ux-hero{padding:22px 16px 18px;border-radius:20px}
+.ux-stat{min-width:0;flex:1 1 calc(50% - 12px);max-width:none}
+.ux-stat b{font-size:1.3rem}
+.ux-brow{grid-template-columns:1fr}
+.watermark-kut img{width:420px !important}
+div[data-testid="stMetric"]{padding:12px 12px 10px 16px}
+div[data-testid="stMetricValue"]{font-size:1.1rem !important;font-size:clamp(.95rem,7.5cqw,1.25rem) !important}
+
+/* area sentuh >= 48px, input 16px agar iPhone tidak zoom sendiri */
+.stApp div.stButton > button,.stApp div[data-testid="stFormSubmitButton"] > button,.stApp div[data-testid="stDownloadButton"] > button{min-height:54px !important;padding:10px 12px !important;font-size:.9rem !important;line-height:1.25 !important}
+.stApp div.stButton > button *{white-space:normal !important}
+div[data-baseweb="input"] input,div[data-baseweb="base-input"] input,div[data-baseweb="textarea"] textarea,div[data-baseweb="select"] input,.stTextInput input,.stNumberInput input,.stDateInput input,.stTextArea textarea{font-size:16px !important}
+div[data-baseweb="input"] input,div[data-baseweb="base-input"] input{padding:12px 14px !important}
+div[data-baseweb="select"] > div{min-height:50px !important}
+li[role="option"]{min-height:46px !important}
+div[data-testid="stCheckbox"] label{min-height:44px;align-items:center}
+
+/* tab bisa digeser, upload selebar layar */
+.stTabs [data-baseweb="tab-list"]{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+.stTabs [data-baseweb="tab"]{white-space:nowrap;flex:0 0 auto;padding:10px 14px}
+div[data-testid="stExpander"] summary{min-height:48px}
+section[data-testid="stFileUploaderDropzone"]{flex-direction:column;align-items:stretch;gap:.6rem;padding:1rem}
+section[data-testid="stFileUploaderDropzone"] button{width:100%;min-height:48px}
+</style>
+"""
+
+# CSS layar login (pengganti blok lama: tombol besar merah/biru sesuai label 🔴 / 🔵)
+_UX_CSS_LOGIN = """
+<style>
+.stApp div.stButton > button{min-height:68px !important;font-size:1.02rem !important;font-weight:800 !important;text-transform:uppercase;letter-spacing:.06em;border-radius:14px !important}
+.stApp button[kind="primary"],.stApp button[data-testid="stBaseButton-primary"]{background:linear-gradient(135deg,#F43F5E,#BE123C) !important;color:#fff !important;border:1px solid rgba(255,255,255,.2) !important;box-shadow:0 10px 22px -8px rgba(225,29,72,.6) !important}
+.stApp button[kind="secondary"],.stApp button[data-testid="stBaseButton-secondary"]{background:linear-gradient(135deg,#3B82F6,#1D4ED8) !important;color:#fff !important;border:1px solid rgba(255,255,255,.2) !important;box-shadow:0 10px 22px -8px rgba(37,99,235,.6) !important}
+</style>
+"""
+
+# ----------------------------------------------------------------------------
+# BOOT: deteksi perangkat, pasang tema, tampilkan saklar Web | HP
+# ----------------------------------------------------------------------------
+def _terdeteksi_hp():
+    try:
+        ua = (st.context.headers.get("User-Agent") or "").lower()
+        return any(k in ua for k in ("iphone", "ipod", "mobile"))
+    except Exception:
+        return False
+
+if "view_mode" not in st.session_state:
+    _qp = str(st.query_params.get("view", "")).lower()
+    st.session_state.view_mode = _qp if _qp in ("web", "hp") else ("hp" if _terdeteksi_hp() else "web")
+
+def _ganti_tampilan():
+    st.session_state.view_mode = "hp" if "HP" in st.session_state.get("_view_pick", "") else "web"
+    st.query_params["view"] = st.session_state.view_mode
+
+IS_HP = st.session_state.view_mode == "hp"
+UX_MODE = _theme_mode()
+
+def ux_boot():
+    """Panggil sekali di awal halaman: pasang CSS tema + saklar tampilan."""
+    st.markdown(_UX_CSS.replace("__ROOT__", _root_css(UX_MODE)) + (_UX_CSS_HP if IS_HP else ""), unsafe_allow_html=True)
+    try:
+        box = st.container(key="view_switch")
+    except TypeError:
+        box = st.container()
+    with box:
+        st.radio("Tampilan", ["🖥️ Web", "📱 HP"], index=1 if IS_HP else 0, horizontal=True,
+                 key="_view_pick", on_change=_ganti_tampilan, label_visibility="collapsed")
+
+def ux_login_css():
+    st.markdown(_UX_CSS_LOGIN, unsafe_allow_html=True)
+
+# ----------------------------------------------------------------------------
+# KOMPONEN HTML RINGAN
+# ----------------------------------------------------------------------------
+def _fmt(v):
+    """Angka ringkas: 12,5 jt • 1,25 M • 54.8 • 1,234"""
+    try:
+        v = float(v)
+    except Exception:
+        return "-"
+    if _math.isnan(v):
+        return "-"
+    a = abs(v)
+    if a >= 1e9: return ("%.2f M" % (v / 1e9)).replace(".00", "")
+    if a >= 1e6: return ("%.1f jt" % (v / 1e6)).replace(".0 ", " ")
+    if a >= 1e4: return "{:,.0f}".format(v)
+    if v == int(v): return "{:,.0f}".format(v)
+    return ("%.2f" % v).rstrip("0").rstrip(".")
+
+def _esc(x):
+    return _html.escape(str(x), quote=True)
+
+def ux_hero(kicker, title, subtitle="", stats=None, split=None):
+    """Banner utama. stats=[(nilai,label)]  split=[(label,jumlah,warna)] untuk bar status tipis."""
+    h = '<div class="ux-hero">'
+    if kicker: h += '<span class="ux-kicker">%s</span>' % _esc(kicker)
+    h += '<div class="ux-hero-title">%s</div>' % _esc(title)
+    if subtitle: h += '<p class="ux-hero-sub">%s</p>' % _esc(subtitle)
+    if stats:
+        h += '<div class="ux-stats">' + "".join('<div class="ux-stat"><b>%s</b><span>%s</span></div>' % (_esc(v), _esc(l)) for v, l in stats) + "</div>"
+    if split:
+        tot = sum(max(float(n), 0) for _, n, _ in split) or 1.0
+        h += '<div class="ux-split">' + "".join('<i style="width:%.2f%%;background:%s"></i>' % (max(float(n), 0) / tot * 100, c) for _, n, c in split if n > 0) + "</div>"
+        h += '<div class="ux-legend">' + "".join('<span><em style="background:%s"></em>%s · %s</span>' % (c, _esc(l), _esc(_fmt(n))) for l, n, c in split) + "</div>"
+    h += "</div>"
+    st.markdown(h, unsafe_allow_html=True)
+
+def ux_stats_from_db(db):
+    """Ringkasan cepat dari laporan_db yang sudah ada di memori (tanpa query baru)."""
+    db = db or []
+    pbu = sum(1 for r in db if r.get("kategori") == "Pangkalan Bun")
+    prj = sum(1 for r in db if r.get("kategori") == "Project")
+    plk = len(db) - pbu - prj
+    ok = sum(1 for r in db if r.get("status") in ("Normal", "Done"))
+    bad = sum(1 for r in db if r.get("status") == "Major/Critical")
+    mid = len(db) - ok - bad
+    stats = [(len(db), "Total Laporan"), (plk, "NOP Palangkaraya"), (pbu, "NOP Pangkalan Bun"), (prj, "Project")]
+    split = [("Normal / Done", ok, "#34D399"), ("Minor / Progress", mid, "#FBBF24"), ("Major / Critical", bad, "#FB7185")]
+    return stats, split
+
+def ux_progress(items):
+    """Bar bertumpuk. items=[(label, jumlah, warna)]"""
+    tot = sum(max(float(n), 0) for _, n, _ in items) or 1.0
+    h = '<div class="ux-prog">' + "".join('<i style="width:%.2f%%;background:%s"></i>' % (max(float(n), 0) / tot * 100, c) for _, n, c in items if n > 0) + "</div>"
+    h += '<div class="ux-plegend">' + "".join('<span><em style="background:%s"></em>%s: <b>%s</b></span>' % (c, _esc(l), _esc(_fmt(n))) for l, n, c in items) + "</div>"
+    st.markdown(h, unsafe_allow_html=True)
+
+# ----------------------------------------------------------------------------
+# GRAFIK SVG (disajikan sebagai <img> data-URI -> nol JavaScript, nol lag)
+# ----------------------------------------------------------------------------
+_DEF_COLORS = ["#2563EB", "#E2B93B", "#10B981", "#F43F5E", "#8B5CF6", "#06B6D4"]
+
+def _as_frame(data):
+    if isinstance(data, pd.Series):
+        data = data.to_frame()
+    df = pd.DataFrame(data).copy()
+    for c in df.columns:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    return df
+
+# warna neon bawaan (dibuat untuk tema gelap) -> padanan mewah yang tetap kontras di tema terang
+_REMAP = {"#64ffda": "#10B981", "#ff5252": "#F43F5E", "#00e676": "#10B981", "#ffc107": "#F59E0B", "#2979ff": "#2563EB",
+          "#ffffff": "#E11D48", "#3b82f6": "#2563EB", "#10b981": "#10B981", "#ef4444": "#F43F5E", "#f59e0b": "#F59E0B", "#a855f7": "#8B5CF6"}
+
+def _colors(color, n):
+    if color is None: cols = []
+    elif isinstance(color, (list, tuple)): cols = list(color)
+    else: cols = [color]
+    cols = [_REMAP.get(c.lower(), c) if isinstance(c, str) else c for c in cols]
+    cols = [c if (isinstance(c, str) and c.startswith("#") and len(c) == 7) else None for c in cols]
+    return [(cols[i] if i < len(cols) and cols[i] else _DEF_COLORS[i % len(_DEF_COLORS)]) for i in range(n)]
+
+def _ticks(lo, hi, n=4):
+    """Tick 'rapi' dengan paling banyak 6 interval dan rentang sekecil mungkin."""
+    if hi <= lo:
+        hi = lo + (1.0 if lo == 0 else abs(lo) * 0.1)
+    mag = 10 ** _math.floor(_math.log10((hi - lo) / n))
+    cands = sorted(m * k for k in (mag / 10, mag, mag * 10) for m in (1, 2, 2.5, 5))
+    for step in cands:
+        start, end = _math.floor(lo / step) * step, _math.ceil(hi / step) * step
+        if round((end - start) / step) <= 6 and (end - start) / step >= 3:
+            break
+    k = int(round((end - start) / step))
+    return [round(start + i * step, 10) for i in range(k + 1)]
+
+def _trunc(s, n):
+    s = str(s)
+    return s if len(s) <= n else s[: max(n - 1, 1)] + "…"
+
+def _svg_chart(kind, df, colors, height=None, w=None):
+    ns, n = df.shape[1], df.shape[0]
+    W = w or (400 if IS_HP else 640)
+    fs = 13 if IS_HP else 12
+    cw = fs * 0.58
+    names = [str(c) for c in df.columns]
+    # --- legenda (membungkus baris) ---
+    lx, ly, rows, leg = 14, 16, 1, []
+    for i, nm in enumerate(names):
+        t = _trunc(nm, 26)
+        wd = 18 + len(t) * cw + 14
+        if lx + wd > W - 10 and lx > 14:
+            lx, ly, rows = 14, ly + fs + 8, rows + 1
+        leg.append((lx, ly, t, colors[i]))
+        lx += wd
+    if ns == 1 and kind == "bar":
+        leg = []; rows = 0
+    top = (rows * (fs + 8) + 14) if leg else 18
+    bot = fs + 24
+    vals = df.values.astype(float)
+    finite = vals[_np.isfinite(vals)]
+    lo = float(finite.min()) if finite.size else 0.0
+    hi = float(finite.max()) if finite.size else 1.0
+    if kind == "bar":
+        lo = min(lo, 0.0)
+    else:
+        pad = (hi - lo) * 0.08 if hi > lo else (abs(hi) * 0.05 or 0.5)
+        nonneg = lo >= 0
+        lo, hi = lo - pad, hi + pad
+        if nonneg and lo < 0:
+            lo = 0.0
+    tk = _ticks(lo, hi)
+    ymin, ymax = tk[0], tk[-1]
+    left = int(max(len(_fmt(t)) for t in tk) * cw + 18)
+    right = 16
+    H = int(height) if height else (290 if IS_HP else 300)
+    pw, ph = W - left - right, H - top - bot
+    X = lambda i: left + (pw / 2 if n == 1 else i * pw / (n - 1))
+    Y = lambda v: top + ph * (1 - (v - ymin) / ((ymax - ymin) or 1))
+    o = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="%s">' % (W, H, fs)]
+    o.append("<style>%s</style><defs>" % _svg_style(UX_MODE))
+    for i, c in enumerate(colors[:ns]):
+        o.append('<linearGradient id="a%d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%s" stop-opacity="%s"/><stop offset="1" stop-color="%s" stop-opacity="%s"/></linearGradient>'
+                 % (i, c, ".30" if kind == "line" else "1", c, "0" if kind == "line" else ".62"))
+    o.append("</defs>")
+    for t in tk:  # grid + label sumbu Y
+        y = Y(t)
+        o.append('<line class="gr" x1="%d" x2="%d" y1="%.1f" y2="%.1f" stroke-width="1" stroke-dasharray="3 4"/>' % (left, W - right, y, y))
+        o.append('<text class="tx" x="%d" y="%.1f" text-anchor="end" dominant-baseline="middle">%s</text>' % (left - 8, y, _xesc(_fmt(t))))
+    maxl = 5 if IS_HP else 8
+    step = max(1, int(_math.ceil(n / maxl)))
+    for i in range(0, n, step):
+        if kind == "line":
+            xx = X(i)
+            anc = "start" if (i == 0 and n > 2) else ("end" if (i + step >= n and n > 2 and i == n - 1) else "middle")
+        else:
+            xx, anc = left + (i + .5) * pw / n, "middle"
+        o.append('<text class="tx" x="%.1f" y="%d" text-anchor="%s">%s</text>' % (xx, H - bot + fs + 8, anc, _xesc(_trunc(df.index[i], 7 if IS_HP else 10))))
+    for (x, y, t, c) in leg:
+        o.append('<circle cx="%d" cy="%d" r="4.5" fill="%s"/><text class="tx" x="%d" y="%d" dominant-baseline="middle">%s</text>' % (x + 4, y, c, x + 14, y, _xesc(t)))
+    badges = []
+    if kind == "line":
+        for si in range(ns):
+            col = df.iloc[:, si].values.astype(float)
+            ok = _np.isfinite(col)
+            if not ok.any(): continue
+            const = ok.sum() >= 3 and _np.nanmax(col) == _np.nanmin(col)
+            c = colors[si]
+            segs, cur = [], []
+            for i in range(n):
+                if ok[i]: cur.append((X(i), Y(col[i])))
+                elif cur: segs.append(cur); cur = []
+            if cur: segs.append(cur)
+            if const:
+                for sg in segs:
+                    o.append('<polyline fill="none" stroke="%s" stroke-width="1.8" stroke-dasharray="6 5" points="%s"/>' % (c, " ".join("%.1f,%.1f" % p for p in sg)))
+                continue
+            base = Y(ymin)
+            for sg in segs:
+                pts = " ".join("%.1f,%.1f" % p for p in sg)
+                if si == 0 and len(sg) > 1:
+                    o.append('<polygon fill="url(#a0)" points="%s %.1f,%.1f %.1f,%.1f"/>' % (pts, sg[-1][0], base, sg[0][0], base))
+                o.append('<polyline fill="none" stroke="%s" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" points="%s"/>' % (c, pts))
+                if len(sg) == 1:
+                    o.append('<circle cx="%.1f" cy="%.1f" r="3.6" fill="%s"/>' % (sg[0][0], sg[0][1], c))
+            if n <= 24:
+                for i in range(n):
+                    if ok[i]:
+                        o.append('<circle class="bs" cx="%.1f" cy="%.1f" r="3.2" fill="%s" stroke-width="1.6"/>' % (X(i), Y(col[i]), c))
+            li = int(_np.where(ok)[0][-1])
+            badges.append((Y(col[li]), X(li), col[li], c))
+        placed = []
+        for (y, x, v, c) in sorted(badges, key=lambda b: b[0]):
+            txt = _fmt(v); bw = len(txt) * cw + 14; bh = fs + 7
+            by = y - bh - 6
+            for py in placed:
+                if abs(by - py) < bh + 2: by = py + bh + 3
+            placed.append(by)
+            bx = min(max(x - bw / 2, left), W - right - bw)
+            o.append('<circle cx="%.1f" cy="%.1f" r="5" fill="%s" stroke="#fff" stroke-width="2"/>' % (x, y, c))
+            o.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%d" rx="7" fill="%s"/><text x="%.1f" y="%.1f" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-weight="700">%s</text>'
+                     % (bx, by, bw, bh, c, bx + bw / 2, by + bh / 2 + .5, _xesc(txt)))
+    else:  # bar vertikal
+        gw = pw / max(n, 1)
+        bwid = max(min(34, gw * 0.72 / ns), 4)
+        for i in range(n):
+            gx = left + i * gw + (gw - bwid * ns) / 2
+            for si in range(ns):
+                v = df.iat[i, si]
+                if not _np.isfinite(v): continue
+                y0, y1 = Y(max(v, 0)), Y(min(v, 0))
+                x = gx + si * bwid
+                o.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="3.5" fill="url(#a%d)"/>' % (x + 1, y0, bwid - 2, max(y1 - y0, 1.5), si))
+                if bwid >= (22 if not IS_HP else 24) and n <= 10:
+                    o.append('<text class="ik" x="%.1f" y="%.1f" text-anchor="middle" font-weight="700" font-size="%s">%s</text>' % (x + bwid / 2, y0 - 5, fs - 1, _xesc(_fmt(v))))
+    o.append("</svg>")
+    return "".join(o)
+
+def _img(svg, alt):
+    import base64 as _b64
+    return '<img class="ux-chart" alt="%s" src="data:image/svg+xml;base64,%s">' % (_esc(alt), _b64.b64encode(svg.encode("utf-8")).decode())
+
+def _downsample(df, limit):
+    if len(df) <= limit:
+        return df
+    idx = sorted(set(_np.linspace(0, len(df) - 1, limit).round().astype(int).tolist()))
+    return df.iloc[idx]
+
+def ui_line_chart(data, color=None, height=None, **kw):
+    """Pengganti st.line_chart: garis + area + lencana nilai terakhir; garis konstan = batas (putus-putus)."""
+    df = _as_frame(data)
+    if df.empty or df.shape[1] == 0:
+        st.info("Belum ada data untuk ditampilkan."); return
+    df = _downsample(df, 120 if IS_HP else 220)
+    st.markdown(_img(_svg_chart("line", df, _colors(color, df.shape[1]), height), "Grafik garis"), unsafe_allow_html=True)
+
+def ui_bar_chart(data, color=None, height=None, horizontal=None, **kw):
+    """Pengganti st.bar_chart: kolom vertikal untuk kategori sedikit, batang horizontal (HTML) untuk kategori banyak."""
+    df = _as_frame(data)
+    if df.empty or df.shape[1] == 0:
+        st.info("Belum ada data untuk ditampilkan."); return
+    cols = _colors(color, df.shape[1])
+    n = len(df)
+    maxlbl = max((len(str(i)) for i in df.index), default=0)
+    vertical = (not horizontal) if horizontal is not None else (n <= (6 if IS_HP else 12) and maxlbl <= 12 and df.shape[1] <= 3)
+    if vertical:
+        st.markdown(_img(_svg_chart("bar", df, cols, height), "Grafik batang"), unsafe_allow_html=True); return
+    LIM = 40
+    shown = df.head(LIM)
+    vmax = float(_np.nanmax(shown.values)) if _np.isfinite(shown.values).any() else 1.0
+    pct_mode = all("%" in str(c) for c in df.columns) and vmax <= 100
+    scale = 100.0 if pct_mode else (vmax or 1.0)
+    h = '<div class="ux-bars">'
+    if df.shape[1] > 1:
+        h += '<div class="ux-bleg">' + "".join('<span><em style="background:%s"></em>%s</span>' % (cols[i], _esc(c)) for i, c in enumerate(df.columns)) + "</div>"
+    for idx, row in shown.iterrows():
+        h += '<div class="ux-brow"><div class="ux-blbl">%s</div><div class="ux-bset">' % _esc(idx)
+        for i, c in enumerate(df.columns):
+            v = row[c]
+            w = 0.0 if not _np.isfinite(v) else max(min(float(v) / scale * 100, 100), 0)
+            h += '<div class="ux-bline"><div class="ux-btrack"><i style="width:%.1f%%;background:linear-gradient(90deg,%s,%s)"></i></div><div class="ux-bval">%s</div></div>' % (w, cols[i], cols[i] + "AA", _esc(_fmt(v)))
+        h += "</div></div>"
+    h += "</div>"
+    if n > LIM:
+        h += '<div class="ux-note">Menampilkan %d dari %d baris. Lihat tabel untuk data lengkap.</div>' % (LIM, n)
+    st.markdown(h, unsafe_allow_html=True)
+
+def ui_ring(pct, label="", color="#10B981", size=132):
+    """Cincin persentase."""
+    pct = 0.0 if pct is None or (isinstance(pct, float) and _math.isnan(pct)) else max(min(float(pct), 100.0), 0.0)
+    r, c = 52, 2 * _math.pi * 52
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 150" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif"><style>%s</style>'
+           '<circle class="gr" cx="66" cy="66" r="%d" fill="none" stroke-width="12"/>'
+           '<circle cx="66" cy="66" r="%d" fill="none" stroke="%s" stroke-width="12" stroke-linecap="round" stroke-dasharray="%.1f %.1f" transform="rotate(-90 66 66)"/>'
+           '<text class="ik" x="66" y="70" text-anchor="middle" dominant-baseline="middle" font-size="26" font-weight="800">%d%%</text>'
+           '<text class="tx" x="66" y="143" text-anchor="middle" font-size="12" font-weight="700">%s</text></svg>') % (_svg_style(UX_MODE), r, r, color, c * pct / 100, c, round(pct), _xesc(_trunc(label, 22)))
+    st.markdown('<div style="max-width:%dpx;margin:0 auto">%s</div>' % (size, _img(svg, label or "Persentase")), unsafe_allow_html=True)
+
+
+# ----------------------------------------------------------------------------
+# PERFORMA: baca Excel hanya SEKALI per perubahan file (bukan di setiap klik)
+# ----------------------------------------------------------------------------
+@st.cache_data(show_spinner=False, max_entries=24)
+def _read_excel_cached(path, stamp, kwargs_key):
+    return pd.read_excel(path, **dict(kwargs_key))
+
+def read_excel_cached(path, **kwargs):
+    """Sama seperti pd.read_excel, tetapi hasilnya di-cache selama file belum berubah.
+    File baru/diedit (waktu ubah berubah) otomatis dibaca ulang. Objek file upload tidak di-cache."""
+    if isinstance(path, str) and os.path.exists(path):
+        stt = os.stat(path)
+        return _read_excel_cached(path, (stt.st_mtime_ns, stt.st_size), tuple(sorted(kwargs.items())))
+    return pd.read_excel(path, **kwargs)
+
+@st.cache_data(show_spinner=False, max_entries=8)
+def _b64_cached(path, stamp):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
 
 # -------------------------------------------------------------------------
 # FUNGSI PEMBUAT DOKUMEN (PDF & PPTX)
@@ -255,84 +837,9 @@ def build_pdf(r):
         return out.encode('latin-1', 'ignore') if isinstance(out, str) else out
 
 # -------------------------------------------------------------------------
-# CUSTOM CSS (Global & Desain Dashboard Profesional)
+# TEMA PREMIUM & SAKLAR TAMPILAN WEB | HP
 # -------------------------------------------------------------------------
-st.markdown("""
-    <style>
-        [data-testid="stSidebar"] { display: none !important; }
-        [data-testid="collapsedControl"] { display: none !important; }
-        
-        h1, h2, h3 { color: var(--primary-color) !important; font-family: 'Segoe UI', sans-serif; }
-        div[data-testid="stExpander"] details {
-            border: 1px solid rgba(128, 128, 128, 0.3);
-            border-left: 5px solid var(--primary-color);
-            border-radius: 12px;
-            background-color: var(--secondary-background-color);
-            margin-bottom: 12px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.06);
-            transition: all 0.25s ease;
-        }
-        div[data-testid="stExpander"] details:hover {
-            border-color: var(--primary-color);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.14);
-        }
-        div[data-testid="stExpander"] summary {
-            font-size: 16px !important;
-            font-weight: 700 !important;
-            color: var(--text-color) !important;
-            padding: 12px 16px;
-        }
-        
-        .stButton>button { 
-            border-radius: 10px; 
-            font-weight: 800 !important; 
-            transition: all 0.3s; 
-            border: 1px solid var(--primary-color); 
-        }
-        .stButton>button:hover { 
-            transform: translateY(-2px); 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2); 
-            filter: brightness(1.1);
-        }
-        
-        .footer-okta { text-align: center; padding: 25px; margin-top: 50px; color: var(--text-color); font-size: 15px; border-top: 1px solid var(--primary-color); background-color: var(--secondary-background-color); border-radius: 10px; opacity: 0.85; }
-        .footer-okta span { color: var(--primary-color); font-weight: 800; letter-spacing: 1px; font-size: 16px; }
-        
-        .login-box { border: 2px solid var(--primary-color); padding: 36px 28px; border-radius: 18px; background-color: var(--secondary-background-color); text-align: center; height: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.08); transition: all 0.3s ease; }
-        .login-box:hover { transform: translateY(-4px); box-shadow: 0 15px 32px rgba(0,0,0,0.14); }
-        .login-title { color: var(--text-color); font-size: 24px; font-weight: 800; margin-bottom: 12px; }
-        .login-desc { color: var(--text-color); font-size: 15px; margin-bottom: 24px; line-height: 1.6; opacity: 0.9; }
-        
-        .area-card {
-            border: 1px solid rgba(128,128,128,0.25);
-            border-top: 6px solid var(--primary-color);
-            padding: 32px 26px;
-            border-radius: 18px;
-            background-color: var(--secondary-background-color);
-            text-align: center;
-            box-shadow: 0 10px 24px rgba(0,0,0,0.08);
-            margin-bottom: 14px;
-            transition: all 0.3s ease;
-            height: 100%;
-        }
-        .area-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 14px 30px rgba(0,0,0,0.14);
-        }
-        .area-badge {
-            display: inline-block;
-            padding: 6px 16px;
-            border-radius: 30px;
-            font-weight: 800;
-            font-size: 13px;
-            letter-spacing: 0.8px;
-            margin-bottom: 14px;
-            background-color: rgba(0, 123, 255, 0.15);
-            color: #007BFF;
-            border: 1px solid #007BFF;
-        }
-    </style>
-""", unsafe_allow_html=True)
+ux_boot()
 
 # -------------------------------------------------------------------------
 # SISTEM LOGIN & ROLE AKSES 
@@ -342,34 +849,7 @@ if 'dashboard_area' not in st.session_state: st.session_state['dashboard_area'] 
 
 if st.session_state['role'] is None:
     
-    st.markdown("""
-        <style>
-        div.stButton > button {
-            min-height: 75px !important;
-            font-size: 20px !important;
-            font-weight: 900 !important;
-            text-transform: uppercase;
-            border-radius: 12px !important;
-            letter-spacing: 1px;
-        }
-        button[kind="primary"] {
-            background-color: #FF3333 !important;
-            color: #FFFFFF !important;
-            border: 2px solid #CC0000 !important;
-            box-shadow: 0 6px 12px rgba(255, 51, 51, 0.4);
-        }
-        button[kind="secondary"] {
-            background-color: #007BFF !important;
-            color: #FFFFFF !important;
-            border: 2px solid #0056b3 !important;
-            box-shadow: 0 6px 12px rgba(0, 123, 255, 0.4);
-        }
-        div.stButton > button:hover {
-            transform: scale(1.03) !important;
-            filter: brightness(1.2) !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    ux_login_css()
     
     st.markdown("<br>", unsafe_allow_html=True)
     render_header_logo(is_login=True) 
@@ -698,8 +1178,8 @@ if bg_base64:
 if st.session_state['active_menu'] is None:
     render_header_logo()
     role_badge = "🟢 MODE ADMIN" if st.session_state['role'] == 'Admin' else f"👷‍♂️ TIM LAPANGAN ({st.session_state.get('area_lapangan', 'Umum').upper()})"
-    st.markdown("<h1 style='text-align: center; margin-bottom: 5px;'>⚡ Menu Utama Operasional</h1>", unsafe_allow_html=True)
-    st.markdown(f"<p style='text-align: center; opacity: 0.85; font-size: 16px; margin-bottom: 25px;'>Status Akses: <b>{role_badge}</b> — Silakan klik menu di bawah ini untuk masuk ke fitur</p>", unsafe_allow_html=True)
+    _ux_stats, _ux_split = ux_stats_from_db(st.session_state.get("laporan_db", []))
+    ux_hero(role_badge, "Menu Utama Operasional", "Pilih modul untuk melanjutkan. Data laporan tersinkron langsung dari server.", stats=_ux_stats, split=_ux_split)
 
     col_m1, col_m2 = st.columns(2)
     with col_m1:
@@ -2398,7 +2878,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                             excel_filename = f"{site_id}.xlsx"
                             if os.path.exists(excel_filename):
                                 try:
-                                    df_power = pd.read_excel(excel_filename, engine='openpyxl')
+                                    df_power = read_excel_cached(excel_filename, engine='openpyxl')
                                     if 'Begin Time' in df_power.columns and 'MinVoltageOfBBU(V)' in df_power.columns:
                                         df_power['Waktu'] = pd.to_datetime(df_power['Begin Time']).dt.strftime('%H:%M')
                                         df_power.set_index('Waktu', inplace=True)
@@ -2407,7 +2887,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                         chart_data = df_power[chart_cols].copy()
                                         chart_data['Batas Hold (55V)'] = 55.0
                                         
-                                        st.line_chart(chart_data, color=["#64FFDA", "#FF5252", "#FFC107", "#FFFFFF"])
+                                        ui_line_chart(chart_data, color=["#64FFDA", "#FF5252", "#FFC107", "#FFFFFF"])
                                         
                                         min_voltage = df_power['MinVoltageOfBBU(V)'].min()
                                         if min_voltage < 55.0:
@@ -2524,7 +3004,7 @@ elif menu == "📈 Monitoring Improvement":
             st.info("💡 Data grafik ini dibaca secara Real-Time dari **Sheet 'Kurva S'** di file Excel Master Anda.")
             
             try:
-                df_kurva = pd.read_excel(file_master, sheet_name='Kurva S', header=None)
+                df_kurva = read_excel_cached(file_master, sheet_name='Kurva S', header=None)
                 total_site = df_kurva.iloc[6, 13] if pd.notna(df_kurva.iloc[6, 13]) else 0
                 minggu_berj = df_kurva.iloc[7, 13] if pd.notna(df_kurva.iloc[7, 13]) else 0
                 site_plan = df_kurva.iloc[8, 13] if pd.notna(df_kurva.iloc[8, 13]) else 0
@@ -2546,7 +3026,7 @@ elif menu == "📈 Monitoring Improvement":
                 col_chart, col_table = st.columns([2, 1])
                 with col_chart:
                     st.markdown("**Perbandingan Kumulatif Plan vs Actual**")
-                    st.line_chart(df_chart[['Plan_Kumulatif', 'Actual_Kumulatif']], color=["#FF5252", "#64FFDA"])
+                    ui_line_chart(df_chart[['Plan_Kumulatif', 'Actual_Kumulatif']], color=["#FF5252", "#64FFDA"])
                     
                 with col_table:
                     st.markdown("**Tabel Gap Mingguan**")
@@ -2559,7 +3039,7 @@ elif menu == "📈 Monitoring Improvement":
             st.info("💡 Sistem akan membaca Sheet **Tracker Improvement** untuk menghitung berapa site yang sudah Selesai (Done) dan masih dalam pengerjaan (On Progress).")
             
             try:
-                df_track = pd.read_excel(file_master, sheet_name='Tracker Improvement', header=None)
+                df_track = read_excel_cached(file_master, sheet_name='Tracker Improvement', header=None)
                 headers_track = df_track.iloc[3].fillna("").astype(str).tolist()
                 df_t = df_track.iloc[4:].copy()
                 df_t.columns = headers_track
@@ -2590,9 +3070,15 @@ elif menu == "📈 Monitoring Improvement":
                         c_t1.metric("✅ TOTAL SELESAI (Done)", f"{jml_done} Site")
                         c_t2.metric("⏳ SEDANG BERJALAN (On Progress)", f"{jml_prog} Site")
                         c_t3.metric("📝 Lainnya / Belum Mulai", f"{jml_lain} Site")
+                        _tot_t = max(jml_done + jml_prog + jml_lain, 1)
+                        c_rg1, c_rg2 = st.columns([1, 2])
+                        with c_rg1:
+                            ui_ring(jml_done / _tot_t * 100, "Selesai", "#10B981")
+                        with c_rg2:
+                            ux_progress([("Selesai", jml_done, "#10B981"), ("On Progress", jml_prog, "#F59E0B"), ("Lainnya / Belum Mulai", jml_lain, "#94A3B8")])
                         
                         st.markdown("#### 📊 Grafik Breakdown Status")
-                        st.bar_chart(counts.set_index('Status'), color="#64FFDA")
+                        ui_bar_chart(counts.set_index('Status'), color="#64FFDA")
                         
                         with st.expander("Tampilkan Rekap Tabel Mentah Status", expanded=False):
                             st.dataframe(counts, use_container_width=True)
@@ -2609,7 +3095,7 @@ elif menu == "📈 Monitoring Improvement":
             sheet_choice = st.selectbox("Pilih Sheet Excel yang Ingin Diedit / Dilihat:", sheet_options)
             
             try:
-                df_raw = pd.read_excel(file_master, sheet_name=sheet_choice, header=None)
+                df_raw = read_excel_cached(file_master, sheet_name=sheet_choice, header=None)
                 
                 if sheet_choice == "Dashboard":
                     st.info("💡 Karena sheet Dashboard bawaan Excel biasanya berisi desain sel yang di-merge dan banyak bagan, tampilannya di web mungkin terlihat sebagai sekumpulan teks kasar. Gunakan **Tab 👥 Progress Tim** di atas untuk tampilan Dashboard yang jauh lebih rapi.")
@@ -2684,8 +3170,8 @@ elif menu == "⚡ Dapot Power Hasil PMS":
         st.error(f"❌ File **`{dapot_file}`** belum ditemukan di folder server/repositori. Pastikan file tersebut sudah di-upload ke GitHub satu folder dengan `App.py`.")
     else:
         try:
-            df_kpi = pd.read_excel(dapot_file, sheet_name='DB_KPI')
-            df_trend = pd.read_excel(dapot_file, sheet_name='DB_TREND')
+            df_kpi = read_excel_cached(dapot_file, sheet_name='DB_KPI')
+            df_trend = read_excel_cached(dapot_file, sheet_name='DB_TREND')
 
             df_kpi['SITE_ID'] = df_kpi['SITE_ID'].astype(str).str.strip().str.upper()
             df_trend['SITE_ID'] = df_trend['SITE_ID'].astype(str).str.strip().str.upper()
@@ -2776,24 +3262,24 @@ elif menu == "⚡ Dapot Power Hasil PMS":
                         with col_g1:
                             with st.container(border=True):
                                 st.markdown("**⚡ Perbandingan Tegangan: AC (VAC) vs DC (VDC) per Bulan**")
-                                st.line_chart(df_plot[['VAC', 'VDC']], color=["#FF5252", "#00E676"])
+                                ui_line_chart(df_plot[['VAC', 'VDC']], color=["#FF5252", "#00E676"])
                                 st.caption("Merah = Tegangan AC (Volt) | Hijau = Tegangan DC Rectifier (Volt)")
                                 
                         with col_g2:
                             with st.container(border=True):
                                 st.markdown("**🔌 Perbandingan Arus/Beban: Arus AC (IAC) vs Load DC (LDC) per Bulan**")
-                                st.line_chart(df_plot[['IAC', 'LDC']], color=["#FFC107", "#2979FF"])
+                                ui_line_chart(df_plot[['IAC', 'LDC']], color=["#FFC107", "#2979FF"])
                                 st.caption("Kuning = Arus AC (Ampere) | Biru = Beban Load DC (Ampere)")
 
                         col_g3, col_g4 = st.columns(2)
                         with col_g3:
                             with st.container(border=True):
                                 st.markdown("**🔋 Detail Trend Tegangan DC (VDC) Antar Bulan**")
-                                st.bar_chart(df_plot[['VDC']], color="#00E676")
+                                ui_bar_chart(df_plot[['VDC']], color="#00E676")
                         with col_g4:
                             with st.container(border=True):
                                 st.markdown("**⚡ Detail Trend Tegangan AC (VAC) Antar Bulan**")
-                                st.bar_chart(df_plot[['VAC']], color="#FF5252")
+                                ui_bar_chart(df_plot[['VAC']], color="#FF5252")
 
                         st.markdown("#### 📋 Tabel Histori & Selisih (Compare) Antar Bulan")
                         st.dataframe(
@@ -2844,7 +3330,7 @@ elif menu == "⚡ Dapot Power Hasil PMS":
                     ["DB_TREND", "DB_KPI", "Master_Data_Konsolidasi"]
                 )
                 
-                df_dapot_sheet = pd.read_excel(dapot_file, sheet_name=pilih_sheet_dapot)
+                df_dapot_sheet = read_excel_cached(dapot_file, sheet_name=pilih_sheet_dapot)
                 edited_dapot = st.data_editor(
                     df_dapot_sheet, 
                     use_container_width=True, 
@@ -2950,11 +3436,11 @@ elif menu == "📅 Daily Tracker Palangkaraya":
             try:
                 sheet_tujuan = "to do list"
                 try:
-                    df_aktif = pd.read_excel(file_todo, sheet_name=sheet_tujuan, header=2)
+                    df_aktif = read_excel_cached(file_todo, sheet_name=sheet_tujuan, header=2)
                     if df_aktif.empty or 'Site ID' not in df_aktif.columns:
-                        df_aktif = pd.read_excel(file_todo, sheet_name=sheet_tujuan)
+                        df_aktif = read_excel_cached(file_todo, sheet_name=sheet_tujuan)
                 except:
-                    df_aktif = pd.read_excel(file_todo, sheet_name=0)
+                    df_aktif = read_excel_cached(file_todo, sheet_name=0)
                 
                 edited_todo = st.data_editor(df_aktif, use_container_width=True, num_rows="dynamic", key="ed_todo_master")
                 
@@ -3412,7 +3898,7 @@ elif menu == "💎 Executive Project Dashboard":
                     with st.container(border=True):
                         st.markdown("**💰 Komparasi Total Budget vs Sudah Tersupport vs Pending Keuangan (Per Rute Site)**")
                         df_chart_fin = df_tl.set_index("Rute Site")[["Total Budget (Rp)", "Dana Tersupport (Rp)", "Pending Keuangan (Rp)"]]
-                        st.bar_chart(df_chart_fin, color=["#3b82f6", "#10b981", "#ef4444"])
+                        ui_bar_chart(df_chart_fin, color=["#3b82f6", "#10b981", "#ef4444"])
                         st.caption("Biru = Total Budget Site | Hijau = Dana Sudah Tersupport | Merah = Pending Keuangan (Belum Cair)")
 
                 with cg_2:
@@ -3420,7 +3906,7 @@ elif menu == "💎 Executive Project Dashboard":
                         st.markdown("**🛑 Analisa Bottleneck: Kenapa Project Mandek / Tertahan?**")
                         df_kendala = df_tl["Kategori Kendala"].value_counts().reset_index()
                         df_kendala.columns = ["Alasan / Kendala", "Jumlah Site"]
-                        st.bar_chart(df_kendala.set_index("Alasan / Kendala"), color="#f59e0b")
+                        ui_bar_chart(df_kendala.set_index("Alasan / Kendala"), color="#f59e0b")
                         
                         df_stuck = df_tl[(df_tl["Pending Keuangan (Rp)"] > 0) | (df_tl["Status"] != "Done")]
                         if not df_stuck.empty:
@@ -3467,7 +3953,7 @@ elif menu == "💎 Executive Project Dashboard":
                         lambda x: min((x["Dana Tersupport (Rp)"] / x["Total Budget (Rp)"] * 100), 100.0) if x["Total Budget (Rp)"] > 0 else 0.0,
                         axis=1
                     ).round(1)
-                    st.bar_chart(df_prog_cmp.set_index("Rute Site")[["Progress (%)", "Support Keuangan (%)"]], color=["#a855f7", "#10b981"])
+                    ui_bar_chart(df_prog_cmp.set_index("Rute Site")[["Progress (%)", "Support Keuangan (%)"]], color=["#a855f7", "#10b981"])
                     st.caption("Ungu = Progress Fisik Lapangan (%) | Hijau = Persentase Dana Sudah Disupport Keuangan (%)")
 
                 for _, row_item in df_tl_view.iterrows():
