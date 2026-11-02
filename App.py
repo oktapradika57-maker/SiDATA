@@ -951,14 +951,52 @@ def load_master_lists():
 
 
 # -------------------------------------------------------------------------
-# KONFIGURASI UPLOAD CLOUDINARY
+# MULTI-CLOUDINARY & OPTIMASI GAMBAR (AUTO LOAD-BALANCING & COMPRESSION)
 # -------------------------------------------------------------------------
-cloudinary.config( cloud_name = "fxm61tjv", api_key = "624877324969231", api_secret = "LIFO6pfEg9fOM3nbsY8FBbVTpSI", secure = True )
+import random
+
+# Tiga Akun Cloudinary Bapak
+CLOUDINARY_ACCOUNTS = [
+    {
+        "cloud_name": "fxm61tjv",
+        "api_key": "624877324969231",
+        "api_secret": "LIFO6pfEg9fOM3nbsY8FBbVTpSI" # Sesuai codingan lama yg jalan
+    },
+    {
+        "cloud_name": "ji9i1hei",
+        "api_key": "277523771179144",
+        "api_secret": "7eg20WV-Bzf9DXEoT8rg3H99V6c"
+    },
+    {
+        "cloud_name": "tqrnzopw", # GANTI INI DENGAN CLOUD NAME DARI AKUN 48219...
+        "api_key": "482193747671566",
+        "api_secret": "GMMzzU6--yoY46u6bS45hs5Mp90"
+    }
+]
 
 def upload_image(file_obj, folder_name="solar_bts_healthcheck"):
     if file_obj is not None:
         try:
-            response = cloudinary.uploader.upload(file_obj.getvalue(), folder=folder_name)
+            # Pilih akun secara acak (Random) agar beban / kapasitas terbagi rata
+            selected_account = random.choice(CLOUDINARY_ACCOUNTS)
+            cloudinary.config(
+                cloud_name = selected_account["cloud_name"],
+                api_key = selected_account["api_key"],
+                api_secret = selected_account["api_secret"],
+                secure = True
+            )
+            
+            # Optimasi Kualitas Gambar:
+            # Tidak sampai buram, hanya membatasi lebar maksimal layar laptop (1200px)
+            # dan kualitas diset ke auto-eco (Tetap tajam namun hemat MB)
+            response = cloudinary.uploader.upload(
+                file_obj.getvalue(), 
+                folder=folder_name,
+                transformation=[
+                    {'width': 1200, 'crop': 'limit'}, 
+                    {'quality': 'auto:eco', 'fetch_format': 'auto'}
+                ]
+            )
             return response.get('secure_url')
         except Exception: return None
     return None
@@ -974,7 +1012,20 @@ def upload_multiple_images(file_objs, folder_name="solar_bts_healthcheck"):
 def upload_datalog(file_obj, folder_name="prev_datalog"):
     if file_obj is not None:
         try:
-            response = cloudinary.uploader.upload(file_obj.getvalue(), folder=folder_name, resource_type="raw", public_id=file_obj.name)
+            selected_account = random.choice(CLOUDINARY_ACCOUNTS)
+            cloudinary.config(
+                cloud_name = selected_account["cloud_name"],
+                api_key = selected_account["api_key"],
+                api_secret = selected_account["api_secret"],
+                secure = True
+            )
+            
+            response = cloudinary.uploader.upload(
+                file_obj.getvalue(), 
+                folder=folder_name, 
+                resource_type="raw", 
+                public_id=file_obj.name
+            )
             return response.get('secure_url')
         except Exception as e: return None
     return None
@@ -992,7 +1043,6 @@ def tampilkan_grid_foto(url_data, caption=""):
             img_html += f'<div style="background-color: var(--secondary-background-color); border: 1px solid var(--primary-color); border-radius: 8px; padding: 6px; text-align: center;"><a href="{u}" target="_blank"><img src="{u}" style="max-width: 100%; height: auto; max-height: 400px; object-fit: contain; border-radius: 6px;"></a></div>'
         img_html += '</div>'
         st.markdown(img_html, unsafe_allow_html=True)
-
 
 # -------------------------------------------------------------------------
 # SETUP DATABASE GOOGLE SHEETS
