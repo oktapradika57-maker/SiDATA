@@ -1,8 +1,7 @@
 # ============================================================================
-# sihd_addon.py — PAKET ADDON SiHD + SiSAVA (Drop-In, Tidak Ubah App Utama)
+# sihd_addon.py — PAKET ADDON SiHD + SiSAVA (Valid & Utuh)
 # ============================================================================
 import datetime as _dtm
-import urllib.parse
 import streamlit as st
 
 # ---------------- KONSTANTA ----------------
@@ -47,8 +46,10 @@ def render_sihd():
     init_state()
     st.markdown("<h1 style='text-align:center;'>🔄 SiHD — Shift Handover</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; opacity:.8;'>Pergerakan tim antar-site & serah terima shift dengan WA otomatis</p>", unsafe_allow_html=True)
+    
     t1, t2, t3 = st.tabs(["📋 Input Pergerakan", "🔄 Serah Terima Shift", "📊 Log Aktivitas"])
 
+    # --- TAB 1: INPUT PERGERAKAN ---
     with t1:
         st.markdown("### 📍 Catat Pergerakan Tim")
         with st.container(border=True):
@@ -62,6 +63,7 @@ def render_sihd():
             with c3:
                 jam = st.time_input("🕐 Jam", value=_dtm.datetime.now().time(), key="sd_jam")
                 nop = st.selectbox("🏢 NOP", ["Palangkaraya", "Pangkalan Bun", "Tarakan", "Pontianak", "Lainnya"], key="sd_nop")
+        
         with st.container(border=True):
             p1, p2 = st.columns(2)
             with p1:
@@ -70,8 +72,17 @@ def render_sihd():
             with p2:
                 ke = st.text_input("🎯 Site Tujuan", key="sd_ke")
                 prio = st.selectbox("⚡ Prioritas", ["Normal", "High", "Critical"], key="sd_prio")
-            ket = st.text_area("📝 Keterangan", key="sd_ket", height=80)
-        if st.button("💾 SIMPAN PERGERAKAN", type="primary", use_container_width=True, key="sd_save"):
+            ket = st.text_area("📝 Keterangan (Opsional)", key="sd_ket", height=80)
+
+        if st.button("💾 SIMPAN & BUAT PESAN WA", type="primary", use_container_width=True, key="sd_save"):
             if not tim or not dari or not ke:
-                st.error("⚠️ Tim, Site Asal, Site Tujuan wajib diisi!")
+                st.error("⚠️ Tim, Site Asal, dan Site Tujuan wajib diisi!")
             else:
+                entry = {
+                    "tanggal": tgl.strftime("%Y-%m-%d"),
+                    "jam": jam.strftime("%H:%M"),
+                    "shift": shf,
+                    "team": tim,
+                    "status": sta,
+                    "nop": nop,
+      
