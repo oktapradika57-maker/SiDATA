@@ -112,7 +112,136 @@ def _svg_style(mode):
     if mode == "light": return c(_PAL_LIGHT)
     if mode == "dark":  return c(_PAL_DARK)
     return c(_PAL_LIGHT) + "@media (prefers-color-scheme:dark){" + c(_PAL_DARK) + "}"
+# 🎨 PATCH 1/7 — CSS Premium Global (International Enterprise Grade)
 
+## 📍 Cara Tempel
+
+**CARI** di file `App (70).py` baris ini (sekitar baris ~95):
+
+```python
+# ----------------------------------------------------------------------------
+# CSS UTAMA (dipakai Web & HP)
+# ----------------------------------------------------------------------------
+_UX_CSS = """
+```
+
+**TEMPEL KODE PATCH 1 DI BAWAH INI TEPAT SEBELUM baris di atas.**
+
+---
+
+## 🔧 KODE PATCH 1
+
+```python
+# ============================================================================
+# PATCH 1/7 — CSS PREMIUM GLOBAL (Enterprise Grade, Elegant, International)
+# Tempel blok ini SEBELUM definisi _UX_CSS
+# ============================================================================
+
+_UX_CSS_PRO = """
+<style>
+/* ==== VARIABEL PREMIUM: TEKS TERBACA DI DARK & LIGHT ==== */
+.stApp {
+    --ux-radius: 16px;
+    --ux-radius-sm: 10px;
+    --ux-transition: cubic-bezier(.4,0,.2,1);
+}
+.stApp p, .stApp li, .stApp label, .stApp span,
+div[data-testid="stMarkdownContainer"] p,
+div[data-testid="stMarkdownContainer"] li,
+div[data-testid="stMarkdownContainer"] span,
+div[data-testid="stWidgetLabel"] label,
+div[data-testid="stWidgetLabel"] p,
+div[data-testid="stCaptionContainer"] p,
+section[data-testid="stFileUploaderDropzone"] span,
+section[data-testid="stFileUploaderDropzone"] small {
+    color: var(--ux-ink) !important;
+    -webkit-text-fill-color: var(--ux-ink) !important;
+}
+div[data-testid="stCaptionContainer"] p,
+.stApp small { color: var(--ux-muted) !important; -webkit-text-fill-color: var(--ux-muted) !important; }
+
+/* ==== FIX KRITIS: FILE UPLOADER SELALU TERLIHAT ==== */
+section[data-testid="stFileUploaderDropzone"],
+div[data-testid="stFileUploader"],
+div[data-testid="stFileUploaderFile"] {
+    display: block !important; visibility: visible !important;
+    opacity: 1 !important; pointer-events: auto !important;
+    z-index: 1 !important; position: relative !important;
+}
+section[data-testid="stFileUploaderDropzone"]{
+    border: 2px dashed var(--ux-accent) !important;
+    border-radius: var(--ux-radius) !important;
+    background: linear-gradient(135deg, rgba(37,99,235,.04), rgba(184,137,26,.03)) !important;
+    padding: 1.2rem !important;
+    transition: all .25s var(--ux-transition);
+    min-height: 90px !important;
+}
+section[data-testid="stFileUploaderDropzone"]:hover{
+    border-color: var(--ux-gold) !important;
+    background: rgba(37,99,235,.08) !important;
+    box-shadow: 0 0 0 4px rgba(37,99,235,.08);
+}
+section[data-testid="stFileUploaderDropzone"] > div{
+    display: flex !important; flex-direction: column !important;
+    align-items: center !important; gap: 8px !important;
+}
+section[data-testid="stFileUploaderDropzone"] button{
+    background: linear-gradient(135deg, var(--ux-btn1), var(--ux-btn2)) !important;
+    color: #fff !important; border-radius: var(--ux-radius-sm) !important;
+    font-weight: 700 !important; min-height: 42px !important;
+    padding: 10px 24px !important; border: none !important;
+    cursor: pointer !important; pointer-events: auto !important;
+    box-shadow: 0 4px 14px -4px rgba(37,99,235,.5) !important;
+}
+section[data-testid="stFileUploaderDropzone"] button:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px -4px rgba(37,99,235,.7) !important;
+}
+div[data-testid="stFileUploaderFile"]{
+    background: rgba(37,99,235,.08) !important;
+    border: 1px solid rgba(37,99,235,.25) !important;
+    border-radius: var(--ux-radius-sm) !important;
+    padding: 10px 14px !important; margin-top: 8px !important;
+}
+
+/* ==== FIX DATE PICKER (Streamlit Bug Fix) ==== */
+div[data-baseweb="datepicker"],
+div[data-baseweb="calendar"],
+div[data-baseweb="popover"],
+div[data-baseweb="input"]{ z-index: 9999 !important; position: relative !important; }
+input[type="date"], .stDateInput input{
+    color: var(--ux-ink) !important;
+    -webkit-text-fill-color: var(--ux-ink) !important;
+    pointer-events: auto !important; z-index: 1 !important;
+}
+
+/* ==== BUTTON — SEMUA VARIAN PREMIUM ==== */
+div[data-testid="stButton"] button,
+div[data-testid="stFormSubmitButton"] button,
+div[data-testid="stDownloadButton"] button,
+a[data-testid="stLinkButton"]{
+    border-radius: var(--ux-radius-sm) !important;
+    font-weight: 700 !important;
+    letter-spacing: .01em;
+    transition: all .22s var(--ux-transition);
+    min-height: 44px;
+    box-shadow: 0 2px 8px -2px rgba(11,23,48,.08);
+}
+button[kind="primary"], button[data-testid="stBaseButton-primary"]{
+    background: linear-gradient(135deg, var(--ux-btn1) 0%, var(--ux-btn2) 100%) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255,255,255,.15) !important;
+    box-shadow: 0 8px 20px -6px rgba(37,99,235,.55),
+                inset 0 1px 0 rgba(255,255,255,.22) !important;
+}
+button[kind="primary"]:hover{
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px -6px rgba(37,99,235,.7),
+                inset 0 1px 0 rgba(255,255,255,.25) !important;
+}
+button[kind="primary"]:active{ transfor
+
+*(Jawaban telah mencapai batas maksimum 5.000 karakter. Ketik **lanjutkan** untuk meneruskan pembahasan.)*
 # ----------------------------------------------------------------------------
 # CSS UTAMA (dipakai Web & HP)
 # ----------------------------------------------------------------------------
