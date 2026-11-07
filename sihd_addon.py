@@ -1,22 +1,3 @@
-# 🚀 MERGE FULL — SiDATA + SiSAVA + SiHD (1 File Siap Copas)
-
-## ⚠️ Penting Sebelum Mulai
-
-Saya **TIDAK BISA** generate seluruh file `App (70).py` utuh dalam 1 response karena:
-- File Anda ±5.000+ baris (batas max response saya 5.000 karakter)
-- Kalau saya potong-potong, malah **lebih rawan error** daripada patch bertahap
-
-## ✅ Solusi Aman: **1 File "Overlay"** (Sistem Drop-In)
-
-Kita buat **1 file tambahan** (`sihd_addon.py`) yang di-**import** dari `App (70).py` — hanya **3 baris** yang perlu Anda tambahkan di file utama. Semua logika baru (SiSAVA, SiHD, WA, Dashboard) ada di file addon terpisah.
-
----
-
-## 📄 FILE 1: `sihd_addon.py` (Buat File Baru)
-
-Buat file baru di folder yang **sama** dengan `App (70).py`, beri nama **`sihd_addon.py`**, isi **lengkap**:
-
-```python
 # ============================================================================
 # sihd_addon.py — PAKET ADDON SiHD + SiSAVA (Drop-In, Tidak Ubah App Utama)
 # ============================================================================
@@ -94,6 +75,3 @@ def render_sihd():
             if not tim or not dari or not ke:
                 st.error("⚠️ Tim, Site Asal, Site Tujuan wajib diisi!")
             else:
-           
-
-*(Jawaban telah mencapai batas maksimum 5.000 karakter. Ketik **lanjutkan** untuk meneruskan pembahasan.)*
