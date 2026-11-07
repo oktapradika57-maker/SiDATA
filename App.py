@@ -1088,7 +1088,6 @@ def fetch_data_from_gsheets():
                     all_data.append(item)
                 except: pass
 
-    # --- TAMBAHAN UNTUK SHEET PROJECT ---
     sheet_proj = connect_gsheets("Project")
     if sheet_proj:
         data_proj = sheet_proj.get_all_values()
@@ -1101,8 +1100,20 @@ def fetch_data_from_gsheets():
                     all_data.append(item)
                 except: pass
                 
+    # --- TAMBAHAN UNTUK SHEET SiHD ---
+    sheet_sihd = connect_gsheets("SiHD")
+    if sheet_sihd:
+        data_sihd = sheet_sihd.get_all_values()
+        for idx, row in enumerate(data_sihd[1:]):
+            if len(row) >= 6: 
+                try: 
+                    item = json.loads(row[5])
+                    item['_sheet'] = "SiHD"
+                    item['_row'] = idx + 2
+                    all_data.append(item)
+                except: pass
+                
     return all_data
-
 if 'laporan_db' not in st.session_state: 
     st.session_state['laporan_db'] = fetch_data_from_gsheets()
 
@@ -1293,7 +1304,7 @@ if st.session_state['active_menu'] is None:
             st.rerun()
 
     st.markdown("<hr style='margin: 30px 0;'>", unsafe_allow_html=True)
-    c_out1, c_out2, c_out3, c_out4 = st.columns(4)
+    c_out1, c_out2, c_out3 = st.columns(3)
     with c_out1:
         st.markdown("""
             <div class='area-card' style='border-top-color: #9C27B0;'>
@@ -1308,6 +1319,32 @@ if st.session_state['active_menu'] is None:
             
     with c_out2:
         st.markdown("""
+            <div class='area-card' style='border-top-color: #EF4444;'>
+                <div style='font-size: 42px; margin-bottom: 8px;'>🚨</div>
+                <div class='login-title' style='font-size: 20px;'>SiHD (Sistem Helpdesk)</div>
+                <div class='login-desc' style='font-size: 13px;'>Buku mutasi elektronik pergerakan tim, rincian pekerjaan, dan WA serah terima shift.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("🚨 BUKA SiHD (MUTASI TIM)", type="primary", use_container_width=True, key="m_sihd"):
+            st.session_state['active_menu'] = "🚨 SiHD (Pergerakan Tim)"
+            st.rerun()
+
+    with c_out3:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #10B981;'>
+                <div style='font-size: 42px; margin-bottom: 8px;'>💠</div>
+                <div class='login-title' style='font-size: 20px;'>SiSAVA</div>
+                <div class='login-desc' style='font-size: 13px;'>Sistem Service Variable Activity: Pengajuan RAB, Margin, Nilai SVA & Bukti Pekerjaan.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("💠 BUKA SiSAVA", type="primary", use_container_width=True, key="m_sisava"):
+            st.session_state['active_menu'] = "💠 SiSAVA"
+            st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    c_tool1, c_tool2, c_tool3 = st.columns(3)
+    with c_tool1:
+        st.markdown("""
             <div class='area-card' style='border-top-color: #FFD700; background: linear-gradient(145deg, #0f172a, #1e293b);'>
                 <div style='font-size: 42px; margin-bottom: 8px;'>💎</div>
                 <div class='login-title' style='font-size: 20px; color: #FFD700 !important;'>Executive Project</div>
@@ -1318,7 +1355,7 @@ if st.session_state['active_menu'] is None:
             st.session_state['active_menu'] = "💎 Executive Project Dashboard"
             st.rerun()
 
-    with c_out3:
+    with c_tool2:
         if st.session_state['role'] in ['Admin', 'Logistik']:
             st.markdown("""
                 <div class='area-card' style='border-top-color: #FF9800;'>
@@ -1331,7 +1368,7 @@ if st.session_state['active_menu'] is None:
                 st.session_state['active_menu'] = "📦 Logistik & SPMS"
                 st.rerun()
                 
-    with c_out4:
+    with c_tool3:
         st.markdown("""
             <div class='area-card' style='border-top-color: #9E9E9E;'>
                 <div style='font-size: 42px; margin-bottom: 8px;'>🚪</div>
@@ -1345,6 +1382,7 @@ if st.session_state['active_menu'] is None:
             st.session_state['active_menu'] = None
             st.session_state['proj_dash_unlocked'] = False
             st.session_state['proj_unlocked'] = False
+            st.session_state.pop('sv_user', None)
             st.rerun()
     st.stop()
 else:
