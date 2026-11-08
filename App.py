@@ -847,79 +847,88 @@ ux_boot()
 if 'role' not in st.session_state: st.session_state['role'] = None
 if 'dashboard_area' not in st.session_state: st.session_state['dashboard_area'] = None
 
-if st.session_state['role'] is None:
+if st.session_state['role'] is None and st.session_state.get('active_menu') not in ["💠 SiSAVA", "🚨 SiHD (Pergerakan Tim)"]:
     
     ux_login_css()
-    
     st.markdown("<br>", unsafe_allow_html=True)
     render_header_logo(is_login=True) 
-    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>RPO NOP PLK & PBU Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 45px; letter-spacing: 1px; opacity: 0.85;'>Report Online,Dasboard Minitoring dan evidance taksforce</p>", unsafe_allow_html=True)
-    col_v, col_l, col_a = st.columns([3, 3, 3])
+    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Sistem Operasional Terpadu (SIDATA)</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 35px; letter-spacing: 1px; opacity: 0.85;'>Pilih Portal Akses Pekerjaan Anda Hari Ini</p>", unsafe_allow_html=True)
     
+    col_v, col_l, col_a = st.columns([3, 3, 3])
     with col_v:
         st.markdown("""
-            <div class='login-box' style='padding-bottom: 20px;'>
-                <div style='font-size: 55px; margin-bottom: 15px;'>👷‍♂️</div>
-                <div class='login-title'>Mode Lapangan</div>
-                <div class='login-desc'>Pilih area operasional Anda agar langsung diarahkan ke form pendataan yang tepat.</div>
+            <div class='login-box'>
+                <div style='font-size: 45px; margin-bottom: 10px;'>👷‍♂️</div>
+                <div class='login-title' style='font-size: 20px;'>Mode Lapangan</div>
+                <div class='login-desc' style='font-size: 13px;'>Akses Form Pendataan PM (SPS, Reguler, Pangkalan Bun).</div>
             </div>
         """, unsafe_allow_html=True)
-        st.write("")
-        if st.button("🔴 PANGKALAN BUN", type="primary", use_container_width=True):
-            st.session_state['role'] = 'Lapangan'
-            st.session_state['area_lapangan'] = 'Pangkalan Bun'
-            st.session_state['dashboard_area'] = None
-            st.session_state['active_menu'] = None
+        c_v1, c_v2 = st.columns(2)
+        if c_v1.button("🔴 P'BUN", type="primary", use_container_width=True):
+            st.session_state['role'], st.session_state['area_lapangan'], st.session_state['active_menu'] = 'Lapangan', 'Pangkalan Bun', None
             st.rerun()
-        if st.button("🔵 PALANGKARAYA", type="secondary", use_container_width=True):
-            st.session_state['role'] = 'Lapangan'
-            st.session_state['area_lapangan'] = 'Palangkaraya'
-            st.session_state['dashboard_area'] = None
-            st.session_state['active_menu'] = None
+        if c_v2.button("🔵 PLK", type="secondary", use_container_width=True):
+            st.session_state['role'], st.session_state['area_lapangan'], st.session_state['active_menu'] = 'Lapangan', 'Palangkaraya', None
             st.rerun()
 
     with col_l:
         st.markdown("""
-            <div class='login-box' style='padding-bottom: 20px; border-color: #FF9800;'>
-                <div style='font-size: 55px; margin-bottom: 15px;'>📦</div>
-                <div class='login-title'>Gudang / Logistik</div>
-                <div class='login-desc'>Akses eksklusif pengelolaan stok, in/out barang, sparepart, dan pelaporan SPMS.</div>
+            <div class='login-box' style='border-color: #FF9800;'>
+                <div style='font-size: 45px; margin-bottom: 10px;'>📦</div>
+                <div class='login-title' style='font-size: 20px;'>Gudang / Logistik</div>
+                <div class='login-desc' style='font-size: 13px;'>Akses stok, In/Out barang, dan Auto-WA Material.</div>
             </div>
         """, unsafe_allow_html=True)
         st.write("")
-        st.write("")
-        st.write("")
         if st.button("📦 MASUK LOGISTIK", type="secondary", use_container_width=True):
-            st.session_state['role'] = 'Logistik'
-            st.session_state['area_lapangan'] = 'Logistik'
-            st.session_state['dashboard_area'] = None
-            st.session_state['active_menu'] = None
+            st.session_state['role'], st.session_state['area_lapangan'], st.session_state['active_menu'] = 'Logistik', 'Logistik', None
             st.rerun()
             
     with col_a:
         st.markdown("""
             <div class='login-box'>
-                <div style='font-size: 55px; margin-bottom: 15px;'>🔐</div>
-                <div class='login-title'>Mode Admin</div>
-                <div class='login-desc'>Akses khusus operasional untuk revisi data lapangan, dan analisa grafik Power.</div>
+                <div style='font-size: 45px; margin-bottom: 10px;'>🔐</div>
+                <div class='login-title' style='font-size: 20px;'>Mode Admin Utama</div>
+                <div class='login-desc' style='font-size: 13px;'>Akses revisi data, Dapot Power, Kurva S & Manajemen User.</div>
             </div>
         """, unsafe_allow_html=True)
-        st.write("")
-        admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Masukkan Sandi...", key="pwd_login")
+        admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Sandi...", key="pwd_login", label_visibility="collapsed")
         if st.button("🔓 LOGIN ADMIN", type="primary", use_container_width=True):
             if admin_pass == "KUT2027":
-                st.session_state['role'] = 'Admin'
-                st.session_state['dashboard_area'] = None
-                st.session_state['active_menu'] = None
+                st.session_state['role'], st.session_state['active_menu'] = 'Admin', None
                 st.rerun()
             else:
-                st.error("❌ Kata sandi salah! Akses ditolak.")
-                
+                st.error("❌ Sandi salah!")
+
+    st.markdown("<hr style='margin: 25px 0;'>", unsafe_allow_html=True)
+    c_bot1, c_bot2 = st.columns(2)
+    with c_bot1:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #EF4444;'>
+                <div style='font-size: 40px; margin-bottom: 8px;'>🚨</div>
+                <div class='login-title' style='font-size: 18px;'>SiHD (Sistem Helpdesk & Mutasi)</div>
+                <div class='login-desc' style='font-size: 13px;'>Akses langsung Tim Helpdesk: Lapor rute pergerakan harian, pencatatan problem/kendala, dan Auto-WA pergantian shift.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("🚨 MASUK SiHD (MUTASI TIM)", type="primary", use_container_width=True):
+            st.session_state['active_menu'] = "🚨 SiHD (Pergerakan Tim)"
+            st.rerun()
+    with c_bot2:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #10B981;'>
+                <div style='font-size: 40px; margin-bottom: 8px;'>💠</div>
+                <div class='login-title' style='font-size: 18px;'>SiSAVA (Service Variable Activity)</div>
+                <div class='login-desc' style='font-size: 13px;'>Pengajuan RAB, validasi Nilai SVA, dan Manajemen Keuangan Project. (Akun dibuat & diatur oleh Admin Utama).</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("💠 MASUK PORTAL SiSAVA", type="secondary", use_container_width=True):
+            st.session_state['active_menu'] = "💠 SiSAVA"
+            st.rerun()
+
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("<div style='text-align: center; font-size: 13px; opacity: 0.7;'>Secured System Application & Database Management<br><b>Created By Okta Pradika © 2026</b></div>", unsafe_allow_html=True)
     st.stop()
-
 
 # -------------------------------------------------------------------------
 # FUNGSI PEMBACA MASTER DATA EXCEL (NAMA FME & SITE ID)
@@ -1040,10 +1049,11 @@ def tampilkan_grid_foto(url_data, caption=""):
         if caption: st.markdown(f"*{caption}*")
         img_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 15px;">'
         for u in urls:
-            img_html += f'<div style="background-color: var(--secondary-background-color); border: 1px solid var(--primary-color); border-radius: 8px; padding: 6px; text-align: center;"><a href="{u}" target="_blank"><img src="{u}" style="max-width: 100%; height: auto; max-height: 400px; object-fit: contain; border-radius: 6px;"></a></div>'
+            # OPTIMASI ANTI-LEMOT: Minta Cloudinary mengirim foto resolusi kecil (lebar 400px) untuk tampilan grid dashboard
+            opt_u = u.replace("upload/", "upload/w_400,q_auto:eco/") if "cloudinary" in u else u
+            img_html += f'<div style="background-color: var(--secondary-background-color); border: 1px solid var(--primary-color); border-radius: 8px; padding: 6px; text-align: center;"><a href="{u}" target="_blank"><img src="{opt_u}" loading="lazy" style="max-width: 100%; height: auto; max-height: 400px; object-fit: contain; border-radius: 6px;"></a></div>'
         img_html += '</div>'
         st.markdown(img_html, unsafe_allow_html=True)
-
 # -------------------------------------------------------------------------
 # SETUP DATABASE GOOGLE SHEETS
 # -------------------------------------------------------------------------
@@ -3628,179 +3638,59 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         # ---------------------------------------------------------------------
         with st.container(border=True):
             st.markdown(f"#### 📥 Ekspor Rekapitulasi Laporan — {aktif_area}")
-            summary_list = []
+            st.info("💡 Untuk mempercepat kinerja Dashboard, file Excel dan PPTX baru akan dirakit saat Anda menekan tombol di bawah ini.")
             
-            for r in export_db:
-                if r.get('kategori') == 'Pangkalan Bun':
-                    kel = r.get('pb_kelistrikan', {})
-                    acp = r.get('pb_acpdb', {})
-                    enva = r.get('pb_enva', {})
-                    gen = r.get('pb_genset', {})
-
-                    row_data = {
-                        "Timestamp": r.get('timestamp', '-'),
-                        "Nama Site": r.get('site_name', '-'),
-                        "Kategori": "Pangkalan Bun",
-                        "FME NAME": r.get('pb_te', '-'),
-                        "Ticket#": r.get('pb_ticket', '-'),
-                        "Catuan Power": r.get('pb_power', '-'),
-                        "Status Akhir": r.get('status', '-'),
-                        
-                        "Main Fail (ENVA)": enva.get('main_fail', '-'),
-                        "Rect Fail (ENVA)": enva.get('rect_fail', '-'),
-                        "Low Batt (ENVA)": enva.get('low_batt', '-'),
-                        "High Temp (ENVA)": enva.get('high_temp', '-'),
-                        "Genset Run (ENVA)": enva.get('gen_run', '-'),
-                        "Genset Fail (ENVA)": enva.get('gen_fail', '-'),
-                        
-                        "KWH Daya": kel.get('daya', '-'),
-                        "KWH Phasa": kel.get('phasa', '-'),
-                        "Tegangan RST-N": kel.get('v_rst_n', '-'),
-                        "Tegangan RS-RT-ST": kel.get('v_rs_rt_st', '-'),
-                        "Arus RST": kel.get('arus_rst', '-'),
-                        "Tegangan G-N": kel.get('v_gn', '-'),
-                        
-                        "ACPDB Ada": acp.get('ada', '-'),
-                        "ACPDB RST-N": acp.get('v_rst_n', '-'),
-                        "ACPDB RS-RT-ST": acp.get('v_rs_rt_st', '-'),
-                        "ACPDB Arus": acp.get('arus_rst', '-'),
-                        "ACPDB G-N": acp.get('v_gn', '-'),
-                        
-                        "Genset Ada": gen.get('ada', '-'),
-                        "Genset Cap": gen.get('cap', '-'),
-                        "Genset Status": gen.get('status', '-'),
-                        "Genset Config": gen.get('config', '-'),
-                        "Genset Tangki": gen.get('tangki', '-'),
-                        "Genset RH": gen.get('rh', '-'),
-                        "Genset BBM": gen.get('bbm', '-'),
-                        
-                        "Power & CME Act": ", ".join(r.get('pb_act_power', [])) if isinstance(r.get('pb_act_power'), list) else str(r.get('pb_act_power','-')),
-                        "Transport Act": ", ".join(r.get('pb_act_trans', [])) if isinstance(r.get('pb_act_trans'), list) else str(r.get('pb_act_trans','-')),
-                        "OSA Act": ", ".join(r.get('pb_act_osa', [])) if isinstance(r.get('pb_act_osa'), list) else str(r.get('pb_act_osa','-')),
-                        "Catatan/Temuan": r.get('action', '-')
-                    }
-                    
-                    rects = r.get('pb_rectifiers', [])
-                    for i in range(4):
-                        prefix = f"Rect{i+1} "
-                        if i < len(rects):
-                            rect = rects[i]
-                            row_data[prefix + "Tipe"] = rect.get('tipe', '-')
-                            row_data[prefix + "Module"] = rect.get('module', '-')
-                            row_data[prefix + "Load(A)"] = rect.get('load', '-')
-                            row_data[prefix + "DC(V)"] = rect.get('dc_v', '-')
-                            row_data[prefix + "Batt(OK/NOK)"] = f"{rect.get('batt_ok', '-')}/{rect.get('batt_nok', '-')}"
+            if st.button("🛠️ Siapkan File Excel & PPTX untuk Diunduh", type="primary", use_container_width=True):
+                with st.spinner("⏳ Sedang merakit dokumen resolusi tinggi, mohon tunggu sebentar..."):
+                    summary_list = []
+                    for r in export_db:
+                        if r.get('kategori') == 'Pangkalan Bun':
+                            kel = r.get('pb_kelistrikan', {})
+                            acp = r.get('pb_acpdb', {})
+                            enva = r.get('pb_enva', {})
+                            gen = r.get('pb_genset', {})
+                            row_data = {
+                                "Timestamp": r.get('timestamp', '-'), "Nama Site": r.get('site_name', '-'),
+                                "Kategori": "Pangkalan Bun", "FME NAME": r.get('pb_te', '-'),
+                                "Ticket#": r.get('pb_ticket', '-'), "Catuan Power": r.get('pb_power', '-'),
+                                "Status Akhir": r.get('status', '-'), "Main Fail (ENVA)": enva.get('main_fail', '-'),
+                                "Genset Status": gen.get('status', '-'), "Genset BBM": gen.get('bbm', '-'),
+                                "Catatan/Temuan": r.get('action', '-')
+                            }
+                            summary_list.append(row_data)
                         else:
-                            row_data[prefix + "Tipe"] = "-"
-                            row_data[prefix + "Module"] = "-"
-                            row_data[prefix + "Load(A)"] = "-"
-                            row_data[prefix + "DC(V)"] = "-"
-                            row_data[prefix + "Batt(OK/NOK)"] = "-"
+                            cond_d = r.get('cond_data', {})
+                            pd_d = r.get('proj_data', {})
+                            summary_list.append({
+                                "Timestamp": r.get('timestamp', '-'), "Nama Site": r.get('site_name', '-'),
+                                "Kategori": r.get('kategori', 'SPS'), "NOP": r.get('nop', '-'),
+                                "Teknisi / FME": r.get('teknisi', '-'), "Status Akhir": r.get('status', '-'),
+                                "Load Beban (A)": r.get('total_load', '-'), "PLN": r.get('pln_status', '-'),
+                                "Rectifier (Merek)": r.get('rect_brand', '-'), "Voltase Recti (V)": r.get('rect_out_v', '-'),
+                                "Genset": r.get('genset_status', '-'), "Level BBM (%)": r.get('fuel_pct', '-'),
+                                "Action / Pekerjaan": r.get('action', '-'), "Sparepart Diganti": r.get('sparepart', '-'),
+                                "Remark": r.get('remark', '-'),
+                                "Reguler - Note/Remark": cond_d.get('note_action', '-'),
+                                "Project - Temuan SVA": pd_d.get('temuan_sva', '-'),
+                                "Project - Catatan Akhir": pd_d.get('note_akhir', '-')
+                            })
+                    
+                    df_export = pd.DataFrame(summary_list)
+                    
+                    col_dl_ex, col_dl_ppt = st.columns(2)
+                    with col_dl_ex:
+                        try:
+                            excel_buffer = BytesIO()
+                            with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+                                df_export.to_excel(writer, index=False, sheet_name='Database PM')
+                            st.download_button(label=f"📊 Download Excel ({aktif_area})", data=excel_buffer.getvalue(), file_name=f"Database_PM_{aktif_area}_{datetime.date.today()}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
+                        except:
+                            st.download_button(label="📥 Download Laporan (CSV)", data=df_export.to_csv(index=False).encode('utf-8'), file_name=f"Database_PM_{datetime.date.today()}.csv", mime="text/csv", type="secondary")
 
-                    summary_list.append(row_data)
-
-                else:
-                    panel_issues = [p.get('Panel', 'Panel') for p in r.get('panel_data', []) if p.get('kondisi') and p.get('kondisi') != "Baik"]
-                    bat_issues = [b.get('Baterai', 'Baterai') for b in r.get('battery_data', []) if b.get('Kondisi') and b.get('Kondisi') != "Normal"]
-
-                    cond_d = r.get('cond_data', {})
-                    pd_d = r.get('proj_data', {})
-                    summary_list.append({
-                        "Timestamp": r.get('timestamp', '-'),
-                        "Nama Site": r.get('site_name', '-'),
-                        "Kategori": r.get('kategori', 'SPS'),
-                        "NOP": r.get('nop', '-'),
-                        "Teknisi / FME": r.get('teknisi', '-'),
-                        "Role FME (Reguler)": r.get('role_fme', '-'),
-                        "Status Akhir": r.get('status', '-'),
-                        "Kondisi Site": r.get('site_cond', '-'),
-                        "Fisik Tower": r.get('tower_cond', '-'),
-                        "Shading Panel": r.get('shading_status', '-'),
-                        "Status Panel": r.get('status_panel', '-'),
-                        "Jumlah Panel Rusak": r.get('jml_panel_rusak', 0),
-                        "Type Merk Panel": r.get('merk_panel', '-'),
-                        "Status Battery": r.get('status_battery', '-'),
-                        "Jumlah battery Rusak": r.get('jml_bat_rusak', 0),
-                        "Type Battery": r.get('tipe_battery', '-'),
-                        "status SCC": r.get('status_scc', '-'),
-                        "Jumlah SCC NOK": r.get('jml_scc_nok', 0),
-                        "Type/Merk SCC": r.get('merk_scc', '-'),
-                        "Possibility PSB": r.get('possibility_psb', '-'),
-                        "Estimasi Jarak tower ke jaringan PLN": r.get('jarak_pln', '-'),
-                        "SPS Rusak (Detail)": ", ".join(panel_issues) if panel_issues else "Aman (Baik)",
-                        "Load Beban (A)": r.get('total_load', '-'),
-                        "PLN": r.get('pln_status', '-'),
-                        "Rectifier (Merek)": r.get('rect_brand', '-'),
-                        "Voltase Recti (V)": r.get('rect_out_v', '-'),
-                        "Genset": r.get('genset_status', '-'),
-                        "Level BBM (%)": r.get('fuel_pct', '-'),
-                        "Baterai Rusak (Detail)": ", ".join(bat_issues) if bat_issues else "Aman (Normal)",
-                        "Grounding (Ohm)": r.get('earth_ohm', '-'),
-                        "Action / Pekerjaan": r.get('action', '-'),
-                        "Sparepart Diganti": r.get('sparepart', '-'),
-                        "Remark": r.get('remark', '-'),
-                        
-                        "Reguler - Problem Alarm": r.get('problem_alarm', '-'),
-                        "Reguler - Teg AC (RN/SN/TN)": f"{cond_d.get('v_rn','-')} / {cond_d.get('v_sn','-')} / {cond_d.get('v_tn','-')}",
-                        "Reguler - Arus AC (R/S/T)": f"{cond_d.get('i_r','-')} / {cond_d.get('i_s','-')} / {cond_d.get('i_t','-')}",
-                        "Reguler - Load DC": cond_d.get('load_dc', '-'),
-                        "Reguler - Set BCL": cond_d.get('set_bcl', '-'),
-                        "Reguler - Set Capacity": cond_d.get('set_cap', '-'),
-                        "Reguler - Module Rusak": cond_d.get('mod_rusak', '-'),
-                        "Reguler - Note/Remark": cond_d.get('note_action', '-'),
-                        
-                        "Project - Jenis": pd_d.get('jenis_project', '-'),
-                        "Project - No PO/Tiket": str(pd_d.get('no_po', '')) + str(pd_d.get('no_tiket', '')),
-                        "Project - Mitra": pd_d.get('mitra', '-'),
-                        "Project - Pekerjaan": pd_d.get('tipe_pekerjaan', '-'),
-                        "Project - Temuan SVA": pd_d.get('temuan_sva', '-'),
-                        "Project - Catatan Akhir": pd_d.get('note_akhir', '-')
-                    })
-                
-            df_export = pd.DataFrame(summary_list)
-            
-            col_dl_ex, col_dl_ppt = st.columns(2)
-            with col_dl_ex:
-                try:
-                    excel_buffer = BytesIO()
-                    with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-                        df_export.to_excel(writer, index=False, sheet_name='Database PM')
-                        workbook = writer.book
-                        worksheet = writer.sheets['Database PM']
-                        
-                        header_format = workbook.add_format({'bold': True, 'font_color': 'white', 'bg_color': '#112240', 'border': 1, 'align': 'center', 'valign': 'vcenter'})
-                        for col_num, value in enumerate(df_export.columns.values):
-                            worksheet.write(0, col_num, value, header_format)
-
-                        cell_center = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
-                        cell_left = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1, 'text_wrap': True})
-
-                        for i, col_name in enumerate(df_export.columns):
-                            if col_name in ["Action / Pekerjaan", "Remark", "Possibility PSB", "Estimasi Jarak tower ke jaringan PLN", "Type Merk Panel", "Type Battery", "SPS Rusak (Detail)", "Baterai Rusak (Detail)", "Sparepart Diganti", "Catatan/Temuan", "Reguler - Problem Alarm", "Reguler - Note/Remark", "Project - Temuan SVA", "Project - Catatan Akhir"]:
-                                worksheet.set_column(i, i, 35, cell_left)
-                            else:
-                                worksheet.set_column(i, i, 18, cell_center)
-
-                        worksheet.freeze_panes(1, 0)
-                        worksheet.autofilter(0, 0, len(df_export), len(df_export.columns) - 1)
-                        
-                    file_data = excel_buffer.getvalue()
-                    st.download_button(label=f"📊 Download Excel ({aktif_area})", data=file_data, file_name=f"Database_PM_{aktif_area}_{datetime.date.today()}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
-                except Exception:
-                    csv_data = df_export.to_csv(index=False, sep=",").encode('utf-8')
-                    st.download_button(label="📥 Download Laporan (CSV)", data=csv_data, file_name=f"Database_PM_{datetime.date.today()}.csv", mime="text/csv", type="secondary")
-
-            with col_dl_ppt:
-                if aktif_area == "Palangkaraya":
-                    if HAS_PPTX:
-                        with st.spinner("Menyiapkan PPTX..."):
-                            pptx_data = build_pptx([x for x in export_db if x.get('kategori') != 'Pangkalan Bun' and x.get('kategori') != 'Site Reguler' and x.get('kategori') != 'Project'])
-                            st.download_button(label="📽 Download Presentasi Report (PPTX)", data=pptx_data, file_name=f"Report_PM_KUT_{datetime.date.today()}.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", type="primary", use_container_width=True)
-                    else:
-                        st.error("Library `python-pptx` belum ter-install di server.")
-                else:
-                    st.info("💡 Rekap lengkap parameter FME Pangkalan Bun dapat diunduh melalui tombol Excel di samping.")
-
+                    with col_dl_ppt:
+                        if aktif_area == "Palangkaraya" and HAS_PPTX:
+                            pptx_data = build_pptx([x for x in export_db if x.get('kategori') not in ['Pangkalan Bun', 'Site Reguler', 'Project']])
+                            st.download_button(label="📽 Download Presentasi (PPTX)", data=pptx_data, file_name=f"Report_PM_KUT_{datetime.date.today()}.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", type="primary", use_container_width=True)
         st.markdown("### 📋 Daftar Laporan Site Terinspeksi")
 
         # ---------------------------------------------------------------------
