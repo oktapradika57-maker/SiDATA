@@ -3638,7 +3638,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         # ---------------------------------------------------------------------
         with st.container(border=True):
             st.markdown(f"#### 📥 Ekspor Rekapitulasi Laporan — {aktif_area}")
-            st.info("💡 Untuk mempercepat kinerja Dashboard, file Excel dan PPTX baru akan dirakit saat Anda menekan tombol di bawah ini.")
+            st.info("💡 Untuk mempercepat kinerja Dashboard, file Excel dan PPTX akan dirakit otomatis saat Anda menekan tombol di bawah ini.")
             
             if st.button("🛠️ Siapkan File Excel & PPTX untuk Diunduh", type="primary", use_container_width=True):
                 with st.spinner("⏳ Sedang merakit dokumen resolusi tinggi, mohon tunggu sebentar..."):
@@ -3649,15 +3649,27 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                             acp = r.get('pb_acpdb', {})
                             enva = r.get('pb_enva', {})
                             gen = r.get('pb_genset', {})
-                            row_data = {
+                            summary_list.append({
                                 "Timestamp": r.get('timestamp', '-'), "Nama Site": r.get('site_name', '-'),
                                 "Kategori": "Pangkalan Bun", "FME NAME": r.get('pb_te', '-'),
                                 "Ticket#": r.get('pb_ticket', '-'), "Catuan Power": r.get('pb_power', '-'),
                                 "Status Akhir": r.get('status', '-'), "Main Fail (ENVA)": enva.get('main_fail', '-'),
-                                "Genset Status": gen.get('status', '-'), "Genset BBM": gen.get('bbm', '-'),
+                                "Rect Fail (ENVA)": enva.get('rect_fail', '-'), "Low Batt (ENVA)": enva.get('low_batt', '-'),
+                                "High Temp (ENVA)": enva.get('high_temp', '-'), "Genset Run (ENVA)": enva.get('gen_run', '-'),
+                                "Genset Fail (ENVA)": enva.get('gen_fail', '-'), "KWH Daya": kel.get('daya', '-'),
+                                "KWH Phasa": kel.get('phasa', '-'), "Tegangan RST-N": kel.get('v_rst_n', '-'),
+                                "Tegangan RS-RT-ST": kel.get('v_rs_rt_st', '-'), "Arus RST": kel.get('arus_rst', '-'),
+                                "Tegangan G-N": kel.get('v_gn', '-'), "ACPDB Ada": acp.get('ada', '-'),
+                                "ACPDB RST-N": acp.get('v_rst_n', '-'), "ACPDB RS-RT-ST": acp.get('v_rs_rt_st', '-'),
+                                "ACPDB Arus": acp.get('arus_rst', '-'), "ACPDB G-N": acp.get('v_gn', '-'),
+                                "Genset Ada": gen.get('ada', '-'), "Genset Cap": gen.get('cap', '-'),
+                                "Genset Status": gen.get('status', '-'), "Genset Config": gen.get('config', '-'),
+                                "Genset Tangki": gen.get('tangki', '-'), "Genset RH": gen.get('rh', '-'),
+                                "Genset BBM": gen.get('bbm', '-'), "Power & CME Act": ", ".join(r.get('pb_act_power', [])) if isinstance(r.get('pb_act_power'), list) else str(r.get('pb_act_power','-')),
+                                "Transport Act": ", ".join(r.get('pb_act_trans', [])) if isinstance(r.get('pb_act_trans'), list) else str(r.get('pb_act_trans','-')),
+                                "OSA Act": ", ".join(r.get('pb_act_osa', [])) if isinstance(r.get('pb_act_osa'), list) else str(r.get('pb_act_osa','-')),
                                 "Catatan/Temuan": r.get('action', '-')
-                            }
-                            summary_list.append(row_data)
+                            })
                         else:
                             cond_d = r.get('cond_data', {})
                             pd_d = r.get('proj_data', {})
@@ -3670,13 +3682,14 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                 "Genset": r.get('genset_status', '-'), "Level BBM (%)": r.get('fuel_pct', '-'),
                                 "Action / Pekerjaan": r.get('action', '-'), "Sparepart Diganti": r.get('sparepart', '-'),
                                 "Remark": r.get('remark', '-'),
-                                "Reguler - Note/Remark": cond_d.get('note_action', '-'),
-                                "Project - Temuan SVA": pd_d.get('temuan_sva', '-'),
-                                "Project - Catatan Akhir": pd_d.get('note_akhir', '-')
+                                "Reguler - Teg AC (RN/SN/TN)": f"{cond_d.get('v_rn','-')} / {cond_d.get('v_sn','-')} / {cond_d.get('v_tn','-')}",
+                                "Reguler - Arus AC (R/S/T)": f"{cond_d.get('i_r','-')} / {cond_d.get('i_s','-')} / {cond_d.get('i_t','-')}",
+                                "Reguler - Load DC": cond_d.get('load_dc', '-'),
+                                "Reguler - Problem Alarm": r.get('problem_alarm', '-'),
+                                "Reguler - Note/Remark": cond_d.get('note_action', '-')
                             })
                     
                     df_export = pd.DataFrame(summary_list)
-                    
                     col_dl_ex, col_dl_ppt = st.columns(2)
                     with col_dl_ex:
                         try:
@@ -3691,441 +3704,400 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                         if aktif_area == "Palangkaraya" and HAS_PPTX:
                             pptx_data = build_pptx([x for x in export_db if x.get('kategori') not in ['Pangkalan Bun', 'Site Reguler', 'Project']])
                             st.download_button(label="📽 Download Presentasi (PPTX)", data=pptx_data, file_name=f"Report_PM_KUT_{datetime.date.today()}.pptx", mime="application/vnd.openxmlformats-officedocument.presentationml.presentation", type="primary", use_container_width=True)
-        st.markdown("### 📋 Daftar Laporan Site Terinspeksi")
+                        elif aktif_area == "Pangkalan Bun":
+                            st.info("💡 Rekap parameter Pangkalan Bun diunduh via Excel.")
 
-        # ---------------------------------------------------------------------
-        # TAMPILAN KARTU UI MODERN & URUTAN TERBARU DI ATAS
-        # ---------------------------------------------------------------------
-        for i in filtered_indices:
-            r = db[i]
-            site_id = r.get('site_name', 'Unknown')
-            kategori_site = r.get('kategori', 'SPS')
-            stat = r.get('status', '')
+        st.markdown("<br>", unsafe_allow_html=True)
+        tab_chart, tab_list = st.tabs(["📈 Analisa & Grafik Laporan", "📋 Daftar Detail Laporan Site"])
+        
+        with tab_chart:
+            st.markdown("### 📈 Executive Analytics & Repeated Issue Tracker")
+            st.info("💡 Sistem merekap frekuensi kunjungan lapangan untuk mendeteksi *Repeated Issue* dan merangkum histori problem beserta tren beban power pada site tersebut.")
             
-            # Pewarnaan Label Status UI
-            if stat == "Normal" or stat == "Done":
-                warna_status = "#00E676" # Hijau
-                icon = "🟢"
-            elif stat in ["Minor Issue", "Update Progress", "On Progress"]:
-                warna_status = "#FFC107" # Kuning
-                icon = "🟡"
-            else:
-                warna_status = "#FF5252" # Merah
-                icon = "🔴"
-            
-            # CEK KATEGORI DATA
-            is_new_reguler = kategori_site == "Site Reguler" and ("problem_alarm" in r or "cond_data" in r)
-            is_project = kategori_site == "Project"
-            
-            # FORMAT WHATSAPP DINAMIS
-            if kategori_site == "Pangkalan Bun":
-                wa_text = generate_wa_pbu(r)
-            elif is_project:
-                pd_data = r.get('proj_data', {})
-                wa_text = f"*REPORT PROJECT ({pd_data.get('jenis_project', '')})* ⚡\n📍 *Project:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Tim/FME:* {r.get('teknisi', '-')}\n📊 *Status Laporan:* {r.get('status', '-')}\n"
+            site_counts = {}
+            power_data = []
+            for r in export_db:
+                sn = str(r.get('site_name', 'Unknown')).upper().strip()
+                site_counts[sn] = site_counts.get(sn, 0) + 1
                 
-                if pd_data.get('jenis_project') == "PO":
-                    wa_text += f"\n*📋 DETAIL PO:*\n- No PO: {pd_data.get('no_po', '-')}\n- Mitra: {pd_data.get('mitra', '-')}\n- Pekerjaan Utama: {pd_data.get('tipe_pekerjaan', '-')}\n- Progress Keseluruhan: {pd_data.get('avg_progress', 0):.1f}%\n"
-                    
-                    tabel_p = pd_data.get('tabel_pekerjaan', [])
-                    if tabel_p:
-                        wa_text += f"\n*🗺️ RINCIAN MULTI-SITE ({len(tabel_p)} Rute/Item):*\n"
-                        for idx, tp in enumerate(tabel_p):
-                            asal = tp.get('Site Asal', '')
-                            tuj = tp.get('Site Tujuan', '')
-                            pek = tp.get('Pekerjaan Spesifik', '')
-                            prog = tp.get('Progress (%)', 0)
-                            stat_tp = tp.get('Status', '')
-                            rute = f"{asal} ➡️ {tuj}" if asal and tuj else (asal or tuj or "Site Project")
-                            wa_text += f"  {idx+1}. {rute} | {pek} ({prog}% - {stat_tp})\n"
-                            
-                    if pd_data.get('tipe_pekerjaan') == "Instalasi Imacro":
-                        wa_text += f"\n*🛠️ Progress Imacro:* {', '.join(pd_data.get('progress_imacro', []))}\n"
-                elif pd_data.get('jenis_project') == "SVA":
-                    wa_text += f"\n*📋 DETAIL SVA:*\n- No Tiket: {pd_data.get('no_tiket', '-')}\n- Temuan: {pd_data.get('temuan_sva', '-')}\n"
+                prob = str(r.get('problem_alarm') or r.get('action') or "-")
+                rem = str(r.get('remark') or r.get('cond_data', {}).get('note_action') or "-")
                 
-                if pd_data.get('note_akhir'):
-                    wa_text += f"\n*📝 NOTE:* {pd_data.get('note_akhir')}\n"
-            elif is_new_reguler:
-                wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')} ({r.get('role_fme', '-')})\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
-                cd = r.get('cond_data', {})
-                if cd:
-                    if cd.get('v_rn'):
-                        wa_text += f"\n*⚡ PARAMETER AC/DC:*\n- Teg AC (R/S/T): {cd.get('v_rn','-')}/{cd.get('v_sn','-')}/{cd.get('v_tn','-')} V\n- Arus AC (R/S/T): {cd.get('i_r','-')}/{cd.get('i_s','-')}/{cd.get('i_t','-')} A\n- Load DC: {cd.get('load_dc', '-')} A\n- Set BCL: {cd.get('set_bcl', '-')} | Cap: {cd.get('set_cap', '-')}\n- Modul Rusak: {cd.get('mod_rusak', '-')}\n"
-                    if cd.get('gen_v'):
-                        wa_text += f"\n*⚙️ PARAMETER GENSET:*\n- Teg Output: {cd.get('gen_v','-')} V | Load: {cd.get('gen_i','-')} A\n- Status ATS: {cd.get('gen_ats','-')}\n- Issue Mesin: {cd.get('gen_issue','-')}\n- Hour Meter: {cd.get('gen_hm','-')} HM\n- Sisa BBM: {cd.get('gen_bbm','-')} Liter\n"
-                    
-                    if cd.get('note_action'):
-                        wa_text += f"\n*📝 NOTE/REMARK:*\n{cd.get('note_action')}\n"
-            else:
-                wa_text = f"*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({kategori_site} - {r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"
-            
-            wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
-
-            # BUNGKUSAN CARD UTAMA
-            with st.container(border=False):
-                fme_tampil = r.get('teknisi', '-') if kategori_site != "Pangkalan Bun" else r.get('pb_te', '-')
-                
-                # Desain HTML Card Premium
-                st.markdown(f"""
-                    <div style="padding: 18px 20px; border-radius: 12px; border-left: 8px solid {warna_status}; background-color: var(--secondary-background-color); margin-bottom: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.08); border-top: 1px solid rgba(128,128,128,0.1); border-right: 1px solid rgba(128,128,128,0.1); border-bottom: 1px solid rgba(128,128,128,0.1);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                            <h3 style="margin: 0; padding: 0; font-size: 22px; font-weight: 800;">{icon} {site_id}</h3>
-                            <span style="font-size: 13px; font-weight: 700; color: #ffffff; background-color: {warna_status}; padding: 4px 12px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">📅 {r.get('timestamp', '')}</span>
-                        </div>
-                        <div style="font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>📝 Kategori:</b> {kategori_site} ({r.get('nop', '-')})</span>
-                            <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>👷 Tim:</b> {fme_tampil}</span>
-                        </div>
-                        <div style="font-size: 15px; border-top: 1px dashed rgba(128,128,128,0.3); padding-top: 8px; margin-top: 8px;">
-                            <b>📊 Status Akhir:</b> <span style="color: {warna_status}; font-weight: 900; font-size: 16px;">{stat}</span>
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                # Tombol Aksi Cepat di luar Expander
-                c_btn1, c_btn2 = st.columns(2)
-                with c_btn1:
-                    st.link_button("📱 Share Rangkuman Laporan (WA)", wa_url, use_container_width=True)
-                with c_btn2:
-                    if kategori_site != "Pangkalan Bun" and not is_new_reguler and not is_project:
-                        if st.checkbox("📄 Buat PDF Resmi", key=f"prep_pdf_{i}"):
-                            with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
-                                try:
-                                    pdf_bytes = build_pdf(r)
-                                    st.download_button(label="📥 Download PDF", data=pdf_bytes, file_name=f"Berita_Acara_{site_id}.pdf", mime="application/pdf", key=f"dl_pdf_{i}", type="primary", use_container_width=True)
-                                except Exception as e:
-                                    st.error(f"Gagal memproses PDF: {e}")
-                    else:
-                        st.button("📄 Format Tanpa PDF", disabled=True, key=f"dl_pdf_dis_{i}", use_container_width=True)
-
-                # Rincian Data
-                with st.expander("📂 BUKA DETAIL & DOKUMENTASI LAPORAN"):
-                    
-                    if kategori_site == "Pangkalan Bun":
-                        st.markdown("### 📋 SITE VISIT REPORT (Pangkalan Bun)")
-                        st.write(f"**FME NAME:** {r.get('pb_te', '-')} | **Ticket:** {r.get('pb_ticket', '-')}")
-                        st.write(f"**Catuan Power:** {r.get('pb_power', '-')} | **Status Akhir:** {stat}")
+                v_ac = 0.0; v_dc = 0.0; i_dc = 0.0
+                kat = r.get('kategori')
+                if kat == 'Site Reguler':
+                    cd = r.get('cond_data', {})
+                    v_ac = _sv_num(cd.get('v_rn', 0))
+                    i_dc = _sv_num(cd.get('load_dc', 0))
+                elif kat == 'SPS':
+                    v_dc = _sv_num(r.get('rect_out_v', 0))
+                    i_dc = _sv_num(r.get('total_load', 0))
+                elif kat == 'Pangkalan Bun':
+                    kel = r.get('pb_kelistrikan', {})
+                    v_ac = _sv_num(kel.get('v_rst_n', 0))
+                    rects = r.get('pb_rectifiers', [])
+                    if rects:
+                        v_dc = _sv_num(rects[0].get('dc_v', 0))
+                        i_dc = _sv_num(rects[0].get('load', 0))
                         
-                        tpb1, tpb2, tpb3, tpb4 = st.tabs(["📌 Info & Recti", "⚡ Kelistrikan & ACPDB", "⛽ Genset & ENVA", "📝 Temuan & Activity"])
-                        with tpb1:
-                            st.markdown("**Data Rectifier:**")
-                            for rect in r.get('pb_rectifiers', []): st.write(f"🔹 **{rect.get('tipe')}** | BCL: {rect.get('bcl')}% | Beban: {rect.get('load')}A | Voltase: {rect.get('dc_v')}V")
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            tampilkan_grid_foto(r.get('pb_url_site', []), "📸 Foto Site / Kondisi Umum")
-                            tampilkan_grid_foto(r.get('pb_url_recti', []), "📸 Foto Rectifier & ENVA")
-                        with tpb2:
-                            kel = r.get('pb_kelistrikan', {})
-                            acp = r.get('pb_acpdb', {})
-                            st.write(f"**Kelistrikan:** Daya KWH: {kel.get('daya', '-')} | Phasa: {kel.get('phasa', '-')} | Teg. G-N: {kel.get('v_gn', '-')}")
-                            st.write(f"**ACPDB:** Tersedia: {acp.get('ada', '-')} | Teg. RST thd N: {acp.get('v_rst_n', '-')}")
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            tampilkan_grid_foto(r.get('pb_url_listrik', []), "📸 Foto Kelistrikan & ACPDB")
-                        with tpb3:
-                            gen = r.get('pb_genset', {})
-                            en = r.get('pb_enva', {})
-                            st.write(f"**Genset:** Ada: {gen.get('ada', '-')} | Kapasitas: {gen.get('cap', '-')} | Tangki: {gen.get('tangki', '-')} | Sisa: {gen.get('bbm', '-')}")
-                            st.write(f"**ENVA:** Main Fail: {en.get('main_fail', '-')} | Rectifier Fail: {en.get('rect_fail', '-')} | High Temp: {en.get('high_temp', '-')}")
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            tampilkan_grid_foto(r.get('pb_url_genset', []), "📸 Foto Genset / Tangki")
-                        with tpb4:
-                            st.markdown("**Catatan/Temuan Tim:**")
-                            st.info(r.get('action', '-'))
-                            st.markdown("**Activity Report:**")
-                            if r.get('pb_act_power'): st.write(f"- Power & CME: {', '.join(r.get('pb_act_power'))}")
-                            if r.get('pb_act_trans'): st.write(f"- Transport: {', '.join(r.get('pb_act_trans'))}")
-                            if r.get('pb_act_osa'): st.write(f"- OSA Impact: {', '.join(r.get('pb_act_osa'))}")
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            tampilkan_grid_foto(r.get('pb_url_act', []), "📸 Foto Temuan / Action Lapangan")
-
-                    elif is_project:
-                        st.markdown("### 📋 REPORT PROJECT")
-                        pd_data = r.get('proj_data', {})
-                        st.markdown(f"**👨‍🔧 Tim:** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **🏷️ Kategori:** Project {pd_data.get('jenis_project', '-')}")
+                power_data.append({
+                    "Site": sn, "Tanggal": str(r.get('timestamp',''))[:10], 
+                    "Kategori": kat, "Status": r.get('status', '-'),
+                    "Problem": prob[:70] + ("..." if len(prob)>70 else ""), 
+                    "Remark": rem[:70] + ("..." if len(rem)>70 else ""), 
+                    "V_AC (Volt)": v_ac, "V_DC (Volt)": v_dc, "Load_DC (Ampere)": i_dc
+                })
+            
+            df_power = pd.DataFrame(power_data)
+            
+            c_a1, c_a2 = st.columns([1, 1.5])
+            with c_a1:
+                with st.container(border=True):
+                    st.markdown("**📊 Top 10 Site Paling Sering Dikunjungi**")
+                    df_sc = pd.DataFrame(list(site_counts.items()), columns=["Site", "Jumlah Visit"]).sort_values("Jumlah Visit", ascending=False).head(10)
+                    ui_bar_chart(df_sc.set_index("Site"), color="#3B82F6")
+            
+            with c_a2:
+                with st.container(border=True):
+                    st.markdown("**🛑 Rekap Status Akhir Keseluruhan**")
+                    df_stat = df_power['Status'].value_counts().reset_index()
+                    df_stat.columns = ["Status", "Jumlah"]
+                    ui_bar_chart(df_stat.set_index("Status"), color="#F59E0B", horizontal=True)
+            
+            st.markdown("#### ⚡ Analisa Tren Power & Histori Perbaikan Site")
+            repeated = [s for s, c in site_counts.items() if c > 1]
+            if not repeated:
+                st.success("✅ Belum ada site dengan kunjungan lebih dari 1 kali (Tidak ada Repeated Issue).")
+                pilihan = st.selectbox("📌 Pilih Site untuk melihat histori:", list(site_counts.keys()))
+            else:
+                st.warning(f"🚨 Terdapat {len(repeated)} Site yang terindikasi mengalami gangguan berulang (Visit > 1x).")
+                pilihan = st.selectbox("📌 Pilih Site Berulang (Repeated Issue) untuk Analisa:", repeated, format_func=lambda x: f"{x} ({site_counts[x]}x Kunjungan)")
+                
+            if pilihan:
+                df_pilih = df_power[df_power['Site'] == pilihan].sort_values("Tanggal").copy()
+                
+                cp1, cp2 = st.columns(2)
+                with cp1:
+                    with st.container(border=True):
+                        st.markdown(f"**⚡ Tren Tegangan (Volt)**")
+                        ui_line_chart(df_pilih.set_index("Tanggal")[['V_AC (Volt)', 'V_DC (Volt)']], color=["#EF4444", "#10B981"])
+                        st.caption("Merah = AC | Hijau = DC")
+                with cp2:
+                    with st.container(border=True):
+                        st.markdown(f"**🔋 Tren Beban (Ampere)**")
+                        ui_bar_chart(df_pilih.set_index("Tanggal")[['Load_DC (Ampere)']], color="#F59E0B")
                         
-                        if pd_data.get('jenis_project') == 'PO':
-                            st.info(f"**📋 Detail PO:** No PO: {pd_data.get('no_po','-')} | Mitra: {pd_data.get('mitra','-')} | Pekerjaan Utama: {pd_data.get('tipe_pekerjaan','-')}")
-                            
-                            val_po = float(str(pd_data.get('nilai_po', '0')).replace('.', '').replace(',', '')) if pd_data.get('nilai_po') else 0.0
-                            t_cost = pd_data.get('total_cost', 0.0)
-                            t_margin = pd_data.get('margin', 0.0)
-                            avg_prog = pd_data.get('avg_progress', 0.0)
-                            
-                            c_mar1, c_mar2, c_mar3, c_mar4 = st.columns(4)
-                            c_mar1.metric("💰 Nilai PO Total", f"Rp {val_po:,.0f}")
-                            c_mar2.metric("💸 Total Cost Pelaksanaan", f"Rp {t_cost:,.0f}")
-                            c_mar3.metric("📈 Profit Margin", f"Rp {t_margin:,.0f}")
-                            c_mar4.metric("📊 Rata-Rata Progress", f"{avg_prog:.1f}%")
-                            
-                            tabel_p = pd_data.get('tabel_pekerjaan', [])
-                            if tabel_p:
-                                st.markdown("#### 🗺️ Rincian Timeline, Progress & Cost Per-Site")
-                                df_show = pd.DataFrame(tabel_p)
-                                # Gunakan column_config agar progress bar muncul cantik!
-                                st.dataframe(
-                                    df_show, 
-                                    use_container_width=True,
-                                    hide_index=True,
-                                    column_config={
-                                        "Budget Per Site": st.column_config.NumberColumn("Budget / Cost", format="Rp %d"),
-                                        "Progress (%)": st.column_config.ProgressColumn("Progress Aktual", min_value=0, max_value=100, format="%d%%"),
-                                        "Start Date": st.column_config.DateColumn("Tgl Mulai"),
-                                        "End Date": st.column_config.DateColumn("Target Selesai"),
-                                    }
-                                )
+                st.markdown("**📋 Histori Kendala & Tindakan:**")
+                st.dataframe(df_pilih[['Tanggal', 'Kategori', 'Status', 'Problem', 'Remark']], use_container_width=True, hide_index=True)
 
-                            if pd_data.get('tipe_pekerjaan') == 'Instalasi Imacro':
-                                st.warning(f"**🛠️ Progress Checklists:** {', '.join(pd_data.get('progress_imacro', []))}")
-                                
-                        elif pd_data.get('jenis_project') == 'SVA':
-                            st.info(f"**📋 Detail SVA:** No Tiket: {pd_data.get('no_tiket','-')} | Tanggal: {pd_data.get('tgl_sva','-')} | Temuan: {pd_data.get('temuan_sva','-')}")
-                            
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        if pd_data.get('jenis_project') == 'PO':
-                            t1, t2, t3 = st.tabs(["📸 Foto Before", "📸 Foto On Progress", "📸 Foto After / BAST"])
-                            with t1: tampilkan_grid_foto(pd_data.get('url_awal', []), "Kondisi Awal")
-                            with t2: tampilkan_grid_foto(pd_data.get('url_proses', []), "Proses Pengerjaan")
-                            with t3: tampilkan_grid_foto(pd_data.get('url_akhir', []), "Hasil Akhir (BAST)")
+        with tab_list:
+            st.markdown("### 📋 Daftar Laporan Site Terinspeksi")
+            # ---------------------------------------------------------------------
+            # TAMPILAN KARTU UI MODERN & URUTAN TERBARU DI ATAS
+            # ---------------------------------------------------------------------
+            for i in filtered_indices:
+                r = db[i]
+                site_id = r.get('site_name', 'Unknown')
+                kategori_site = r.get('kategori', 'SPS')
+                stat = r.get('status', '')
+                
+                if stat == "Normal" or stat == "Done":
+                    warna_status = "#00E676" 
+                    icon = "🟢"
+                elif stat in ["Minor Issue", "Update Progress", "On Progress"]:
+                    warna_status = "#FFC107" 
+                    icon = "🟡"
+                else:
+                    warna_status = "#FF5252" 
+                    icon = "🔴"
+                
+                is_new_reguler = kategori_site == "Site Reguler" and ("problem_alarm" in r or "cond_data" in r)
+                is_project = kategori_site == "Project"
+                
+                if kategori_site == "Pangkalan Bun":
+                    wa_text = generate_wa_pbu(r)
+                elif is_project:
+                    pd_data = r.get('proj_data', {})
+                    wa_text = f"*REPORT PROJECT ({pd_data.get('jenis_project', '')})* ⚡\n📍 *Project:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Tim/FME:* {r.get('teknisi', '-')}\n📊 *Status Laporan:* {r.get('status', '-')}\n"
+                    if pd_data.get('jenis_project') == "PO":
+                        wa_text += f"\n*📋 DETAIL PO:*\n- No PO: {pd_data.get('no_po', '-')}\n- Mitra: {pd_data.get('mitra', '-')}\n- Pekerjaan Utama: {pd_data.get('tipe_pekerjaan', '-')}\n- Progress Keseluruhan: {pd_data.get('avg_progress', 0):.1f}%\n"
+                        tabel_p = pd_data.get('tabel_pekerjaan', [])
+                        if tabel_p:
+                            wa_text += f"\n*🗺️ RINCIAN MULTI-SITE ({len(tabel_p)} Rute/Item):*\n"
+                            for idx, tp in enumerate(tabel_p):
+                                asal = tp.get('Site Asal', '')
+                                tuj = tp.get('Site Tujuan', '')
+                                pek = tp.get('Pekerjaan Spesifik', '')
+                                prog = tp.get('Progress (%)', 0)
+                                stat_tp = tp.get('Status', '')
+                                rute = f"{asal} ➡️ {tuj}" if asal and tuj else (asal or tuj or "Site Project")
+                                wa_text += f"  {idx+1}. {rute} | {pek} ({prog}% - {stat_tp})\n"
+                        if pd_data.get('tipe_pekerjaan') == "Instalasi Imacro":
+                            wa_text += f"\n*🛠️ Progress Imacro:* {', '.join(pd_data.get('progress_imacro', []))}\n"
+                    elif pd_data.get('jenis_project') == "SVA":
+                        wa_text += f"\n*📋 DETAIL SVA:*\n- No Tiket: {pd_data.get('no_tiket', '-')}\n- Temuan: {pd_data.get('temuan_sva', '-')}\n"
+                    if pd_data.get('note_akhir'):
+                        wa_text += f"\n*📝 NOTE:* {pd_data.get('note_akhir')}\n"
+                elif is_new_reguler:
+                    wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')} ({r.get('role_fme', '-')})\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
+                    cd = r.get('cond_data', {})
+                    if cd:
+                        teks_info = ""
+                        if cd.get('v_rn'):
+                            v_rst = cd.get('volt_ac_rst') or f"{cd.get('v_rn','-')}/{cd.get('v_sn','-')}/{cd.get('v_tn','-')}"
+                            i_rst = cd.get('load_ac_rst') or f"{cd.get('i_r','-')}/{cd.get('i_s','-')}/{cd.get('i_t','-')}"
+                            teks_info += f"**⚡ Power AC/DC:** Teg AC ({v_rst} V) | Arus AC ({i_rst} A) | Load DC ({cd.get('load_dc','-')} A) | BCL ({cd.get('set_bcl','-')}) | Cap ({cd.get('set_cap','-')})\n\n"
+                        if cd.get('gen_v'):
+                            teks_info += f"**⚙️ Genset/ATS:** Teg Out ({cd.get('gen_v','-')} V) | Arus ({cd.get('gen_i','-')} A) | ATS ({cd.get('gen_ats','-')}) | Issue ({cd.get('gen_issue','-')}) | HM ({cd.get('gen_hm','-')}) | BBM ({cd.get('gen_bbm','-')} L)\n\n"
+                        if teks_info: st.info(teks_info)
+                        if cd.get('note_action'):
+                            st.warning(f"**📝 NOTE/REMARK Lapangan:** {cd.get('note_action')}")
+                else:
+                    wa_text = f"*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({kategori_site} - {r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"
+                
+                wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
+    
+                with st.container(border=False):
+                    fme_tampil = r.get('teknisi', '-') if kategori_site != "Pangkalan Bun" else r.get('pb_te', '-')
+                    st.markdown(f"""
+                        <div style="padding: 18px 20px; border-radius: 12px; border-left: 8px solid {warna_status}; background-color: var(--secondary-background-color); margin-bottom: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.08); border-top: 1px solid rgba(128,128,128,0.1); border-right: 1px solid rgba(128,128,128,0.1); border-bottom: 1px solid rgba(128,128,128,0.1);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h3 style="margin: 0; padding: 0; font-size: 22px; font-weight: 800;">{icon} {site_id}</h3>
+                                <span style="font-size: 13px; font-weight: 700; color: #ffffff; background-color: {warna_status}; padding: 4px 12px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">📅 {r.get('timestamp', '')}</span>
+                            </div>
+                            <div style="font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>📝 Kategori:</b> {kategori_site} ({r.get('nop', '-')})</span>
+                                <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>👷 Tim:</b> {fme_tampil}</span>
+                            </div>
+                            <div style="font-size: 15px; border-top: 1px dashed rgba(128,128,128,0.3); padding-top: 8px; margin-top: 8px;">
+                                <b>📊 Status Akhir:</b> <span style="color: {warna_status}; font-weight: 900; font-size: 16px;">{stat}</span>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    c_btn1, c_btn2 = st.columns(2)
+                    with c_btn1:
+                        st.link_button("📱 Share Rangkuman Laporan (WA)", wa_url, use_container_width=True)
+                    with c_btn2:
+                        if kategori_site != "Pangkalan Bun" and not is_new_reguler and not is_project:
+                            if st.checkbox("📄 Buat PDF Resmi", key=f"prep_pdf_{i}"):
+                                with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
+                                    try:
+                                        pdf_bytes = build_pdf(r)
+                                        st.download_button(label="📥 Download PDF", data=pdf_bytes, file_name=f"Berita_Acara_{site_id}.pdf", mime="application/pdf", key=f"dl_pdf_{i}", type="primary", use_container_width=True)
+                                    except Exception as e:
+                                        st.error(f"Gagal memproses PDF: {e}")
                         else:
-                            t1, t2 = st.tabs(["📸 View Site & Perangkat", "📸 Temuan / Defect"])
-                            with t1: tampilkan_grid_foto(pd_data.get('url_sva1', []), "Foto View Site & Perangkat")
-                            with t2: tampilkan_grid_foto(pd_data.get('url_sva2', []), "Foto Temuan Defect")
-                    elif is_new_reguler:
-                        st.markdown("### 📋 SITE REGULER REPORT")
-                        st.markdown(f"**👨‍🔧 FME:** {r.get('teknisi', '-')} ({r.get('role_fme', '-')}) &nbsp;&nbsp;|&nbsp;&nbsp; **🚨 Problem:** {r.get('problem_alarm', '-')}")
-                        st.markdown(f"**🔧 Action Dikerjakan:** {', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}")
-                        
-                        cd = r.get('cond_data', {})
-                        if cd:
-                            teks_info = ""
-                            if cd.get('v_rn'):
-                                v_rst = cd.get('volt_ac_rst') or f"{cd.get('v_rn','-')}/{cd.get('v_sn','-')}/{cd.get('v_tn','-')}"
-                                i_rst = cd.get('load_ac_rst') or f"{cd.get('i_r','-')}/{cd.get('i_s','-')}/{cd.get('i_t','-')}"
-                                teks_info += f"**⚡ Power AC/DC:** Teg AC ({v_rst} V) | Arus AC ({i_rst} A) | Load DC ({cd.get('load_dc','-')} A) | BCL ({cd.get('set_bcl','-')}) | Cap ({cd.get('set_cap','-')})\n\n"
-                            if cd.get('gen_v'):
-                                teks_info += f"**⚙️ Genset/ATS:** Teg Out ({cd.get('gen_v','-')} V) | Arus ({cd.get('gen_i','-')} A) | ATS ({cd.get('gen_ats','-')}) | Issue ({cd.get('gen_issue','-')}) | HM ({cd.get('gen_hm','-')}) | BBM ({cd.get('gen_bbm','-')} L)\n\n"
-                                
-                            if teks_info: st.info(teks_info)
-                            if cd.get('note_action'):
-                                st.warning(f"**📝 NOTE/REMARK Lapangan:** {cd.get('note_action')}")
+                            st.button("📄 Format Tanpa PDF", disabled=True, key=f"dl_pdf_dis_{i}", use_container_width=True)
+    
+                    with st.expander("📂 BUKA DETAIL & DOKUMENTASI LAPORAN"):
+                        if kategori_site == "Pangkalan Bun":
+                            st.markdown("### 📋 SITE VISIT REPORT (Pangkalan Bun)")
+                            st.write(f"**FME NAME:** {r.get('pb_te', '-')} | **Ticket:** {r.get('pb_ticket', '-')}")
+                            st.write(f"**Catuan Power:** {r.get('pb_power', '-')} | **Status Akhir:** {stat}")
                             
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        t1, t2, t3 = st.tabs(["📸 Problem Alarm", "📸 Action Perbaikan", "📸 Eviden Parameter"])
-                        with t1: tampilkan_grid_foto(r.get('url_problem', []), "Dokumentasi Problem Alarm")
-                        with t2: tampilkan_grid_foto(r.get('url_action', []), "Dokumentasi Perbaikan / Action")
-                        with t3: 
+                            tpb1, tpb2, tpb3, tpb4 = st.tabs(["📌 Info & Recti", "⚡ Kelistrikan & ACPDB", "⛽ Genset & ENVA", "📝 Temuan & Activity"])
+                            with tpb1:
+                                st.markdown("**Data Rectifier:**")
+                                for rect in r.get('pb_rectifiers', []): st.write(f"🔹 **{rect.get('tipe')}** | BCL: {rect.get('bcl')}% | Beban: {rect.get('load')}A | Voltase: {rect.get('dc_v')}V")
+                                st.markdown("<br>", unsafe_allow_html=True)
+                                tampilkan_grid_foto(r.get('pb_url_site', []), "📸 Foto Site / Kondisi Umum")
+                                tampilkan_grid_foto(r.get('pb_url_recti', []), "📸 Foto Rectifier & ENVA")
+                            with tpb2:
+                                kel = r.get('pb_kelistrikan', {})
+                                acp = r.get('pb_acpdb', {})
+                                st.write(f"**Kelistrikan:** Daya KWH: {kel.get('daya', '-')} | Phasa: {kel.get('phasa', '-')} | Teg. G-N: {kel.get('v_gn', '-')}")
+                                st.write(f"**ACPDB:** Tersedia: {acp.get('ada', '-')} | Teg. RST thd N: {acp.get('v_rst_n', '-')}")
+                                st.markdown("<br>", unsafe_allow_html=True)
+                                tampilkan_grid_foto(r.get('pb_url_listrik', []), "📸 Foto Kelistrikan & ACPDB")
+                            with tpb3:
+                                gen = r.get('pb_genset', {})
+                                en = r.get('pb_enva', {})
+                                st.write(f"**Genset:** Ada: {gen.get('ada', '-')} | Kapasitas: {gen.get('cap', '-')} | Tangki: {gen.get('tangki', '-')} | Sisa: {gen.get('bbm', '-')}")
+                                st.write(f"**ENVA:** Main Fail: {en.get('main_fail', '-')} | Rectifier Fail: {en.get('rect_fail', '-')} | High Temp: {en.get('high_temp', '-')}")
+                                st.markdown("<br>", unsafe_allow_html=True)
+                                tampilkan_grid_foto(r.get('pb_url_genset', []), "📸 Foto Genset / Tangki")
+                            with tpb4:
+                                st.markdown("**Catatan/Temuan Tim:**")
+                                st.info(r.get('action', '-'))
+                                st.markdown("**Activity Report:**")
+                                if r.get('pb_act_power'): st.write(f"- Power & CME: {', '.join(r.get('pb_act_power'))}")
+                                if r.get('pb_act_trans'): st.write(f"- Transport: {', '.join(r.get('pb_act_trans'))}")
+                                if r.get('pb_act_osa'): st.write(f"- OSA Impact: {', '.join(r.get('pb_act_osa'))}")
+                                st.markdown("<br>", unsafe_allow_html=True)
+                                tampilkan_grid_foto(r.get('pb_url_act', []), "📸 Foto Temuan / Action Lapangan")
+    
+                        elif is_project:
+                            st.markdown("### 📋 REPORT PROJECT")
+                            pd_data = r.get('proj_data', {})
+                            st.markdown(f"**👨‍🔧 Tim:** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **🏷️ Kategori:** Project {pd_data.get('jenis_project', '-')}")
+                            
+                            if pd_data.get('jenis_project') == 'PO':
+                                st.info(f"**📋 Detail PO:** No PO: {pd_data.get('no_po','-')} | Mitra: {pd_data.get('mitra','-')} | Pekerjaan Utama: {pd_data.get('tipe_pekerjaan','-')}")
+                                val_po = float(str(pd_data.get('nilai_po', '0')).replace('.', '').replace(',', '')) if pd_data.get('nilai_po') else 0.0
+                                t_cost = pd_data.get('total_cost', 0.0)
+                                t_margin = pd_data.get('margin', 0.0)
+                                avg_prog = pd_data.get('avg_progress', 0.0)
+                                c_mar1, c_mar2, c_mar3, c_mar4 = st.columns(4)
+                                c_mar1.metric("💰 Nilai PO Total", f"Rp {val_po:,.0f}")
+                                c_mar2.metric("💸 Total Cost Pelaksanaan", f"Rp {t_cost:,.0f}")
+                                c_mar3.metric("📈 Profit Margin", f"Rp {t_margin:,.0f}")
+                                c_mar4.metric("📊 Rata-Rata Progress", f"{avg_prog:.1f}%")
+                                tabel_p = pd_data.get('tabel_pekerjaan', [])
+                                if tabel_p:
+                                    st.markdown("#### 🗺️ Rincian Timeline, Progress & Cost Per-Site")
+                                    st.dataframe(pd.DataFrame(tabel_p), use_container_width=True, hide_index=True)
+                                if pd_data.get('tipe_pekerjaan') == 'Instalasi Imacro':
+                                    st.warning(f"**🛠️ Progress Checklists:** {', '.join(pd_data.get('progress_imacro', []))}")
+                            elif pd_data.get('jenis_project') == 'SVA':
+                                st.info(f"**📋 Detail SVA:** No Tiket: {pd_data.get('no_tiket','-')} | Tanggal: {pd_data.get('tgl_sva','-')} | Temuan: {pd_data.get('temuan_sva','-')}")
+                                
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            if pd_data.get('jenis_project') == 'PO':
+                                t1, t2, t3 = st.tabs(["📸 Foto Before", "📸 Foto On Progress", "📸 Foto After / BAST"])
+                                with t1: tampilkan_grid_foto(pd_data.get('url_awal', []), "Kondisi Awal")
+                                with t2: tampilkan_grid_foto(pd_data.get('url_proses', []), "Proses Pengerjaan")
+                                with t3: tampilkan_grid_foto(pd_data.get('url_akhir', []), "Hasil Akhir (BAST)")
+                            else:
+                                t1, t2 = st.tabs(["📸 View Site & Perangkat", "📸 Temuan / Defect"])
+                                with t1: tampilkan_grid_foto(pd_data.get('url_sva1', []), "Foto View Site & Perangkat")
+                                with t2: tampilkan_grid_foto(pd_data.get('url_sva2', []), "Foto Temuan Defect")
+                                
+                        elif is_new_reguler:
+                            st.markdown("### 📋 SITE REGULER REPORT")
+                            st.markdown(f"**👨‍🔧 FME:** {r.get('teknisi', '-')} ({r.get('role_fme', '-')}) &nbsp;&nbsp;|&nbsp;&nbsp; **🚨 Problem:** {r.get('problem_alarm', '-')}")
+                            st.markdown(f"**🔧 Action Dikerjakan:** {', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}")
+                            
+                            cd = r.get('cond_data', {})
                             if cd:
-                                eviden_list = [
-                                    (cd.get('url_v_rn'), f"Teg AC R-N: {cd.get('v_rn', '-')} V"),
-                                    (cd.get('url_v_sn'), f"Teg AC S-N: {cd.get('v_sn', '-')} V"),
-                                    (cd.get('url_v_tn'), f"Teg AC T-N: {cd.get('v_tn', '-')} V"),
-                                    (cd.get('url_i_r'), f"Load AC R: {cd.get('i_r', '-')} A"),
-                                    (cd.get('url_i_s'), f"Load AC S: {cd.get('i_s', '-')} A"),
-                                    (cd.get('url_i_t'), f"Load AC T: {cd.get('i_t', '-')} A"),
-                                    (cd.get('url_ldc'), f"Load DC Total: {cd.get('load_dc', '-')} A"),
-                                    (cd.get('url_bcl'), f"Set BCL: {cd.get('set_bcl', '-')}"),
-                                    (cd.get('url_cap'), f"Set Capacity: {cd.get('set_cap', '-')}"),
-                                    (cd.get('url_mod'), f"Module Kontroler: {cd.get('mod_rusak', '-')}"),
-                                    (cd.get('url_gen_v'), f"Tegangan Out Genset: {cd.get('gen_v', '-')} V"),
-                                    (cd.get('url_gen_i'), f"Load Arus Genset: {cd.get('gen_i', '-')} A"),
-                                    (cd.get('url_gen_ats'), f"Panel ATS: {cd.get('gen_ats', '-')}"),
-                                    (cd.get('url_gen_issue'), f"Kondisi Mesin: {cd.get('gen_issue', '-')}"),
-                                    (cd.get('url_gen_hm'), f"Hour Meter: {cd.get('gen_hm', '-')} HM"),
-                                    (cd.get('url_gen_bbm'), f"Sisa BBM: {cd.get('gen_bbm', '-')} Liter")
-                                ]
-                                ada_foto = False
-                                for u_ev, cap_ev in eviden_list:
-                                    if u_ev:
-                                        ada_foto = True
-                                        tampilkan_grid_foto([u_ev], f"📌 {cap_ev}")
-                                if not ada_foto:
-                                    st.write("Belum ada foto parameter pengukuran pada laporan ini.")
-                            else:
-                                st.write("Tidak ada parameter pengukuran yang dilaporkan.")
-
-                    else:
-                        st.warning("⏱️ Data di bawah ini direkam menggunakan Form Versi Lama (sebelum ada pemisahan layout).")
-                        st.markdown(f"**👨‍🔧 Pelaksana (Teknisi):** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **⚡ Beban Load:** {r.get('total_load', '-')} A")
-                        st.markdown(f"**🔧 Action Dikerjakan:** {r.get('action', '-')}")
-                        if r.get('sparepart'): st.warning(f"**📦 Sparepart Diganti:** {r['sparepart']}")
-                        if r.get('remark'): st.info(f"**📝 Remark:** {r['remark']}")
-                        
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        
-                        ltab1, ltab2, ltab3, ltab4, ltab5, ltab6 = st.tabs(["🏗️ 1. Fisik", "☀️ 2. Panel SPS", "🔌 3. Recti & Genset", "🔋 4. Baterai & Gnd", "📂 5. Datalog", "📈 6. Analisa Power BBU"])
-                        
-                        with ltab1:
-                            st.write(f"- Kondisi Site: {r.get('site_cond', '-')} | Tower: {r.get('tower_cond', '-')} | Shading: {r.get('shading_status', '-')}")
-                            tampilkan_grid_foto(r.get('url_sites'), "📸 View Site")
-                            tampilkan_grid_foto(r.get('url_shadings'), "📸 Shading")
-                            tampilkan_grid_foto(r.get('extras_fisik'), "📸 Tambahan")
-
-                        with ltab2:
-                            st.write(f"**Status Panel:** {r.get('status_panel', '-')} ({r.get('jml_panel_rusak', 0)} Rusak) | **Merk Panel:** {r.get('merk_panel', '-')}")
-                            st.write(f"**Status SCC:** {r.get('status_scc', '-')} ({r.get('jml_scc_nok', 0)} Rusak) | **Merk SCC:** {r.get('merk_scc', '-')}")
-                            for p in r.get('panel_data', []):
-                                st.markdown(f"**{p.get('Panel', '-')}** | Voc: {p.get('Voc','-')}V | Isc: {p.get('Isc','-')}A")
-                                cb, ca = st.columns(2)
-                                with cb: tampilkan_grid_foto(p.get('URL_Before') or p.get('URLs_Before'), "📸 KONDISI PANEL")
-                                with ca: tampilkan_grid_foto(p.get('URL_After') or p.get('URLs_After'), "✨ PENGUKURAN")
+                                teks_info = ""
+                                if cd.get('v_rn'):
+                                    v_rst = cd.get('volt_ac_rst') or f"{cd.get('v_rn','-')}/{cd.get('v_sn','-')}/{cd.get('v_tn','-')}"
+                                    i_rst = cd.get('load_ac_rst') or f"{cd.get('i_r','-')}/{cd.get('i_s','-')}/{cd.get('i_t','-')}"
+                                    teks_info += f"**⚡ Power AC/DC:** Teg AC ({v_rst} V) | Arus AC ({i_rst} A) | Load DC ({cd.get('load_dc','-')} A) | BCL ({cd.get('set_bcl','-')}) | Cap ({cd.get('set_cap','-')})\n\n"
+                                if cd.get('gen_v'):
+                                    teks_info += f"**⚙️ Genset/ATS:** Teg Out ({cd.get('gen_v','-')} V) | Arus ({cd.get('gen_i','-')} A) | ATS ({cd.get('gen_ats','-')}) | Issue ({cd.get('gen_issue','-')}) | HM ({cd.get('gen_hm','-')}) | BBM ({cd.get('gen_bbm','-')} L)\n\n"
+                                if teks_info: st.info(teks_info)
+                                if cd.get('note_action'):
+                                    st.warning(f"**📝 NOTE/REMARK Lapangan:** {cd.get('note_action')}")
+                                
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            t1, t2, t3 = st.tabs(["📸 Problem Alarm", "📸 Action Perbaikan", "📸 Eviden Parameter"])
+                            with t1: tampilkan_grid_foto(r.get('url_problem', []), "Dokumentasi Problem Alarm")
+                            with t2: tampilkan_grid_foto(r.get('url_action', []), "Dokumentasi Perbaikan / Action")
+                            with t3: 
+                                if cd:
+                                    eviden_list = [
+                                        (cd.get('url_v_rn'), f"Teg AC R-N: {cd.get('v_rn', '-')} V"),
+                                        (cd.get('url_v_sn'), f"Teg AC S-N: {cd.get('v_sn', '-')} V"),
+                                        (cd.get('url_v_tn'), f"Teg AC T-N: {cd.get('v_tn', '-')} V"),
+                                        (cd.get('url_i_r'), f"Load AC R: {cd.get('i_r', '-')} A"),
+                                        (cd.get('url_i_s'), f"Load AC S: {cd.get('i_s', '-')} A"),
+                                        (cd.get('url_i_t'), f"Load AC T: {cd.get('i_t', '-')} A"),
+                                        (cd.get('url_ldc'), f"Load DC Total: {cd.get('load_dc', '-')} A"),
+                                        (cd.get('url_bcl'), f"Set BCL: {cd.get('set_bcl', '-')}"),
+                                        (cd.get('url_cap'), f"Set Capacity: {cd.get('set_cap', '-')}"),
+                                        (cd.get('url_mod'), f"Module Kontroler: {cd.get('mod_rusak', '-')}"),
+                                        (cd.get('url_gen_v'), f"Tegangan Out Genset: {cd.get('gen_v', '-')} V"),
+                                        (cd.get('url_gen_i'), f"Load Arus Genset: {cd.get('gen_i', '-')} A"),
+                                        (cd.get('url_gen_ats'), f"Panel ATS: {cd.get('gen_ats', '-')}"),
+                                        (cd.get('url_gen_issue'), f"Kondisi Mesin: {cd.get('gen_issue', '-')}"),
+                                        (cd.get('url_gen_hm'), f"Hour Meter: {cd.get('gen_hm', '-')} HM"),
+                                        (cd.get('url_gen_bbm'), f"Sisa BBM: {cd.get('gen_bbm', '-')} Liter")
+                                    ]
+                                    ada_foto = False
+                                    for u_ev, cap_ev in eviden_list:
+                                        if u_ev:
+                                            ada_foto = True
+                                            tampilkan_grid_foto([u_ev], f"📌 {cap_ev}")
+                                    if not ada_foto: st.write("Belum ada foto parameter pengukuran pada laporan ini.")
+                                else:
+                                    st.write("Tidak ada parameter pengukuran yang dilaporkan.")
+                        else:
+                            st.warning("⏱️ Data di bawah ini direkam menggunakan Form Versi Lama (sebelum ada pemisahan layout).")
+                            st.markdown(f"**👨‍🔧 Pelaksana (Teknisi):** {r.get('teknisi', '-')} &nbsp;&nbsp;|&nbsp;&nbsp; **⚡ Beban Load:** {r.get('total_load', '-')} A")
+                            st.markdown(f"**🔧 Action Dikerjakan:** {r.get('action', '-')}")
+                            if r.get('sparepart'): st.warning(f"**📦 Sparepart Diganti:** {r['sparepart']}")
+                            if r.get('remark'): st.info(f"**📝 Remark:** {r['remark']}")
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            
+                            ltab1, ltab2, ltab3, ltab4, ltab5 = st.tabs(["🏗️ 1. Fisik", "☀️ 2. Panel SPS", "🔌 3. Recti & Genset", "🔋 4. Baterai & Gnd", "📂 5. Datalog"])
+                            with ltab1:
+                                st.write(f"- Kondisi Site: {r.get('site_cond', '-')} | Tower: {r.get('tower_cond', '-')} | Shading: {r.get('shading_status', '-')}")
+                                tampilkan_grid_foto(r.get('url_sites'), "📸 View Site")
+                                tampilkan_grid_foto(r.get('url_shadings'), "📸 Shading")
+                                tampilkan_grid_foto(r.get('extras_fisik'), "📸 Tambahan")
+                            with ltab2:
+                                st.write(f"**Status Panel:** {r.get('status_panel', '-')} ({r.get('jml_panel_rusak', 0)} Rusak) | **Merk Panel:** {r.get('merk_panel', '-')}")
+                                st.write(f"**Status SCC:** {r.get('status_scc', '-')} ({r.get('jml_scc_nok', 0)} Rusak) | **Merk SCC:** {r.get('merk_scc', '-')}")
+                                for p in r.get('panel_data', []):
+                                    st.markdown(f"**{p.get('Panel', '-')}** | Voc: {p.get('Voc','-')}V | Isc: {p.get('Isc','-')}A")
+                                    cb, ca = st.columns(2)
+                                    with cb: tampilkan_grid_foto(p.get('URL_Before') or p.get('URLs_Before'), "📸 KONDISI PANEL")
+                                    with ca: tampilkan_grid_foto(p.get('URL_After') or p.get('URLs_After'), "✨ PENGUKURAN")
+                                    st.divider()
+                                tampilkan_grid_foto(r.get('extras_panel'), "📸 Tambahan Panel")
+                            with ltab3:
+                                c_p1, c_p2 = st.columns(2)
+                                with c_p1:
+                                    st.write(f"**PLN:** {r.get('pln_status', '-')} | **Rectifier:** {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)")
+                                    st.write(f"**Possibility PSB:** {r.get('possibility_psb', '-')} | **Jarak PLN:** {r.get('jarak_pln', '-')}")
+                                    tampilkan_grid_foto(r.get('url_rects'), "📸 Rectifier")
+                                with c_p2:
+                                    st.write(f"**Genset:** {r.get('genset_status', '-')} | **BBM:** {r.get('fuel_pct', '-')}%")
+                                    tampilkan_grid_foto(r.get('url_gensets'), "📸 Genset")
                                 st.divider()
-                            tampilkan_grid_foto(r.get('extras_panel'), "📸 Tambahan Panel")
-
-                        with ltab3:
-                            c_p1, c_p2 = st.columns(2)
-                            with c_p1:
-                                st.write(f"**PLN:** {r.get('pln_status', '-')} | **Rectifier:** {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)")
-                                st.write(f"**Possibility PSB:** {r.get('possibility_psb', '-')} | **Jarak PLN:** {r.get('jarak_pln', '-')}")
-                                tampilkan_grid_foto(r.get('url_rects'), "📸 Rectifier")
-                            with c_p2:
-                                st.write(f"**Genset:** {r.get('genset_status', '-')} | **BBM:** {r.get('fuel_pct', '-')}%")
-                                tampilkan_grid_foto(r.get('url_gensets'), "📸 Genset")
-                            st.divider()
-                            tampilkan_grid_foto(r.get('extras_elektrikal'), "📸 Tambahan Mesin/Elektrikal")
-
-                        with ltab4:
-                            st.markdown("### 🔋 Bank Baterai")
-                            st.write(f"**Status Baterai Keseluruhan:** {r.get('status_battery', '-')} ({r.get('jml_bat_rusak', 0)} Rusak) | **Merk Baterai:** {r.get('tipe_battery', '-')}")
-                            for b in r.get('battery_data', []):
-                                with st.container(border=True):
-                                    bc1, bc2 = st.columns([2, 1])
-                                    with bc1:
-                                        st.markdown(f"**{b.get('Baterai', 'Baterai')}**")
-                                        st.write(f"🔹 **Voltase:** {b.get('Voltase', '-') } V  |  🌡 **Load Charging:** {b.get('Suhu', '-') } A")
-                                        st.write(f"🔍 **Kondisi Fisik:** {b.get('Kondisi', '-')}")
-                                    bat_urls = b.get('URL_Fotos') or b.get('URL_Foto')
-                                    if bat_urls:
-                                        st.markdown("")
-                                        tampilkan_grid_foto(bat_urls, "📸 Dokumentasi Baterai")
-                                st.markdown("")
-                            st.markdown("---")
-                            st.markdown("### 🌍 Sistem Grounding")
-                            st.write(f"⚡ **Tahanan Grounding:** {r.get('earth_ohm', '-')} Ohm")
-                            tampilkan_grid_foto(r.get('url_grds'), "📸 Foto Grounding")
-                            tampilkan_grid_foto(r.get('extras_baterai'), "📸 Tambahan Baterai & Grounding")
-
-                        with ltab5:
-                            st.markdown("📂 **Datalog Universal yang Tersimpan:**")
-                            dls = r.get('datalog_files', [])
-                            if dls:
-                                for dl in dls: st.markdown(f"- 🔗 [{dl['name']}]({dl['url']})")
-                            else: st.info("Tidak ada file datalog diunggah pada site ini.")
-
-                        with ltab6:
-                            st.markdown("### ⚡ Grafik Analisa Power & Voltage")
-                            st.info(f"Sistem sedang melacak file data histori **`{site_id}.xlsx`** di repositori...")
-                            
-                            excel_filename = f"{site_id}.xlsx"
-                            if os.path.exists(excel_filename):
-                                try:
-                                    df_power = read_excel_cached(excel_filename, engine='openpyxl')
-                                    if 'Begin Time' in df_power.columns and 'MinVoltageOfBBU(V)' in df_power.columns:
-                                        df_power['Waktu'] = pd.to_datetime(df_power['Begin Time']).dt.strftime('%H:%M')
-                                        df_power.set_index('Waktu', inplace=True)
-                                        
-                                        chart_cols = ['MaxVoltageOfBBU(V)', 'MinVoltageOfBBU(V)', 'AvgVoltageOfBBU(V)']
-                                        chart_data = df_power[chart_cols].copy()
-                                        chart_data['Batas Hold (55V)'] = 55.0
-                                        
-                                        ui_line_chart(chart_data, color=["#64FFDA", "#FF5252", "#FFC107", "#FFFFFF"])
-                                        
-                                        min_voltage = df_power['MinVoltageOfBBU(V)'].min()
-                                        if min_voltage < 55.0:
-                                            st.error(f"🚨 **ANALISA DROP VOLTAGE:** Ditemukan tegangan Drop di bawah batas 55V! Tegangan terendah terekam di angka **{min_voltage} V**.")
-                                        else:
-                                            st.success(f"✅ **ANALISA STABIL:** Kondisi Power aman. Tegangan berhasil di-hold (tidak jatuh di bawah batas 55V). Tegangan terendah terekam: {min_voltage} V.")
-                                    else:
-                                        st.warning(f"File '{excel_filename}' ditemukan, tapi struktur kolomnya tidak sesuai format U2000/U2020. Pastikan ada kolom 'Begin Time' dan 'MinVoltageOfBBU(V)'.")
-                                except Exception as e:
-                                    st.error(f"Gagal membaca file {excel_filename}. Pesan Error: {e}")
-                            else:
-                                st.warning(f"File log power **`{excel_filename}`** belum di-upload ke repositori/folder lokal server. Silakan upload file excel dengan nama site tersebut untuk melihat grafik otomatis.")
-
-                    # Tombol Revisi Admin ditaruh paling bawah expander agar rapi
-                    if st.session_state['role'] == 'Admin':
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        with st.container(border=True):
-                            
-                            # JIKA INI PROJECT PO, TAMPILKAN EDITOR TABEL & UPLOAD FOTO SUSULAN
-                            if is_project and r.get('proj_data', {}).get('jenis_project') == 'PO':
-                                st.markdown("<h4 style='color: var(--primary-color);'>🛠 UPDATE PROGRESS PROJECT & FOTO SUSULAN</h4>", unsafe_allow_html=True)
-                                st.info("💡 Update progress di tabel ini. Saat disimpan, Margin & Progress % akan dikalkulasi ulang otomatis!")
-                                
-                                df_edit_po = pd.DataFrame(r.get('proj_data', {}).get('tabel_pekerjaan', []))
-                                if df_edit_po.empty:
-                                    df_edit_po = pd.DataFrame(columns=["Site Asal", "Site Tujuan", "Pekerjaan Spesifik", "Budget Per Site", "Start Date", "End Date", "Progress (%)", "Status", "Remark"])
-                                
-                                updated_po_table = st.data_editor(
-                                    df_edit_po, 
-                                    num_rows="dynamic", 
-                                    use_container_width=True,
-                                    column_config={
-                                        "Site Asal": st.column_config.TextColumn("Site Asal (Dari)"),
-                                        "Site Tujuan": st.column_config.TextColumn("Site Tujuan (Ke)"),
-                                        "Pekerjaan Spesifik": st.column_config.TextColumn("Pekerjaan"),
-                                        "Budget Per Site": st.column_config.NumberColumn("Budget / Cost (Rp)", min_value=0, default=0, step=100000),
-                                        "Start Date": st.column_config.DateColumn("Mulai", format="YYYY-MM-DD"),
-                                        "End Date": st.column_config.DateColumn("Target Selesai", format="YYYY-MM-DD"),
-                                        "Progress (%)": st.column_config.NumberColumn("Progress (%)", min_value=0, max_value=100, default=0),
-                                        "Status": st.column_config.SelectboxColumn("Status", options=["Not Started", "On Progress", "Done", "Pending Issue"])
-                                    },
-                                    key=f"edit_po_tbl_{i}"
-                                )
-                                
-                                new_status_proj = st.selectbox("Update Status Keseluruhan Project:", ["Not Started", "On Progress", "Done", "Pending"], index=["Not Started", "On Progress", "Done", "Pending"].index(r.get('status', 'Not Started')) if r.get('status', 'Not Started') in ["Not Started", "On Progress", "Done", "Pending"] else 0, key=f"estat_proj_{i}")
-                                
-                                st.markdown("**Tambah Lampiran Foto Susulan (Otomatis ditambahkan ke laporan):**")
-                                up_p_pros = st.file_uploader("📸 Tambah Foto On Progress", accept_multiple_files=True, key=f"up_p_pros_{i}")
-                                up_p_akh = st.file_uploader("📸 Tambah Foto Hasil Akhir/BAST", accept_multiple_files=True, key=f"up_p_akh_{i}")
-                                
-                                if st.button("💾 Simpan Update Project", key=f"bproj_{i}", type="primary"):
-                                    with st.spinner("Menyimpan Update Project..."):
-                                        r['proj_data']['tabel_pekerjaan'] = updated_po_table.to_dict('records')
-                                        
-                                        # Hitung ulang Margin & Progress
-                                        try: val_po = float(str(r['proj_data'].get('nilai_po', '0')).replace('.', '').replace(',', ''))
-                                        except: val_po = 0.0
-                                        t_cost = updated_po_table["Budget Per Site"].sum() if not updated_po_table.empty else 0.0
-                                        r['proj_data']['total_cost'] = float(t_cost)
-                                        r['proj_data']['margin'] = float(val_po - t_cost)
-                                        r['proj_data']['avg_progress'] = float(updated_po_table["Progress (%)"].mean() if not updated_po_table.empty else 0.0)
-                                        
-                                        r['status'] = new_status_proj
-                                        
-                                        # Menambah foto ke cloud
-                                        if up_p_pros:
-                                            r['proj_data']['url_proses'] = r['proj_data'].get('url_proses', []) + upload_multiple_images(up_p_pros, "proj_po")
-                                        if up_p_akh:
-                                            r['proj_data']['url_akhir'] = r['proj_data'].get('url_akhir', []) + upload_multiple_images(up_p_akh, "proj_po")
-                                            
-                                        # Simpan ke Sheet Project
-                                        sheet = connect_gsheets(r.get('_sheet', 'Project'))
-                                        if sheet:
-                                            sheet.update_cell(r.get('_row', i + 2), 5, new_status_proj)
-                                            sheet.update_cell(r.get('_row', i + 2), 6, json.dumps(r))
-                                            st.cache_data.clear()
-                                    st.success("✅ UPDATE PROJECT BERHASIL TERSIMPAN!")
-                                    st.rerun()
-
-                            else:
-                                # JIKA BUKAN PROJECT PO (SPS & REGULER BISA REVISI NAMA SITE)
-                                st.markdown("<h4 style='color: var(--primary-color);'>🛠 REVISI NAMA SITE / FME</h4>", unsafe_allow_html=True)
-                                ce1, ce2 = st.columns(2)
-                                with ce1: new_sreg = st.text_input("Edit Nama Site", r.get('site_name',''), key=f"esreg_{i}")
-                                with ce2: new_freg = st.text_input("Edit Nama FME / Tim", r.get('teknisi',''), key=f"efreg_{i}")
-                                
-                                if st.button("💾 Simpan Perubahan", key=f"breg_{i}"):
-                                    with st.spinner("Menyimpan..."):
-                                        r['site_name'], r['teknisi'] = new_sreg, new_freg
-                                        sheet = connect_gsheets(r.get('_sheet', 'Report Preventive'))
-                                        if sheet:
-                                            sheet.update_cell(r.get('_row', i + 2), 2, new_sreg)
-                                            sheet.update_cell(r.get('_row', i + 2), 4, new_freg)
-                                            sheet.update_cell(r.get('_row', i + 2), 6, json.dumps(r))
-                                            st.cache_data.clear() 
-                                    st.success("✅ REVISI BERHASIL!")
-                                    st.rerun()
-
+                                tampilkan_grid_foto(r.get('extras_elektrikal'), "📸 Tambahan Mesin/Elektrikal")
+                            with ltab4:
+                                st.markdown("### 🔋 Bank Baterai")
+                                st.write(f"**Status Baterai Keseluruhan:** {r.get('status_battery', '-')} ({r.get('jml_bat_rusak', 0)} Rusak) | **Merk Baterai:** {r.get('tipe_battery', '-')}")
+                                for b in r.get('battery_data', []):
+                                    with st.container(border=True):
+                                        bc1, bc2 = st.columns([2, 1])
+                                        with bc1:
+                                            st.markdown(f"**{b.get('Baterai', 'Baterai')}**")
+                                            st.write(f"🔹 **Voltase:** {b.get('Voltase', '-') } V  |  🌡 **Load Charging:** {b.get('Suhu', '-') } A")
+                                            st.write(f"🔍 **Kondisi Fisik:** {b.get('Kondisi', '-')}")
+                                        bat_urls = b.get('URL_Fotos') or b.get('URL_Foto')
+                                        if bat_urls:
+                                            st.markdown("")
+                                            tampilkan_grid_foto(bat_urls, "📸 Dokumentasi Baterai")
+                                    st.markdown("")
+                                st.markdown("---")
+                                st.markdown("### 🌍 Sistem Grounding")
+                                st.write(f"⚡ **Tahanan Grounding:** {r.get('earth_ohm', '-')} Ohm")
+                                tampilkan_grid_foto(r.get('url_grds'), "📸 Foto Grounding")
+                                tampilkan_grid_foto(r.get('extras_baterai'), "📸 Tambahan Baterai & Grounding")
+                            with ltab5:
+                                st.markdown("📂 **Datalog Universal yang Tersimpan:**")
+                                dls = r.get('datalog_files', [])
+                                if dls:
+                                    for dl in dls: st.markdown(f"- 🔗 [{dl['name']}]({dl['url']})")
+                                else: st.info("Tidak ada file datalog diunggah pada site ini.")
+    
+                        if st.session_state['role'] == 'Admin':
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            with st.container(border=True):
+                                if is_project and r.get('proj_data', {}).get('jenis_project') == 'PO':
+                                    st.markdown("<h4 style='color: var(--primary-color);'>🛠 UPDATE PROGRESS PROJECT & FOTO SUSULAN</h4>", unsafe_allow_html=True)
+                                    st.info("💡 Update progress tabel bisa dilakukan di menu Executive Project Dashboard.")
+                                else:
+                                    st.markdown("<h4 style='color: var(--primary-color);'>🛠 REVISI NAMA SITE / FME</h4>", unsafe_allow_html=True)
+                                    ce1, ce2 = st.columns(2)
+                                    with ce1: new_sreg = st.text_input("Edit Nama Site", r.get('site_name',''), key=f"esreg_{i}")
+                                    with ce2: new_freg = st.text_input("Edit Nama FME / Tim", r.get('teknisi',''), key=f"efreg_{i}")
+                                    
+                                    if st.button("💾 Simpan Perubahan", key=f"breg_{i}"):
+                                        with st.spinner("Menyimpan..."):
+                                            r['site_name'], r['teknisi'] = new_sreg, new_freg
+                                            sheet = connect_gsheets(r.get('_sheet', 'Report Preventive'))
+                                            if sheet:
+                                                sheet.update_cell(r.get('_row', i + 2), 2, new_sreg)
+                                                sheet.update_cell(r.get('_row', i + 2), 4, new_freg)
+                                                sheet.update_cell(r.get('_row', i + 2), 6, json.dumps(r))
+                                                st.cache_data.clear() 
+                                        st.success("✅ REVISI BERHASIL!")
+                                        st.rerun()
 # =========================================================================
 # MENU 3: EXCEL LIVE-EDITOR (MONITORING IMPROVEMENT)
 # =========================================================================
@@ -4302,12 +4274,127 @@ elif menu == "📈 Monitoring Improvement":
 # =========================================================================
 elif menu == "⚡ Dapot Power Hasil PMS":
     st.markdown("<h1 style='text-align: center;'>⚡ Dapot Power Hasil PMS (Palangkaraya)</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; opacity: 0.8;'>Power Infrastructure Performance Dashboard — Analisa Perbandingan Bulanan Tegangan & Arus AC/DC</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.8;'>Power Infrastructure Performance Dashboard — Analisa Perbandingan Bulanan & Troubleshooting Berulang</p>", unsafe_allow_html=True)
 
     dapot_file = "Dapot_Power_Executive_Dashboard.xlsx"
+    db = st.session_state.get('laporan_db', [])
 
+    tab_comp, tab_rekap, tab_reguler, tab_master = st.tabs([
+        "📈 Compare Bulanan PMS (Master Excel)", 
+        "📋 Daftar Site Rutin vs 1x Visit", 
+        "🚨 Analisa Anomali Site Reguler (Live DB)",
+        "🗂️ Master Data Konsolidasi & Live Editor"
+    ])
+
+    # =========================================================
+    # TAB BARU: ANALISA SITE REGULER (TROUBLESHOOTING BERULANG)
+    # =========================================================
+    with tab_reguler:
+        st.markdown("### 🚨 Analisa Troubleshooting Berulang & Anomali Power (Site Reguler)")
+        st.info("💡 Sistem melacak histori perbaikan Site Reguler secara otomatis. Site dengan kunjungan > 1 kali (*Repeated Issue*) akan dianalisa untuk menemukan **'Ultimate Solution'**.")
+        
+        # Ambil data Site Reguler dari laporan_db
+        db_reg = [r for r in db if r.get('kategori') == 'Site Reguler']
+        
+        if not db_reg:
+            st.warning("Belum ada data kunjungan Site Reguler di database.")
+        else:
+            reg_data = []
+            for r in db_reg:
+                cd = r.get('cond_data', {})
+                reg_data.append({
+                    "Timestamp": r.get('timestamp', ''),
+                    "Site Name": str(r.get('site_name', '')).upper().strip(),
+                    "NOP": r.get('nop', '-'),
+                    "Problem": r.get('problem_alarm', '-'),
+                    "Action": ", ".join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-'),
+                    "Teknisi": r.get('teknisi', '-'),
+                    "V_RN": pd.to_numeric(cd.get('v_rn'), errors='coerce'),
+                    "V_SN": pd.to_numeric(cd.get('v_sn'), errors='coerce'),
+                    "V_TN": pd.to_numeric(cd.get('v_tn'), errors='coerce'),
+                    "Load_DC": pd.to_numeric(cd.get('load_dc'), errors='coerce'),
+                    "Remark": cd.get('note_action', '-')
+                })
+            df_reg = pd.DataFrame(reg_data)
+            df_reg['Timestamp_DT'] = pd.to_datetime(df_reg['Timestamp'], errors='coerce')
+            df_reg = df_reg.sort_values('Timestamp_DT')
+            
+            # Hitung frekuensi kunjungan
+            visit_counts_reg = df_reg['Site Name'].value_counts()
+            repeated_sites = visit_counts_reg[visit_counts_reg > 1].index.tolist()
+            
+            cr1, cr2, cr3 = st.columns(3)
+            cr1.metric("Total Kunjungan Reguler (Troubleshoot)", f"{len(df_reg)} Visit")
+            cr2.metric("Total Unik Site Terlibat", f"{len(visit_counts_reg)} Site")
+            cr3.metric("🚨 Site Repeated Issue (>1x Visit)", f"{len(repeated_sites)} Site")
+            
+            st.markdown("---")
+            if not repeated_sites:
+                st.success("✅ Luar Biasa! Belum ada site yang mengalami kerusakan atau kunjungan berulang.")
+                st.dataframe(df_reg[['Timestamp', 'Site Name', 'Problem', 'Teknisi']], use_container_width=True, hide_index=True)
+            else:
+                c_sel1, c_sel2 = st.columns([1, 2])
+                with c_sel1:
+                    site_pilihan = st.selectbox("📌 Pilih Site Berulang untuk Dianalisa:", repeated_sites, format_func=lambda x: f"{x} ({visit_counts_reg[x]}x Kunjungan)")
+                
+                with c_sel2:
+                    st.markdown(f"**Histori Problem Alarm pada {site_pilihan}:**")
+                    df_site = df_reg[df_reg['Site Name'] == site_pilihan].copy()
+                    st.write(" ➔ ".join(df_site['Problem'].tolist()))
+                
+                # Visualisasi Trend Power (Menggunakan UX UI Premium)
+                st.markdown(f"#### 📈 Tren Parameter Power AC & DC: {site_pilihan}")
+                df_chart = df_site.copy()
+                df_chart['Waktu'] = df_chart['Timestamp'].str[:10]  # Ambil YYYY-MM-DD
+                df_chart = df_chart.set_index('Waktu')
+                
+                c_ch1, c_ch2 = st.columns(2)
+                with c_ch1:
+                    with st.container(border=True):
+                        st.markdown("**⚡ Fluktuasi Tegangan AC (Fasa R, S, T)**")
+                        ui_line_chart(df_chart[['V_RN', 'V_SN', 'V_TN']], color=["#EF4444", "#F59E0B", "#3B82F6"])
+                with c_ch2:
+                    with st.container(border=True):
+                        st.markdown("**🔋 Tren Beban DC (Load Current)**")
+                        ui_bar_chart(df_chart[['Load_DC']], color="#10B981")
+                
+                # Auto Generate Ultimate Solution (Rule-based AI Expert)
+                avg_load = df_site['Load_DC'].mean()
+                min_ac = df_site[['V_RN', 'V_SN', 'V_TN']].min().min()
+                max_ac = df_site[['V_RN', 'V_SN', 'V_TN']].max().max()
+                
+                solusi = ""
+                if min_ac < 190:
+                    solusi += "🚨 **ANOMALI AC (UNDERVOLTAGE):** Tegangan AC pernah drop parah di bawah 190V. Hal ini menyebabkan modul rectifier gagal mensuplai DC dengan maksimal, sehingga baterai sering terkuras.\n"
+                    solusi += "💡 **ULTIMATE SOLUTION:** Segera koordinasi dengan PLN untuk penormalan tap trafo, atau ajukan pemasangan AVR/Stabilizer 3 Fasa kapasitas besar di site ini.\n\n"
+                elif max_ac > 245:
+                    solusi += "🚨 **ANOMALI AC (OVERVOLTAGE):** Tegangan AC melonjak abnormal melebihi 245V. Kondisi ini memicu proteksi *Over Voltage Protection* (OVP) modul rectifier sehingga modul mematikan diri (*shutdown*).\n"
+                    solusi += "💡 **ULTIMATE SOLUTION:** Pemasangan surge arrester yang valid dan koordinasi PLN untuk memecah / menyeimbangkan beban fasa jaringan luar.\n\n"
+                
+                if avg_load > 60:
+                    solusi += f"🚨 **BEBAN DC OVERLOAD:** Rata-rata beban harian terbaca sangat tinggi ({avg_load:.1f}A). Jika kapasitas baterai (Ah) dan jumlah modul rectifier pas-pasan, site akan sangat mudah *down* walau PLN hanya kedip sebentar.\n"
+                    solusi += "💡 **ULTIMATE SOLUTION:** Segera buatkan pengajuan RAB (via SiSAVA) untuk **Upgrade Kapasitas Baterai (Add Battery Bank)** dan penambahan Modul Rectifier agar rasio beban vs *backup time* kembali ideal.\n\n"
+                
+                problem_gabungan = " ".join(df_site['Problem'].tolist()).lower()
+                if "cell down" in problem_gabungan or "down power" in problem_gabungan:
+                    solusi += "🚨 **REPEATED DOWN POWER / CELL DOWN:** Kasus mati total / sektor mati berulang kali.\n"
+                    solusi += "💡 **ULTIMATE SOLUTION:** Audit total resistansi sistem *grounding*, cek suhu ruang baterai (AC mati / kipas shelter rusak mempercepat baterai soak), dan periksa degradasi sel baterai secara individual (dummy load test).\n\n"
+                    
+                if not solusi:
+                    solusi += "✅ **PARAMETER POWER TERLIHAT STABIL:** Tegangan PLN dan beban DC terbaca dalam ambang batas wajar. Masalah berulang kemungkinan murni disebabkan oleh faktor transmisi, optik, atau perangkat CME (*hardware bug*).\n"
+                    solusi += "💡 **ULTIMATE SOLUTION:** Lakukan *preventive maintenance* fisik pada rute kabel FO, bersihkan modul-modul radio (RRU/BBU) dari debu yang menyumbat pembuangan panas, dan perketat seal *weatherproofing*.\n\n"
+                    
+                st.markdown("#### 🤖 Analisa Sistem & Ultimate Solution")
+                st.info(solusi)
+                
+                st.markdown("#### 📋 Rincian Histori Pekerjaan (Tabel Log)")
+                st.dataframe(df_site[['Timestamp', 'Teknisi', 'Problem', 'Action', 'V_RN', 'V_SN', 'V_TN', 'Load_DC', 'Remark']], use_container_width=True, hide_index=True)
+
+    # =========================================================
+    # TAB EXCEL MASTER LAMA
+    # =========================================================
     if not os.path.exists(dapot_file):
-        st.error(f"❌ File **`{dapot_file}`** belum ditemukan di folder server/repositori. Pastikan file tersebut sudah di-upload ke GitHub satu folder dengan `App.py`.")
+        with tab_comp: st.error(f"❌ File **`{dapot_file}`** belum ditemukan. Pastikan file Excel master tersebut sudah di-upload.")
     else:
         try:
             df_kpi = read_excel_cached(dapot_file, sheet_name='DB_KPI')
@@ -4322,48 +4409,20 @@ elif menu == "⚡ Dapot Power Hasil PMS":
             sites_sekali = visit_counts[visit_counts == 1].index.tolist()
             all_visited_sites = visit_counts.index.tolist()
 
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("🏢 Total Site Terdata (KPI)", f"{len(df_kpi)} Site")
-            m2.metric("🔄 Site Dikunjungi Rutin (>1x)", f"{len(sites_rutin)} Site")
-            m3.metric("📍 Site 1x Kunjungan", f"{len(sites_sekali)} Site")
-            m4.metric("📅 Total Record PMS", f"{len(df_trend)} Kunjungan")
-
-            st.markdown("---")
-
-            tab_comp, tab_rekap, tab_master = st.tabs([
-                "📈 Compare Bulanan AC & DC (Per Site)", 
-                "📋 Daftar Site Rutin vs Pernah Dikunjungi", 
-                "🗂️ Master Data Konsolidasi & Live Editor"
-            ])
-
             with tab_comp:
-                st.markdown("### 🔍 Filter & Pilih Site untuk Compare Bulanan")
+                st.markdown("### 🔍 Filter & Pilih Site untuk Compare Bulanan (Master Excel)")
                 
                 c_f1, c_f2 = st.columns([1.5, 2])
                 with c_f1:
-                    kat_kunjungan = st.radio(
-                        "Filter Kategori Kunjungan Site:",
-                        [
-                            "🔄 Dikunjungi Rutin (>1 Bulan / Bisa Compare)", 
-                            "📍 Pernah Dikunjungi (1x Kunjungan)", 
-                            "🌐 Semua Site Terdata"
-                        ]
-                    )
+                    kat_kunjungan = st.radio("Filter Kategori Kunjungan Site:", ["🔄 Dikunjungi Rutin (>1 Bulan / Bisa Compare)", "📍 Pernah Dikunjungi (1x Kunjungan)", "🌐 Semua Site Terdata"])
                 
-                if "Rutin" in kat_kunjungan:
-                    pilihan_sites = sites_rutin
-                elif "1x" in kat_kunjungan:
-                    pilihan_sites = sites_sekali
-                else:
-                    pilihan_sites = all_visited_sites
+                if "Rutin" in kat_kunjungan: pilihan_sites = sites_rutin
+                elif "1x" in kat_kunjungan: pilihan_sites = sites_sekali
+                else: pilihan_sites = all_visited_sites
 
                 with c_f2:
                     format_opsi = {s: f"{s} ({visit_counts.get(s, 0)}x Kunjungan)" for s in pilihan_sites}
-                    selected_site = st.selectbox(
-                        "Pilih Site ID untuk Melihat Grafik & KPI:",
-                        options=pilihan_sites,
-                        format_func=lambda x: format_opsi.get(x, x)
-                    )
+                    selected_site = st.selectbox("Pilih Site ID untuk Melihat Grafik & KPI:", options=pilihan_sites, format_func=lambda x: format_opsi.get(x, x))
 
                 if selected_site:
                     kpi_row = df_kpi[df_kpi['SITE_ID'] == selected_site]
@@ -4411,22 +4470,8 @@ elif menu == "⚡ Dapot Power Hasil PMS":
                                 ui_line_chart(df_plot[['IAC', 'LDC']], color=["#FFC107", "#2979FF"])
                                 st.caption("Kuning = Arus AC (Ampere) | Biru = Beban Load DC (Ampere)")
 
-                        col_g3, col_g4 = st.columns(2)
-                        with col_g3:
-                            with st.container(border=True):
-                                st.markdown("**🔋 Detail Trend Tegangan DC (VDC) Antar Bulan**")
-                                ui_bar_chart(df_plot[['VDC']], color="#00E676")
-                        with col_g4:
-                            with st.container(border=True):
-                                st.markdown("**⚡ Detail Trend Tegangan AC (VAC) Antar Bulan**")
-                                ui_bar_chart(df_plot[['VAC']], color="#FF5252")
-
                         st.markdown("#### 📋 Tabel Histori & Selisih (Compare) Antar Bulan")
-                        st.dataframe(
-                            df_site_trend[['BULAN', 'VAC', 'Delta_VAC', 'VDC', 'Delta_VDC', 'IAC', 'Delta_IAC', 'LDC', 'Delta_LDC']],
-                            use_container_width=True,
-                            hide_index=True
-                        )
+                        st.dataframe(df_site_trend[['BULAN', 'VAC', 'Delta_VAC', 'VDC', 'Delta_VDC', 'IAC', 'Delta_IAC', 'LDC', 'Delta_LDC']], use_container_width=True, hide_index=True)
                     else:
                         st.warning("Data trend bulanan tidak ditemukan untuk site ini.")
 
@@ -4436,47 +4481,27 @@ elif menu == "⚡ Dapot Power Hasil PMS":
                 rekap_df = df_trend.groupby('SITE_ID').agg(
                     Jumlah_Kunjungan=('BULAN', 'count'),
                     Daftar_Bulan_Kunjungan=('BULAN', lambda x: ", ".join(sorted(x.astype(str).unique()))),
-                    Rata_VAC=('VAC', 'mean'),
-                    Rata_VDC=('VDC', 'mean'),
-                    Rata_IAC=('IAC', 'mean'),
-                    Rata_LDC=('LDC', 'mean')
+                    Rata_VAC=('VAC', 'mean'), Rata_VDC=('VDC', 'mean'), Rata_IAC=('IAC', 'mean'), Rata_LDC=('LDC', 'mean')
                 ).reset_index()
 
-                rekap_df['Kategori_Kunjungan'] = rekap_df['Jumlah_Kunjungan'].apply(
-                    lambda x: "Dikunjungi Rutin (>1x)" if x > 1 else "Pernah Dikunjungi (1x)"
-                )
+                rekap_df['Kategori_Kunjungan'] = rekap_df['Jumlah_Kunjungan'].apply(lambda x: "Dikunjungi Rutin (>1x)" if x > 1 else "Pernah Dikunjungi (1x)")
                 rekap_df = rekap_df.sort_values(by='Jumlah_Kunjungan', ascending=False).reset_index(drop=True)
                 rekap_df[['Rata_VAC', 'Rata_VDC', 'Rata_IAC', 'Rata_LDC']] = rekap_df[['Rata_VAC', 'Rata_VDC', 'Rata_IAC', 'Rata_LDC']].round(2)
 
-                filter_tabel = st.radio(
-                    "Tampilkan Tabel:", 
-                    ["Semua Site", "Hanya Site Dikunjungi Rutin (>1x)", "Hanya Site Pernah Dikunjungi (1x)"], 
-                    horizontal=True
-                )
+                filter_tabel = st.radio("Tampilkan Tabel:", ["Semua Site", "Hanya Site Dikunjungi Rutin (>1x)", "Hanya Site Pernah Dikunjungi (1x)"], horizontal=True)
                 
-                if "Rutin" in filter_tabel:
-                    tampil_rekap = rekap_df[rekap_df['Jumlah_Kunjungan'] > 1]
-                elif "1x" in filter_tabel:
-                    tampil_rekap = rekap_df[rekap_df['Jumlah_Kunjungan'] == 1]
-                else:
-                    tampil_rekap = rekap_df
+                if "Rutin" in filter_tabel: tampil_rekap = rekap_df[rekap_df['Jumlah_Kunjungan'] > 1]
+                elif "1x" in filter_tabel: tampil_rekap = rekap_df[rekap_df['Jumlah_Kunjungan'] == 1]
+                else: tampil_rekap = rekap_df
 
                 st.dataframe(tampil_rekap, use_container_width=True, height=450)
 
             with tab_master:
                 st.markdown("### 🗂️ Explorer & Live Editor Database Dapot Power")
-                pilih_sheet_dapot = st.selectbox(
-                    "Pilih Sheet dari File Dapot_Power_Executive_Dashboard.xlsx:", 
-                    ["DB_TREND", "DB_KPI", "Master_Data_Konsolidasi"]
-                )
+                pilih_sheet_dapot = st.selectbox("Pilih Sheet dari File Dapot_Power_Executive_Dashboard.xlsx:", ["DB_TREND", "DB_KPI", "Master_Data_Konsolidasi"])
                 
                 df_dapot_sheet = read_excel_cached(dapot_file, sheet_name=pilih_sheet_dapot)
-                edited_dapot = st.data_editor(
-                    df_dapot_sheet, 
-                    use_container_width=True, 
-                    num_rows="dynamic", 
-                    key=f"ed_dapot_{pilih_sheet_dapot}"
-                )
+                edited_dapot = st.data_editor(df_dapot_sheet, use_container_width=True, num_rows="dynamic", key=f"ed_dapot_{pilih_sheet_dapot}")
 
                 if st.button("💾 Simpan Perubahan & Download File Dapot Power", type="primary"):
                     state_dapot = st.session_state[f"ed_dapot_{pilih_sheet_dapot}"]
@@ -4490,31 +4515,21 @@ elif menu == "⚡ Dapot Power Hasil PMS":
                             for r_idx_str, c_changes in state_dapot.get("edited_rows", {}).items():
                                 xl_row = int(r_idx_str) + 2
                                 for c_name, n_val in c_changes.items():
-                                    if c_name in headers_d:
-                                        ws_d.cell(row=xl_row, column=headers_d.index(c_name) + 1).value = n_val
+                                    if c_name in headers_d: ws_d.cell(row=xl_row, column=headers_d.index(c_name) + 1).value = n_val
 
                             for add_r in state_dapot.get("added_rows", []):
                                 xl_row = ws_d.max_row + 1
                                 for c_name, n_val in add_r.items():
-                                    if c_name in headers_d:
-                                        ws_d.cell(row=xl_row, column=headers_d.index(c_name) + 1).value = n_val
+                                    if c_name in headers_d: ws_d.cell(row=xl_row, column=headers_d.index(c_name) + 1).value = n_val
 
-                            buf_d = BytesIO()
-                            wb_d.save(buf_d)
+                            buf_d = BytesIO(); wb_d.save(buf_d)
                             st.success("✅ Perubahan berhasil disimpan ke dalam struktur asli Excel!")
-                            st.download_button(
-                                label="📥 Download Dapot_Power_Executive_Dashboard.xlsx Terupdate",
-                                data=buf_d.getvalue(),
-                                file_name=f"Updated_{dapot_file}",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                type="primary"
-                            )
+                            st.download_button("📥 Download Dapot_Power_Executive_Dashboard.xlsx Terupdate", data=buf_d.getvalue(), file_name=f"Updated_{dapot_file}", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary")
                     else:
                         st.warning("Belum ada sel yang diubah pada tabel di atas.")
 
         except Exception as e:
             st.error(f"Terjadi kesalahan saat memuat Dapot Power Executive Dashboard: {e}")
-
 # =========================================================================
 # MENU 5: DAILY TRACKER (TO DO LIST NOP PALANGKARAYA)
 # =========================================================================
