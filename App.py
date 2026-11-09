@@ -847,7 +847,7 @@ ux_boot()
 if 'role' not in st.session_state: st.session_state['role'] = None
 if 'dashboard_area' not in st.session_state: st.session_state['dashboard_area'] = None
 
-if st.session_state['role'] is None and st.session_state.get('active_menu') not in ["💠 SiSAVA", "🚨 SiHD (Pergerakan Tim)"]:
+if st.session_state['role'] is None and st.session_state.get('active_menu') not in ["💠 SiSAVA", "🚨 SiHD (Pergerakan Tim)", "🗺️ Sysinfomap (Peta & Populasi Site)"]:
     
     ux_login_css()
     st.markdown("<br>", unsafe_allow_html=True)
@@ -931,43 +931,136 @@ if st.session_state['role'] is None and st.session_state.get('active_menu') not 
     st.stop()
 
 # -------------------------------------------------------------------------
-# FUNGSI PEMBACA MASTER DATA EXCEL (NAMA FME & SITE ID)
+# 🗺️ PARSER KML SYSINFOMAP (IN-MEMORY CACHE — SUPER RINGAN) & MASTER DATA
 # -------------------------------------------------------------------------
-@st.cache_data(ttl=3600)
-def load_master_lists():
-    fme_plk, fme_pbu, site_plk, site_pbu, site_combat = [], [], [], [], []
+import xml.etree.ElementTree as _ET
+
+KABUPATEN_MAP = {
+    "PLK": "Kota Palangka Raya",
+    "KKP": "Kab. Kapuas (Kuala Kapuas)",
+    "KSN": "Kab. Katingan (Kasongan)",
+    "KKN": "Kab. Gunung Mas (Kuala Kurun)",
+    "MTW": "Kab. Barito Utara (Muara Teweh)",
+    "PPS": "Kab. Pulang Pisau",
+    "NTH": "Site N3T / Remote Area",
+    "TML": "Kab. Barito Timur (Tamiang Layang)",
+    "BNT": "Kab. Barito Selatan (Buntok)",
+    "AMT": "Kab. Barito Selatan (Jenamas)",
+    "PRC": "Kab. Murung Raya (Puruk Cahu)",
+    "COH": "Site Combat / Khusus",
+    "EPQ": "Site Ekspansi / iMacro New",
+    "SPT": "Area Perbatasan (Sampit/Lamunti)"
+}
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_sysinfomap_kml(file_path_or_bytes, _stamp=0):
     try:
-        df1 = read_excel_cached("NIK NOP PLK.xlsx")
+        if isinstance(file_path_or_bytes, bytes):
+            root = _ET.fromstring(file_path_or_bytes)
+        else:
+            tree = _ET.parse(file_path_or_bytes)
+            root = tree.getroot()
+    except Exception:
+        return pd.DataFrame()
+
+    ns = {'kml': 'http://www.opengis.net/kml/2.2'}
+    placemarks = root.findall('.//kml:Placemark', ns)
+    if not placemarks:
+        placemarks = root.findall('.//Placemark')
+
+    rows = []
+    for pm in placemarks:
+        rec = {}
+        for sd in pm.findall('.//{*}SimpleData'):
+            col = sd.attrib.get('name', '')
+            if col:
+                rec[col] = (sd.text or '').strip()
+        if not rec.get('site_id'):
+            nm = pm.find('{*}name')
+            if nm is not None and nm.text:
+                rec['site_id'] = nm.text.strip()
+
+        coord_el = pm.find('.//{*}coordinates')
+        c_lon, c_lat = None, None
+        if coord_el is not None and coord_el.text:
+            parts = coord_el.text.strip().split(',')
+            if len(parts) >= 2:
+                try:
+                    c_lon = float(parts[0])
+                    c_lat = float(parts[1])
+                except Exception:
+                    pass
+
+        lat_val = pd.to_numeric(rec.get('Lat'), errors='coerce')
+        lon_val = pd.to_numeric(rec.get('Long'), errors='coerce')
+        rec['lat'] = float(lat_val) if pd.notna(lat_val) else (c_lat if c_lat is not None else 0.0)
+        rec['lon'] = float(lon_val) if pd.notna(lon_val) else (c_lon if c_lon is not None else 0.0)
+
+        sid = str(rec.get('site_id', '')).strip().upper()
+        rec['site_id'] = sid
+        pref = sid[:3] if len(sid) >= 3 else "OTH"
+        rec['Prefix'] = pref
+        rec['Kabupaten'] = KABUPATEN_MAP.get(pref, f"Wilayah Lainnya ({pref})")
+        for k_def in ['Sitename', 'Site_Owner', 'site_class', 'Status_site', 'Access', 'RemarkSite', 'BrandRecti', 'Transport_type', 'Type_Hub', 'Power_Source', 'Status_Genset', 'Case_Genset', 'RTS']:
+            val_k = str(rec.get(k_def, '') or '').strip()
+            rec[k_def] = val_k if val_k not in ['', '#N/A', 'None'] else 'Tidak Terdata'
+        rows.append(rec)
+
+    df = pd.DataFrame(rows)
+    if not df.empty:
+        df = df[(df['lat'] != 0) & (df['lon'] != 0)].reset_index(drop=True)
+    return df
+
+def get_default_kml_df():
+    candidates = ["newlist_910.kml", "newlist.kml", "Sysinfomap.kml"]
+    for c in candidates:
+        if os.path.exists(c):
+            stt = os.stat(c)
+            return load_sysinfomap_kml(c, stt.st_mtime_ns), c
+    import glob as _g
+    kmls = sorted(_g.glob("*.kml"))
+    if kmls:
+        stt = os.stat(kmls[0])
+        return load_sysinfomap_kml(kmls[0], stt.st_mtime_ns), kmls[0]
+    return pd.DataFrame(), None
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_master_lists():
+    fme_plk, fme_pbu, site_plk, site_pbu = [], [], [], []
+    try:
+        df1 = pd.read_excel("NIK NOP PLK.xlsx")
         if 'NAMA' in df1.columns: fme_plk = df1['NAMA'].dropna().astype(str).tolist()
     except: pass
     
     try:
-        df2 = read_excel_cached("NAMA NOP PANGKALANBUN.xlsx")
+        df2 = pd.read_excel("NAMA NOP PANGKALANBUN.xlsx")
         if 'NAMA' in df2.columns: fme_pbu = df2['NAMA'].dropna().astype(str).tolist()
     except: pass
     
     try:
-        df3 = read_excel_cached("Site ID Sidata Palangkaraya.xlsx")
+        df3 = pd.read_excel("Site ID Sidata Palangkaraya.xlsx")
         if 'Site ID' in df3.columns: site_plk = df3['Site ID'].dropna().astype(str).tolist()
     except: pass
     
     try:
-        df4 = read_excel_cached("Site ID Sidata Pangkalanbun.xlsx")
+        df4 = pd.read_excel("Site ID Sidata Pangkalanbun.xlsx")
         if 'Site ID' in df4.columns: site_pbu = df4['Site ID'].dropna().astype(str).tolist()
     except: pass
 
-    # Tambahan Baca Site Combat / Audit Tower
     try:
-        df_combat = read_excel_cached("Combat NOP Palangkaraya_1.xlsx", sheet_name="Combat NOP Palangkaraya")
-        if 'siteid' in df_combat.columns:
-            site_combat = df_combat['siteid'].dropna().astype(str).tolist()
-            # Gabungkan Site Combat ke dalam daftar Site Palangkaraya agar bisa dipilih di form
-            site_plk.extend(site_combat)
-            site_plk = list(set(site_plk)) # Hapus duplikat jika ada
+        df_cb = pd.read_excel("Combat NOP Palangkaraya_1.xlsx", sheet_name="Combat NOP Palangkaraya")
+        if 'siteid' in df_cb.columns:
+            site_plk.extend(df_cb['siteid'].dropna().astype(str).str.strip().tolist())
     except: pass
-    
-    return sorted(fme_plk), sorted(fme_pbu), sorted(site_plk), sorted(site_pbu)
 
+    try:
+        df_kml_m, _ = get_default_kml_df()
+        if not df_kml_m.empty and 'site_id' in df_kml_m.columns:
+            kml_formatted = [f"{r['site_id']} - {r['Sitename']}" for _, r in df_kml_m.iterrows()]
+            site_plk.extend(kml_formatted)
+    except: pass
+
+    return sorted(list(set(fme_plk))), sorted(list(set(fme_pbu))), sorted(list(set(site_plk))), sorted(list(set(site_pbu)))
 # -------------------------------------------------------------------------
 # MULTI-CLOUDINARY & OPTIMASI GAMBAR (AUTO LOAD-BALANCING & COMPRESSION)
 # -------------------------------------------------------------------------
@@ -2483,7 +2576,18 @@ if st.session_state['active_menu'] is None:
         if st.button("⚡ BUKA DAPOT POWER HASIL PMS", type="secondary", use_container_width=True, key="m_dapot"):
             st.session_state['active_menu'] = "⚡ Dapot Power Hasil PMS"
             st.rerun()
-
+            
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("""
+        <div class='area-card' style='border-top-color: #06B6D4;'>
+            <div style='font-size: 44px; margin-bottom: 6px;'>🗺️</div>
+            <div class='login-title'>Sysinfomap (Peta & Populasi Site)</div>
+            <div class='login-desc'>Peta interaktif 910+ Site, populasi per Kabupaten, komparasi Site ID Master vs KML, & status kunjungan PM.</div>
+        </div>
+    """, unsafe_allow_html=True)
+    if st.button("🗺️ BUKA SYSINFOMAP (PETA & POPULASI SITE)", type="primary", use_container_width=True, key="m_sysinfomap"):
+        st.session_state['active_menu'] = "🗺️ Sysinfomap (Peta & Populasi Site)"
+        st.rerun()
     st.markdown("<hr style='margin: 30px 0;'>", unsafe_allow_html=True)
     c_out1, c_out2, c_out3 = st.columns(3)
     with c_out1:
