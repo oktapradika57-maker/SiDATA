@@ -935,29 +935,38 @@ if st.session_state['role'] is None and st.session_state.get('active_menu') not 
 # -------------------------------------------------------------------------
 @st.cache_data(ttl=3600)
 def load_master_lists():
-    fme_plk, fme_pbu, site_plk, site_pbu = [], [], [], []
+    fme_plk, fme_pbu, site_plk, site_pbu, site_combat = [], [], [], [], []
     try:
-        df1 = pd.read_excel("NIK NOP PLK.xlsx")
+        df1 = read_excel_cached("NIK NOP PLK.xlsx")
         if 'NAMA' in df1.columns: fme_plk = df1['NAMA'].dropna().astype(str).tolist()
     except: pass
     
     try:
-        df2 = pd.read_excel("NAMA NOP PANGKALANBUN.xlsx")
+        df2 = read_excel_cached("NAMA NOP PANGKALANBUN.xlsx")
         if 'NAMA' in df2.columns: fme_pbu = df2['NAMA'].dropna().astype(str).tolist()
     except: pass
     
     try:
-        df3 = pd.read_excel("Site ID Sidata Palangkaraya.xlsx")
+        df3 = read_excel_cached("Site ID Sidata Palangkaraya.xlsx")
         if 'Site ID' in df3.columns: site_plk = df3['Site ID'].dropna().astype(str).tolist()
     except: pass
     
     try:
-        df4 = pd.read_excel("Site ID Sidata Pangkalanbun.xlsx")
+        df4 = read_excel_cached("Site ID Sidata Pangkalanbun.xlsx")
         if 'Site ID' in df4.columns: site_pbu = df4['Site ID'].dropna().astype(str).tolist()
+    except: pass
+
+    # Tambahan Baca Site Combat / Audit Tower
+    try:
+        df_combat = read_excel_cached("Combat NOP Palangkaraya_1.xlsx", sheet_name="Combat NOP Palangkaraya")
+        if 'siteid' in df_combat.columns:
+            site_combat = df_combat['siteid'].dropna().astype(str).tolist()
+            # Gabungkan Site Combat ke dalam daftar Site Palangkaraya agar bisa dipilih di form
+            site_plk.extend(site_combat)
+            site_plk = list(set(site_plk)) # Hapus duplikat jika ada
     except: pass
     
     return sorted(fme_plk), sorted(fme_pbu), sorted(site_plk), sorted(site_pbu)
-
 
 # -------------------------------------------------------------------------
 # MULTI-CLOUDINARY & OPTIMASI GAMBAR (AUTO LOAD-BALANCING & COMPRESSION)
@@ -2835,14 +2844,14 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
 
         elif site_category == "Site Reguler":
             # -------------------------------------------------------------------------
-            # BLOK A.2: FORM KHUSUS SITE REGULER BARU (PALANGKARAYA - WAJIB LENGKAP 100%)
+            # BLOK A.2: FORM KHUSUS SITE REGULER & AUDIT TOWER
             # -------------------------------------------------------------------------
-            tabs_reg = st.tabs(["📌 1. Info & Problem", "⚡ 2. Action & Parameter", "📤 3. Submit"])
+            tabs_reg = st.tabs(["📌 1. Info & Problem", "⚡ 2. Action & Parameter", "🏗️ 3. Audit Fisik Tower", "📤 4. Submit"])
             cond_data = {}
             cond_files = {}
             
             with tabs_reg[0]:
-                st.markdown("#### Kategori Kunjungan: Site Reguler (Maintenance/Troubleshooting)")
+                st.markdown("#### Kategori Kunjungan: Site Reguler (Maintenance / Audit Tower)")
                 c1, c2 = st.columns(2)
                 with c1:
                     if site_plk_list:
@@ -2864,22 +2873,21 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                     check_date_reg = st.date_input("Tanggal Kunjungan:", value=datetime.date.today(), key="reg_date")
                 
                 st.divider()
-                st.markdown("### 🚨 Problem Alarm")
+                st.markdown("### 🚨 Problem Alarm / Tujuan Visit")
                 prob_alarm = st.selectbox(
-                    "Pilih Problem Utama:", 
-                    ["Down power", "Fliker power", "Fliker Site Down", "Transmisi Problem", "cell down"]
+                    "Pilih Problem Utama / Tujuan:", 
+                    ["Down power", "Fliker power", "Fliker Site Down", "Transmisi Problem", "cell down", "Audit Fisik / Kondisi Tower"]
                 )
-                foto_prob = st.file_uploader("📸 Foto Problem Alarm (WAJIB DILAMPIRKAN):", accept_multiple_files=True, key="f_prob")
+                foto_prob = st.file_uploader("📸 Foto Problem / Kondisi Awal (WAJIB DILAMPIRKAN):", accept_multiple_files=True, key="f_prob")
 
             with tabs_reg[1]:
                 st.markdown("### 🔧 Action & Perbaikan")
                 
-                # --- AUTO-BACA & SIMPAN ACTION BARU DARI DATABASE LAMA ---
                 base_act_opts = [
                     "Replace RRU", "Replace Optik", "Replace SFP", "Replace Module APR", 
                     "Teg PLN Drop pelaporan PLN", "Reset Hardware", "MCB Trip", "Add Baterai",
                     "Cleaning Fan BTS", "Cleaning FAN Recti", "Cleaning FAN Perangkat TRM", "Cleaning FAN Shelter",
-                    "Troubleshoot Genset / ATS"
+                    "Troubleshoot Genset / ATS", "Pengecekan Vertikalitas Tower", "Inspeksi & Kencangkan Baut/Skur"
                 ]
                 existing_actions = set(base_act_opts)
                 if 'laporan_db' in st.session_state and st.session_state['laporan_db']:
@@ -2894,21 +2902,19 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 act_opts = sorted(list(existing_actions))
                 act_sel = st.multiselect("Pilih Action Dikerjakan (WAJIB PILIH, Bisa Multiple):", act_opts)
                 
-                # Input Manual (Otomatis digabung ke daftar terpilih & history)
                 custom_act = st.text_input("➕ Tambah Action Manual (Ketik di sini jika tidak ada di pilihan atas):", placeholder="Contoh: Ganti Filter Oli Mesin...")
                 if custom_act:
                     if custom_act not in act_sel:
                         act_sel.append(custom_act)
                         
-                foto_act = st.file_uploader("📸 Foto Action / Perbaikan Diluar Pengukuran (WAJIB DILAMPIRKAN):", accept_multiple_files=True, key="f_act")
+                foto_act = st.file_uploader("📸 Foto Action / Perbaikan (WAJIB DILAMPIRKAN):", accept_multiple_files=True, key="f_act")
 
-                # Pengukuran Power Wajib Muncul Untuk Semua Action
                 show_cond_power = True 
                 show_cond_genset = any("Genset" in item or "ATS" in item for item in act_sel)
                 
                 if show_cond_power or show_cond_genset:
                     st.divider()
-                    st.warning("⚠️ **WAJIB DIISI 100%:** Seluruh kolom nilai ukur dan foto eviden di bawah ini wajib dilengkapi satu per satu tanpa terkecuali!")
+                    st.warning("⚠️ **WAJIB DIISI 100%:** Seluruh kolom nilai ukur AC/DC dan foto eviden di bawah ini wajib dilengkapi!")
                 
                 if show_cond_power:
                     st.markdown("#### ⚡ A. Pengukuran AC/DC & Eviden Foto")
@@ -2961,15 +2967,32 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                         cond_data['gen_bbm'] = st.text_input("Estimasi Sisa BBM [Liter] *", placeholder="Cth: 150")
                         cond_files['f_gen_bbm'] = st.file_uploader("📸 Foto Tangki/Sisa BBM *", key="f_gen_bbm")
 
-                st.divider()
-                cond_data['note_action'] = st.text_area("📝 NOTE / REMARK Action Lapangan (WAJIB DIISI) *:", placeholder="Jelaskan secara spesifik hasil pengerjaan, part yang diganti, atau kendala di lapangan...")
-
             with tabs_reg[2]:
+                st.markdown("### 🏗️ Audit Fisik & Perkuatan Tower (Mencegah Insiden Roboh)")
+                st.info("💡 Jika site ini adalah **Combat** atau diindikasi mengalami kemiringan/kerusakan struktur, **WAJIB** isi form ini.")
+                
+                c_tw1, c_tw2 = st.columns(2)
+                with c_tw1:
+                    cond_data['tower_type'] = st.selectbox("Tipe Tower", ["SST (Self Supporting Tower)", "Guyed Mast (Tarikan Seling)", "Monopole", "Combat", "Rooftop"])
+                    cond_data['tower_vert'] = st.selectbox("Kondisi Kemiringan (Vertikalitas)", ["Aman (Tegak Lurus)", "Miring Ringan (<2 Derajat)", "Miring Kritis / Bahaya"])
+                    cond_data['tower_skur'] = st.selectbox("Kondisi Tali Skur / Seling (Khusus Combat/Guyed)", ["Aman & Kencang", "Kendor", "Karat / Putus Sebagian", "Tidak Ada / Bukan Guyed"])
+                with c_tw2:
+                    cond_data['tower_baut'] = st.selectbox("Kondisi Baut & Struktur Besi", ["Aman (Lengkap)", "Ada Baut Lepas / Hilang", "Besi Keropos / Patah"])
+                    cond_data['tower_base'] = st.selectbox("Kondisi Pondasi (Base)", ["Kokoh", "Tanah Ambles / Erosi", "Retak"])
+                    cond_data['tower_remark'] = st.text_area("Catatan Kerusakan Struktur:", placeholder="Jelaskan detail kerusakan pada tower (jika ada)...")
+
+                st.markdown("**📸 Lampiran Eviden Fisik Tower:**")
+                cond_files['f_tw_full'] = st.file_uploader("📸 Foto Tower Full Body (Bawah sampai Atas)", accept_multiple_files=True, key="f_tw_full")
+                cond_files['f_tw_defect'] = st.file_uploader("📸 Foto Titik Kerusakan (Seling Kendor/Baut Lepas/Pondasi Retak)", accept_multiple_files=True, key="f_tw_defect")
+
+                cond_data['note_action'] = st.text_area("📝 NOTE / REMARK Action Lapangan (Keseluruhan) *:", placeholder="Jelaskan secara spesifik hasil pengerjaan atau temuan akhir...", key="reg_note_action")
+
+            with tabs_reg[3]:
                 st.markdown("### 📤 Konfirmasi & Submit Laporan")
                 final_status_reg = st.radio("Status Akhir Site:", ["Normal", "Minor Issue", "Major/Critical", "Update Progress"], key="stat_reg")
                 
                 if st.button("🚀 UPLOAD & SINKRONKAN DATA REGULER", type="primary", use_container_width=True):
-                    # Validasi Ketat 100% Tanpa Kurang 1 Apapun
+                    # Validasi Ketat
                     item_kurang = []
                     if not str(site_name_reg).strip(): item_kurang.append("Site ID")
                     if not teknisi_reg: item_kurang.append("Nama FME")
@@ -2993,17 +3016,6 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                             ('f_ldc', 'Foto Load DC'), ('f_bcl', 'Foto BCL'), ('f_cap', 'Foto Capacity'), ('f_mod', 'Foto Module')
                         ])
                         
-                    if show_cond_genset:
-                        wajib_teks.extend([
-                            ('gen_v', 'Isian Tegangan Output Genset'), ('gen_i', 'Isian Arus Load Genset'),
-                            ('gen_hm', 'Isian Hour Meter (HM)'), ('gen_bbm', 'Isian Sisa BBM (Liter)')
-                        ])
-                        wajib_foto.extend([
-                            ('f_gen_v', 'Foto Eviden Tegangan Genset'), ('f_gen_i', 'Foto Eviden Arus Genset'),
-                            ('f_gen_ats', 'Foto Eviden Panel ATS'), ('f_gen_issue', 'Foto Eviden Fisik Mesin'),
-                            ('f_gen_hm', 'Foto Eviden Hour Meter'), ('f_gen_bbm', 'Foto Eviden Tangki BBM')
-                        ])
-                        
                     wajib_teks.append(('note_action', 'Isian Note / Remark Action'))
                     
                     for k_teks, label_teks in wajib_teks:
@@ -3017,6 +3029,11 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                         with st.spinner("⏳ Sedang memproses dan mengamankan seluruh foto eviden ke Cloud..."):
                             url_probs = upload_multiple_images(foto_prob, "reg_prob")
                             url_acts = upload_multiple_images(foto_act, "reg_act")
+                            url_tw_full = upload_multiple_images(cond_files.get('f_tw_full'), "reg_tower")
+                            url_tw_defect = upload_multiple_images(cond_files.get('f_tw_defect'), "reg_tower")
+                            
+                            cond_data['url_tw_full'] = url_tw_full
+                            cond_data['url_tw_defect'] = url_tw_defect
                             
                             if show_cond_power:
                                 for k_f in ['v_rn', 'v_sn', 'v_tn', 'i_r', 'i_s', 'i_t', 'ldc', 'bcl', 'cap', 'mod']:
@@ -3046,7 +3063,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 "cond_data": cond_data,
                                 "pln_status": "-", "rect_brand": "-", "rect_out_v": "-", 
                                 "total_load": cond_data.get('load_dc', '-'),
-                                "url_sites": url_probs + url_acts, 
+                                "url_sites": url_probs + url_acts + url_tw_full + url_tw_defect, 
                                 "extras_fisik": [], "extras_panel": [], "extras_baterai": [], "extras_elektrikal": []
                             }
                             
@@ -3060,10 +3077,9 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 sheet.insert_row(row_data, index=2)
                                 st.cache_data.clear()
                                 st.session_state['laporan_db'].append(report_dict)
-                                st.success("✅ BERHASIL! Data Laporan Site Reguler telah diamankan ke Baris Teratas Spreadsheet.")
+                                st.success("✅ BERHASIL! Data Laporan Site Reguler (beserta Audit Tower) telah diamankan ke Spreadsheet.")
                             else:
                                 st.error("⚠️ Gagal menyambung ke Server Database.")
-
         elif site_category == "Project":
             # -------------------------------------------------------------------------
             # BLOK A.3: FORM KHUSUS PROJECT (PO & SVA) DENGAN PASSWORD
