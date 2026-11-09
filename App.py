@@ -5599,58 +5599,331 @@ elif menu == "🗺️ Sysinfomap (Peta & Populasi Site)":
     ])
 
     with tab_peta:
-        st.markdown("#### 🗺️ Peta Sebaran Geografis Site Telekomunikasi")
+        st.markdown("#### 🗺️ Interactive Tower Radar Map & Live Navigation")
         if df_view.empty:
             st.warning("Tidak ada site yang cocok dengan filter saat ini.")
         else:
-            c_mp1, c_mp2 = st.columns([2.3, 1.2])
+            c_mp_ctrl1, c_mp_ctrl2, c_mp_ctrl3 = st.columns([1.4, 1.3, 1.3])
+            with c_mp_ctrl1:
+                mode_warna = st.radio(
+                    "🎨 Mode Warna Ikon Tower:",
+                    ["Kelas Site (Diamond/Platinum/Gold/Silver/Bronze)", "Status Kunjungan PM (Hijau = Sudah Visit, Merah = Belum)"],
+                    horizontal=True, key="sim_color_mode"
+                )
+            with c_mp_ctrl2:
+                map_theme = st.selectbox(
+                    "🛰️ Tema Peta (Base Layer):",
+                    ["Dark NOC Command Center (Mewah)", "Citra Satelit (Esri World Imagery)", "Peta Jalan Terang (Street Map)"],
+                    key="sim_map_theme"
+                )
+            with c_mp_ctrl3:
+                anim_mode = st.selectbox(
+                    "✨ Efek Animasi & Cluster Tower:",
+                    ["Radar Pulse Aktif + Clustering Pintar", "Semua Tower Tampil Langsung (Tanpa Cluster)", "Radar Pulse Khusus Site Prioritas / Belum Visit"],
+                    key="sim_anim_mode"
+                )
+
+            c_mp1, c_mp2 = st.columns([2.35, 1.15])
+            with c_mp2:
+                with st.container(border=True):
+                    st.markdown("#### 📌 Inspector & Auto Fly-To Site")
+                    opsi_ins = ["🎯 Tampilkan Semua (Auto-Center)"] + df_view['site_id'].tolist()
+                    map_label_ins = {"🎯 Tampilkan Semua (Auto-Center)": "🎯 Tampilkan Semua Site di Peta"}
+                    for _, r_row in df_view.iterrows():
+                        map_label_ins[r_row['site_id']] = f"🗼 {r_row['site_id']} — {r_row['Sitename']} ({r_row['Kabupaten']})"
+                    
+                    pilih_sid_map = st.selectbox(
+                        "Pilih Site ID (Peta otomatis Zoom/Fly-To ke Tower):",
+                        opsi_ins, format_func=lambda x: map_label_ins.get(x, x), key="sim_pick_site"
+                    )
+                    
+                    if pilih_sid_map and pilih_sid_map != "🎯 Tampilkan Semua (Auto-Center)":
+                        s_info = df_view[df_view['site_id'] == pilih_sid_map].iloc[0]
+                    else:
+                        s_info = df_view.iloc[0]
+
+                    gmaps_url = f"https://www.google.com/maps?q={s_info['lat']},{s_info['lon']}"
+                    st.markdown(f"""
+                        <div style="padding:14px 16px; border-radius:14px; background:var(--ux-card2); border-left:5px solid #2563EB; margin-bottom:12px; font-size:13.5px; line-height:1.65; box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                            <div style="font-size:16px; font-weight:800; margin-bottom:6px; color:var(--ux-ink);">🗼 {s_info['site_id']} · {s_info['Sitename']}</div>
+                            <div>🏛️ <b>Kabupaten:</b> {s_info['Kabupaten']}</div>
+                            <div>📍 <b>Koordinat:</b> <code>{s_info['lat']:.5f}, {s_info['lon']:.5f}</code></div>
+                            <div>🏢 <b>Owner & Class:</b> {s_info['Site_Owner']} (<b>{s_info['site_class']}</b>)</div>
+                            <div>⚡ <b>Power Source:</b> {s_info['Power_Source']}</div>
+                            <div>🔌 <b>Rectifier & Hub:</b> {s_info['BrandRecti']} · {s_info['Type_Hub']}</div>
+                            <div>📡 <b>Transport & Akses:</b> {s_info['Transport_type']} · {s_info['Access']}</div>
+                            <div>👷 <b>PIC RTS:</b> {s_info['RTS']}</div>
+                            <hr style="margin:8px 0;">
+                            <div>📋 <b>Status PM di SIDATA:</b> <b>{s_info['Status_Kunjungan']}</b></div>
+                            <div>🗓️ <b>Visit Terakhir:</b> {s_info['Tgl_Visit_Terakhir']} ({s_info['Status_PM_Terakhir']})</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    st.link_button("🧭 BUKA NAVIGASI GOOGLE MAPS KE SITE INI", gmaps_url, type="primary", use_container_width=True)
+
             with c_mp1:
                 color_map_cls = {
                     "Diamond": "#a855f7",
                     "Platinum": "#ef4444",
                     "Gold": "#f59e0b",
-                    "Silver": "#3b82f6",
+                    "Silver": "#38bdf8",
                     "Bronze": "#10b981"
                 }
-                df_plot_map = df_view[['lat', 'lon', 'site_class', 'Jumlah_Visit_PM']].copy()
-                mode_warna = st.radio("Pewarnaan Titik Peta Berdasarkan:", ["Kelas Site (Diamond/Platinum/Gold/Silver/Bronze)", "Status Kunjungan PM (Hijau = Sudah Visit, Merah = Belum Visit)"], horizontal=True, key="sim_color_mode")
-                if "Status Kunjungan" in mode_warna:
-                    df_plot_map['color'] = df_plot_map['Jumlah_Visit_PM'].apply(lambda v: "#10b981" if v > 0 else "#ef4444")
+                is_visit_mode = "Status Kunjungan" in mode_warna
+                use_cluster = "Tanpa Cluster" not in anim_mode
+                pulse_only_prio = "Khusus Site Prioritas" in anim_mode
+
+                markers_payload = []
+                for _, r_m in df_view.iterrows():
+                    vis_cnt = int(r_m['Jumlah_Visit_PM'])
+                    s_cls = str(r_m['site_class'])
+                    if is_visit_mode:
+                        col_hex = "#10b981" if vis_cnt > 0 else "#ef4444"
+                    else:
+                        col_hex = color_map_cls.get(s_cls, "#3b82f6")
+
+                    if pulse_only_prio:
+                        do_pulse = (vis_cnt == 0) or (s_cls in ["Diamond", "Platinum", "Gold"]) or str(r_m['site_id']).startswith("COH")
+                    else:
+                        do_pulse = True
+
+                    markers_payload.append({
+                        "id": str(r_m['site_id']),
+                        "name": str(r_m['Sitename']),
+                        "kab": str(r_m['Kabupaten']),
+                        "cls": s_cls,
+                        "own": str(r_m['Site_Owner']),
+                        "pwr": str(r_m['Power_Source']),
+                        "rect": str(r_m['BrandRecti']),
+                        "hub": str(r_m['Type_Hub']),
+                        "trm": str(r_m['Transport_type']),
+                        "rts": str(r_m['RTS']),
+                        "vis": str(r_m['Status_Kunjungan']),
+                        "ldate": str(r_m['Tgl_Visit_Terakhir']),
+                        "lstat": str(r_m['Status_PM_Terakhir']),
+                        "lat": round(float(r_m['lat']), 6),
+                        "lon": round(float(r_m['lon']), 6),
+                        "color": col_hex,
+                        "pulse": 1 if do_pulse else 0,
+                        "is_combat": 1 if str(r_m['Terdaftar_Combat']) == "Ya (Site Combat)" else 0
+                    })
+
+                if pilih_sid_map and pilih_sid_map != "🎯 Tampilkan Semua (Auto-Center)":
+                    focus_lat = float(s_info['lat'])
+                    focus_lon = float(s_info['lon'])
+                    focus_zoom = 14
+                    focus_id = str(s_info['site_id'])
                 else:
-                    df_plot_map['color'] = df_plot_map['site_class'].map(lambda c: color_map_cls.get(c, "#3b82f6"))
+                    focus_lat = float(df_view['lat'].mean())
+                    focus_lon = float(df_view['lon'].mean())
+                    focus_zoom = 7
+                    focus_id = ""
 
-                try:
-                    st.map(df_plot_map, latitude='lat', longitude='lon', color='color', use_container_width=True)
-                except Exception:
-                    st.map(df_plot_map[['lat', 'lon']], use_container_width=True)
-                st.caption("💡 Tips: Gunakan scroll pada peta untuk memperbesar (Zoom In/Out) dan melihat posisi presisi tower.")
+                if "Satelit" in map_theme:
+                    tile_url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    tile_sub = ""
+                elif "Terang" in map_theme:
+                    tile_url = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                    tile_sub = "abcd"
+                else:
+                    tile_url = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    tile_sub = "abcd"
 
-            with c_mp2:
-                with st.container(border=True):
-                    st.markdown("#### 📌 Inspector Site & Navigasi Rute")
-                    opsi_ins = df_view['site_id'].tolist()
-                    map_label_ins = {r_row['site_id']: f"{r_row['site_id']} — {r_row['Sitename']} ({r_row['Kabupaten']})" for _, r_row in df_view.iterrows()}
-                    pilih_sid_map = st.selectbox("Pilih Site ID untuk Detail & Rute Maps:", opsi_ins, format_func=lambda x: map_label_ins.get(x, x), key="sim_pick_site")
-                    if pilih_sid_map:
-                        s_info = df_view[df_view['site_id'] == pilih_sid_map].iloc[0]
-                        gmaps_url = f"https://www.google.com/maps?q={s_info['lat']},{s_info['lon']}"
-                        st.markdown(f"""
-                            <div style="padding:12px 14px; border-radius:12px; background:var(--ux-card2); border-left:5px solid #2563EB; margin-bottom:10px; font-size:13.5px; line-height:1.65;">
-                                <div style="font-size:16px; font-weight:800; margin-bottom:4px;">🗼 {s_info['site_id']} · {s_info['Sitename']}</div>
-                                <div>🏛️ <b>Kabupaten:</b> {s_info['Kabupaten']}</div>
-                                <div>📍 <b>Koordinat:</b> <code>{s_info['lat']:.5f}, {s_info['lon']:.5f}</code></div>
-                                <div>🏢 <b>Owner & Class:</b> {s_info['Site_Owner']} ({s_info['site_class']})</div>
-                                <div>⚡ <b>Power Source:</b> {s_info['Power_Source']}</div>
-                                <div>🔌 <b>Rectifier & Hub:</b> {s_info['BrandRecti']} · {s_info['Type_Hub']}</div>
-                                <div>📡 <b>Transport & Akses:</b> {s_info['Transport_type']} · {s_info['Access']}</div>
-                                <div>👷 <b>PIC RTS:</b> {s_info['RTS']}</div>
-                                <hr style="margin:8px 0;">
-                                <div>📋 <b>Status PM di SIDATA:</b> <b>{s_info['Status_Kunjungan']}</b></div>
-                                <div>🗓️ <b>Visit Terakhir:</b> {s_info['Tgl_Visit_Terakhir']} ({s_info['Status_PM_Terakhir']})</div>
-                            </div>
-                        """, unsafe_allow_html=True)
-                        st.link_button("🧭 BUKA NAVIGASI GOOGLE MAPS KE SITE INI", gmaps_url, type="primary", use_container_width=True)
+                markers_json = json.dumps(markers_payload, ensure_ascii=False)
+                
+                leaflet_html = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8" />
+                    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+                    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+                    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+                    <style>
+                        body {{ margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; background: transparent; }}
+                        #map {{ width: 100%; height: 560px; border-radius: 16px; border: 1.5px solid rgba(59,130,246,0.35); box-shadow: 0 12px 32px rgba(0,0,0,0.22); overflow: hidden; }}
+                        .tw-wrap {{ position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s ease; }}
+                        .tw-wrap:hover {{ transform: scale(1.28) translateY(-3px); z-index: 9999 !important; }}
+                        .tw-pulse {{
+                            position: absolute; width: 36px; height: 36px; border-radius: 50%;
+                            animation: radarPulse 2.1s infinite ease-out; pointer-events: none;
+                        }}
+                        .tw-pulse2 {{
+                            position: absolute; width: 36px; height: 36px; border-radius: 50%;
+                            animation: radarPulse 2.1s infinite ease-out 1.05s; pointer-events: none;
+                        }}
+                        @keyframes radarPulse {{
+                            0% {{ transform: scale(0.45); opacity: 0.9; }}
+                            100% {{ transform: scale(2.15); opacity: 0; }}
+                        }}
+                        .tw-core {{
+                            position: relative; width: 28px; height: 28px; border-radius: 50%;
+                            display: flex; align-items: center; justify-content: center;
+                            box-shadow: 0 0 12px rgba(0,0,0,0.65), inset 0 1px 2px rgba(255,255,255,0.45);
+                            border: 2px solid #ffffff;
+                        }}
+                        .tw-lbl {{
+                            position: absolute; bottom: -15px; background: rgba(15,23,42,0.88); color: #f8fafc;
+                            font-size: 9.5px; font-weight: 800; padding: 1px 5px; border-radius: 4px;
+                            white-space: nowrap; border: 1px solid rgba(255,255,255,0.2); pointer-events: none;
+                            letter-spacing: 0.3px; box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+                        }}
+                        .leaflet-popup-content-wrapper {{
+                            background: linear-gradient(145deg, #0f172a, #1e293b) !important;
+                            color: #f8fafc !important; border-radius: 14px !important;
+                            border: 1px solid rgba(255,215,0,0.4); box-shadow: 0 14px 30px rgba(0,0,0,0.5) !important;
+                        }}
+                        .leaflet-popup-tip {{ background: #1e293b !important; }}
+                        .pop-card {{ min-width: 245px; font-size: 12.5px; line-height: 1.55; }}
+                        .pop-head {{ font-size: 14.5px; font-weight: 800; color: #38bdf8; margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 5px; }}
+                        .pop-badge {{ display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 10.5px; font-weight: 800; color: #fff; margin-bottom: 6px; }}
+                        .pop-btn {{
+                            display: block; text-align: center; margin-top: 9px; padding: 7px 10px;
+                            background: linear-gradient(135deg, #2563eb, #4f46e5); color: #ffffff !important;
+                            text-decoration: none; font-weight: 800; border-radius: 8px; font-size: 11.5px;
+                        }}
+                        .pop-btn:hover {{ filter: brightness(1.15); }}
+                        .map-legend {{
+                            background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(6px);
+                            color: #f8fafc; padding: 10px 13px; border-radius: 12px;
+                            border: 1px solid rgba(255,255,255,0.18); font-size: 11.5px; line-height: 1.6;
+                            box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+                        }}
+                        .map-legend i {{ display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }}
+                    </style>
+                </head>
+                <body>
+                    <div id="map"></div>
+                    <script>
+                        const sites = {markers_json};
+                        const focusLat = {focus_lat};
+                        const focusLon = {focus_lon};
+                        const focusZoom = {focus_zoom};
+                        const focusId = "{focus_id}";
+                        const useCluster = {"true" if use_cluster else "false"};
 
+                        const map = L.map('map', {{
+                            center: [focusLat, focusLon],
+                            zoom: focusZoom,
+                            zoomControl: true,
+                            preferCanvas: true
+                        }});
+
+                        L.tileLayer('{tile_url}', {{
+                            subdomains: '{tile_sub}',
+                            maxZoom: 19,
+                            attribution: '⚡ SIDATA Geospatial Engine'
+                        }}).addTo(map);
+
+                        function makeTowerIcon(s) {{
+                            const pulseHtml = s.pulse ? `
+                                <div class="tw-pulse" style="border: 2.2px solid ${{s.color}}; background: ${{s.color}}28;"></div>
+                                <div class="tw-pulse2" style="border: 1.5px solid ${{s.color}};"></div>
+                            ` : '';
+                            const svgAntenna = s.is_combat ? `
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 2L15 8L21 9L16.5 14L18 20L12 17L6 20L7.5 14L3 9L9 8L12 2Z"/>
+                                </svg>
+                            ` : `
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/>
+                                    <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/>
+                                    <circle cx="12" cy="12" r="2"/>
+                                    <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/>
+                                    <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/>
+                                    <line x1="12" y1="14" x2="9" y2="22"/>
+                                    <line x1="12" y1="14" x2="15" y2="22"/>
+                                    <line x1="9.8" y1="19" x2="14.2" y2="19"/>
+                                </svg>
+                            `;
+                            return L.divIcon({{
+                                className: '',
+                                iconSize: [38, 38],
+                                iconAnchor: [19, 19],
+                                popupAnchor: [0, -18],
+                                html: `
+                                    <div class="tw-wrap">
+                                        ${{pulseHtml}}
+                                        <div class="tw-core" style="background: ${{s.color}};">
+                                            ${{svgAntenna}}
+                                        </div>
+                                        <div class="tw-lbl">${{s.id}}</div>
+                                    </div>
+                                `
+                            }});
+                        }}
+
+                        const group = useCluster ? L.markerClusterGroup({{
+                            showCoverageOnHover: false,
+                            maxClusterRadius: 42,
+                            spiderfyOnMaxZoom: true
+                        }}) : L.layerGroup();
+
+                        let targetMarker = null;
+                        sites.forEach(s => {{
+                            const m = L.marker([s.lat, s.lon], {{ icon: makeTowerIcon(s) }});
+                            const popupHtml = `
+                                <div class="pop-card">
+                                    <div class="pop-head">🗼 ${{s.id}} — ${{s.name}}</div>
+                                    <span class="pop-badge" style="background:${{s.color}};">Class: ${{s.cls}}</span>
+                                    <span class="pop-badge" style="background:#334155;">${{s.own}}</span>
+                                    <div>🏛️ <b>Wilayah:</b> ${{s.kab}}</div>
+                                    <div>⚡ <b>Power:</b> ${{s.pwr}}</div>
+                                    <div>🔌 <b>Rectifier:</b> ${{s.rect}} (${{s.hub}})</div>
+                                    <div>📡 <b>Transport:</b> ${{s.trm}}</div>
+                                    <div>👷 <b>PIC RTS:</b> ${{s.rts}}</div>
+                                    <div>📋 <b>Status Visit:</b> ${{s.vis}}</div>
+                                    <div>🗓️ <b>Last PM:</b> ${{s.ldate}} (${{s.lstat}})</div>
+                                    <a class="pop-btn" href="https://www.google.com/maps?q=${{s.lat}},${{s.lon}}" target="_blank">🧭 Navigasi Google Maps</a>
+                                </div>
+                            `;
+                            m.bindPopup(popupHtml);
+                            group.addLayer(m);
+                            if (focusId && s.id === focusId) {{
+                                targetMarker = m;
+                            }}
+                        }});
+
+                        map.addLayer(group);
+
+                        if (targetMarker) {{
+                            setTimeout(() => {{
+                                if (useCluster && group.zoomToShowLayer) {{
+                                    group.zoomToShowLayer(targetMarker, () => targetMarker.openPopup());
+                                }} else {{
+                                    targetMarker.openPopup();
+                                }}
+                            }}, 350);
+                        }}
+
+                        const legend = L.control({{ position: 'bottomright' }});
+                        legend.onAdd = function() {{
+                            const div = L.DomUtil.create('div', 'map-legend');
+                            if ({"true" if is_visit_mode else "false"}) {{
+                                div.innerHTML = `
+                                    <b>📡 Status Kunjungan PM</b><br>
+                                    <i style="background:#10b981"></i> Sudah Dikunjungi PM<br>
+                                    <i style="background:#ef4444"></i> Belum Dikunjungi (Target)
+                                `;
+                            }} else {{
+                                div.innerHTML = `
+                                    <b>🗼 Kelas Tower (Site Class)</b><br>
+                                    <i style="background:#a855f7"></i> Diamond &nbsp;
+                                    <i style="background:#ef4444"></i> Platinum<br>
+                                    <i style="background:#f59e0b"></i> Gold &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                    <i style="background:#38bdf8"></i> Silver<br>
+                                    <i style="background:#10b981"></i> Bronze
+                                `;
+                            }}
+                            return div;
+                        }};
+                        legend.addTo(map);
+                    </script>
+                </body>
+                </html>
+                """
+                st.components.v1.html(leaflet_html, height=575)
     with tab_pop:
         st.markdown("#### 📊 Distribusi Populasi Site Berdasarkan Kabupaten & Infrastruktur")
         if df_view.empty:
