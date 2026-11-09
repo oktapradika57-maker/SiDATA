@@ -5438,6 +5438,331 @@ elif menu == "💎 Executive Project Dashboard":
                     st.download_button("💎 Download Executive Project Report (.csv)", data=csv_p, file_name=f"Executive_Project_Report_{datetime.date.today()}.csv", mime="text/csv", type="primary", use_container_width=True)
             else:
                 st.info("Belum ada rincian tabel rute PO untuk diekspor.")# -------------------------------------------------------------------------
+# =========================================================================
+# MENU 9: SYSINFOMAP (PETA GEOSPASIAL, POPULASI KABUPATEN & KOMPARASI SITE)
+# =========================================================================
+elif menu == "🗺️ Sysinfomap (Peta & Populasi Site)":
+    st.markdown("<h1 style='text-align: center;'>🗺️ Sysinfomap — Geospatial & Site Population Intelligence</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.85;'>Pemetaan Interaktif 910+ Site Telekomunikasi, Distribusi Populasi per Kabupaten, dan Komparasi Otomatis Database SIDATA</p>", unsafe_allow_html=True)
+
+    df_kml_base, kml_filename = get_default_kml_df()
+
+    with st.expander("📂 Sumber Data Peta KML / Update File KML Baru (Opsional)", expanded=df_kml_base.empty):
+        st.info("💡 Sistem otomatis membaca file **`newlist_910.kml`** di server dengan teknologi *In-Memory Cache* (sangat ringan & tanpa loading ulang). Anda juga dapat mengunggah file `.kml` terbaru di sini untuk pembaruan data instan.")
+        up_kml = st.file_uploader("Unggah File KML Baru (.kml):", type=["kml", "xml"], key="up_sysinfomap_kml")
+        if up_kml is not None:
+            df_kml_base = load_sysinfomap_kml(up_kml.getvalue(), len(up_kml.getvalue()))
+            kml_filename = up_kml.name
+
+    if df_kml_base.empty:
+        st.error("⚠️ File KML (`newlist_910.kml`) belum ditemukan di folder aplikasi. Pastikan file `newlist_910.kml` sudah diletakkan satu folder dengan `App.py` atau unggah melalui kotak di atas.")
+        st.stop()
+
+    # INTEGRASI & KOMPARASI REAL-TIME DENGAN DATA KUNJUNGAN SIDATA & MASTER EXCEL
+    db_live = st.session_state.get('laporan_db', [])
+    visited_map = {}
+    for r in db_live:
+        if r.get('kategori') in ['Project', 'SiHD']:
+            continue
+        raw_sn = str(r.get('pb_site_id') or r.get('site_name') or '').strip().upper()
+        if not raw_sn:
+            continue
+        sid_key = raw_sn[:6] if len(raw_sn) >= 6 and raw_sn[:3].isalpha() and raw_sn[3:6].isdigit() else raw_sn.split()[0].split('-')[0]
+        if sid_key not in visited_map:
+            visited_map[sid_key] = {
+                "count": 0,
+                "last_date": str(r.get('timestamp', '-'))[:10],
+                "last_status": r.get('status', '-'),
+                "last_tek": r.get('teknisi') or r.get('pb_te') or '-',
+                "last_action": r.get('action', '-')
+            }
+        visited_map[sid_key]["count"] += 1
+
+    master_excel_ids = set()
+    for xl_file in ["Site ID Sidata Palangkaraya.xlsx", "Site ID Sidata Pangkalanbun.xlsx"]:
+        if os.path.exists(xl_file):
+            try:
+                df_xl_m = read_excel_cached(xl_file)
+                if 'Site ID' in df_xl_m.columns:
+                    for s_item in df_xl_m['Site ID'].dropna().astype(str):
+                        s_clean = s_item.strip().upper()
+                        if s_clean:
+                            master_excel_ids.add(s_clean[:6] if len(s_clean) >= 6 and s_clean[:3].isalpha() and s_clean[3:6].isdigit() else s_clean)
+            except Exception:
+                pass
+
+    combat_excel_ids = set()
+    if os.path.exists("Combat NOP Palangkaraya_1.xlsx"):
+        try:
+            df_cb_xl = read_excel_cached("Combat NOP Palangkaraya_1.xlsx", sheet_name="Combat NOP Palangkaraya")
+            if 'siteid' in df_cb_xl.columns:
+                combat_excel_ids = set(df_cb_xl['siteid'].dropna().astype(str).str.strip().str.upper())
+                master_excel_ids.update(combat_excel_ids)
+        except Exception:
+            pass
+
+    df_map = df_kml_base.copy()
+    df_map['Jumlah_Visit_PM'] = df_map['site_id'].map(lambda x: visited_map.get(x, {}).get('count', 0))
+    df_map['Status_Kunjungan'] = df_map['Jumlah_Visit_PM'].apply(lambda c: f"Sudah Dikunjungi ({c}x)" if c > 0 else "Belum Dikunjungi")
+    df_map['Status_PM_Terakhir'] = df_map['site_id'].map(lambda x: visited_map.get(x, {}).get('last_status', 'Belum Ada Laporan'))
+    df_map['Tgl_Visit_Terakhir'] = df_map['site_id'].map(lambda x: visited_map.get(x, {}).get('last_date', '-'))
+    df_map['Teknisi_Terakhir'] = df_map['site_id'].map(lambda x: visited_map.get(x, {}).get('last_tek', '-'))
+    df_map['Status_Master_Excel'] = df_map['site_id'].apply(lambda x: "Terdaftar di Master" if x in master_excel_ids else "Site Baru (Hanya di KML)")
+    df_map['Terdaftar_Combat'] = df_map['site_id'].apply(lambda x: "Ya (Site Combat)" if (x in combat_excel_ids or x.startswith("COH")) else "Reguler / Macro")
+
+    tot_kml = len(df_map)
+    tot_kab = df_map['Kabupaten'].nunique()
+    tot_visited = int((df_map['Jumlah_Visit_PM'] > 0).sum())
+    tot_unvisited = tot_kml - tot_visited
+    pct_visited = (tot_visited / tot_kml * 100) if tot_kml > 0 else 0.0
+
+    ux_hero(
+        f"SUMBER DATA: {kml_filename or 'KML AKTIF'}",
+        "Sysinfomap Geospatial Command Center",
+        "Peta Populasi Site Kalimantan, Filter Multi-Dimensi (Kabupaten, RTS, Owner, Power, Class), & Komparasi Real-Time Database SIDATA.",
+        stats=[
+            (f"{tot_kml} Site", "Total Populasi KML"),
+            (f"{tot_kab} Wilayah", "Cakupan Kabupaten/Area"),
+            (f"{tot_visited} Site ({pct_visited:.1f}%)", "Sudah Terinspeksi PM"),
+            (f"{tot_unvisited} Site", "Belum Dikunjungi (Target)")
+        ],
+        split=[
+            ("Sudah Dikunjungi PM", tot_visited, "#10B981"),
+            ("Belum Dikunjungi", tot_unvisited, "#3B82F6")
+        ]
+    )
+
+    with st.container(border=True):
+        st.markdown("#### 🔍 Filter Geospasial & Populasi Site")
+        f1, f2, f3, f4 = st.columns(4)
+        with f1:
+            opsi_kab = ["Semua Kabupaten/Wilayah"] + sorted(df_map['Kabupaten'].unique().tolist())
+            sel_kab = st.selectbox("🏛️ Kabupaten / Wilayah:", opsi_kab, key="sim_kab")
+        with f2:
+            opsi_cls = ["Semua Kelas"] + sorted(df_map['site_class'].unique().tolist())
+            sel_cls = st.selectbox("⭐ Site Class:", opsi_cls, key="sim_cls")
+        with f3:
+            opsi_rts = ["Semua RTS"] + sorted(df_map['RTS'].unique().tolist())
+            sel_rts = st.selectbox("👷 PIC RTS:", opsi_rts, key="sim_rts")
+        with f4:
+            opsi_vis = ["Semua Status Visit", "Sudah Dikunjungi PM", "Belum Dikunjungi", "Site Combat (COH)"]
+            sel_vis = st.selectbox("📋 Filter Komparasi / Visit:", opsi_vis, key="sim_vis")
+
+        f5, f6, f7 = st.columns([1.2, 1.2, 1.6])
+        with f5:
+            opsi_own = ["Semua Owner"] + sorted(df_map['Site_Owner'].unique().tolist())
+            sel_own = st.selectbox("🏢 Tower Owner:", opsi_own, key="sim_own")
+        with f6:
+            opsi_pwr = ["Semua Power Source"] + sorted(df_map['Power_Source'].unique().tolist())
+            sel_pwr = st.selectbox("⚡ Power Source:", opsi_pwr, key="sim_pwr")
+        with f7:
+            cari_sim = st.text_input("🔎 Cari Cepat Site ID / Sitename / Rectifier:", placeholder="Ketik misal: PLK001, BNT, ZTE, HUAWEI...", key="sim_search")
+
+    df_view = df_map.copy()
+    if sel_kab != "Semua Kabupaten/Wilayah":
+        df_view = df_view[df_view['Kabupaten'] == sel_kab]
+    if sel_cls != "Semua Kelas":
+        df_view = df_view[df_view['site_class'] == sel_cls]
+    if sel_rts != "Semua RTS":
+        df_view = df_view[df_view['RTS'] == sel_rts]
+    if sel_own != "Semua Owner":
+        df_view = df_view[df_view['Site_Owner'] == sel_own]
+    if sel_pwr != "Semua Power Source":
+        df_view = df_view[df_view['Power_Source'] == sel_pwr]
+    if sel_vis == "Sudah Dikunjungi PM":
+        df_view = df_view[df_view['Jumlah_Visit_PM'] > 0]
+    elif sel_vis == "Belum Dikunjungi":
+        df_view = df_view[df_view['Jumlah_Visit_PM'] == 0]
+    elif sel_vis == "Site Combat (COH)":
+        df_view = df_view[df_view['Terdaftar_Combat'] == "Ya (Site Combat)"]
+
+    if cari_sim.strip():
+        q_s = cari_sim.strip().lower()
+        df_view = df_view[
+            df_view['site_id'].str.lower().str.contains(q_s) |
+            df_view['Sitename'].str.lower().str.contains(q_s) |
+            df_view['BrandRecti'].str.lower().str.contains(q_s) |
+            df_view['Type_Hub'].str.lower().str.contains(q_s)
+        ]
+
+    m_s1, m_s2, m_s3, m_s4 = st.columns(4)
+    m_s1.metric("📍 Site Sesuai Filter", f"{len(df_view)} Site")
+    m_s2.metric("✅ Sudah Dikunjungi (Filter)", f"{int((df_view['Jumlah_Visit_PM'] > 0).sum())} Site")
+    m_s3.metric("⏳ Belum Dikunjungi (Filter)", f"{int((df_view['Jumlah_Visit_PM'] == 0).sum())} Site")
+    m_s4.metric("🗼 Tower Owner Terbanyak", df_view['Site_Owner'].mode()[0] if not df_view.empty else "-")
+
+    tab_peta, tab_pop, tab_comp, tab_detail = st.tabs([
+        "🗺️ Peta Interaktif & Navigasi",
+        "📊 Populasi Kabupaten & Statistik Infrastruktur",
+        "🔄 Komparasi Database & Gap Kunjungan",
+        "📋 Tabel Data Lengkap & Inspector Site"
+    ])
+
+    with tab_peta:
+        st.markdown("#### 🗺️ Peta Sebaran Geografis Site Telekomunikasi")
+        if df_view.empty:
+            st.warning("Tidak ada site yang cocok dengan filter saat ini.")
+        else:
+            c_mp1, c_mp2 = st.columns([2.3, 1.2])
+            with c_mp1:
+                color_map_cls = {
+                    "Diamond": "#a855f7",
+                    "Platinum": "#ef4444",
+                    "Gold": "#f59e0b",
+                    "Silver": "#3b82f6",
+                    "Bronze": "#10b981"
+                }
+                df_plot_map = df_view[['lat', 'lon', 'site_class', 'Jumlah_Visit_PM']].copy()
+                mode_warna = st.radio("Pewarnaan Titik Peta Berdasarkan:", ["Kelas Site (Diamond/Platinum/Gold/Silver/Bronze)", "Status Kunjungan PM (Hijau = Sudah Visit, Merah = Belum Visit)"], horizontal=True, key="sim_color_mode")
+                if "Status Kunjungan" in mode_warna:
+                    df_plot_map['color'] = df_plot_map['Jumlah_Visit_PM'].apply(lambda v: "#10b981" if v > 0 else "#ef4444")
+                else:
+                    df_plot_map['color'] = df_plot_map['site_class'].map(lambda c: color_map_cls.get(c, "#3b82f6"))
+
+                try:
+                    st.map(df_plot_map, latitude='lat', longitude='lon', color='color', use_container_width=True)
+                except Exception:
+                    st.map(df_plot_map[['lat', 'lon']], use_container_width=True)
+                st.caption("💡 Tips: Gunakan scroll pada peta untuk memperbesar (Zoom In/Out) dan melihat posisi presisi tower.")
+
+            with c_mp2:
+                with st.container(border=True):
+                    st.markdown("#### 📌 Inspector Site & Navigasi Rute")
+                    opsi_ins = df_view['site_id'].tolist()
+                    map_label_ins = {r_row['site_id']: f"{r_row['site_id']} — {r_row['Sitename']} ({r_row['Kabupaten']})" for _, r_row in df_view.iterrows()}
+                    pilih_sid_map = st.selectbox("Pilih Site ID untuk Detail & Rute Maps:", opsi_ins, format_func=lambda x: map_label_ins.get(x, x), key="sim_pick_site")
+                    if pilih_sid_map:
+                        s_info = df_view[df_view['site_id'] == pilih_sid_map].iloc[0]
+                        gmaps_url = f"https://www.google.com/maps?q={s_info['lat']},{s_info['lon']}"
+                        st.markdown(f"""
+                            <div style="padding:12px 14px; border-radius:12px; background:var(--ux-card2); border-left:5px solid #2563EB; margin-bottom:10px; font-size:13.5px; line-height:1.65;">
+                                <div style="font-size:16px; font-weight:800; margin-bottom:4px;">🗼 {s_info['site_id']} · {s_info['Sitename']}</div>
+                                <div>🏛️ <b>Kabupaten:</b> {s_info['Kabupaten']}</div>
+                                <div>📍 <b>Koordinat:</b> <code>{s_info['lat']:.5f}, {s_info['lon']:.5f}</code></div>
+                                <div>🏢 <b>Owner & Class:</b> {s_info['Site_Owner']} ({s_info['site_class']})</div>
+                                <div>⚡ <b>Power Source:</b> {s_info['Power_Source']}</div>
+                                <div>🔌 <b>Rectifier & Hub:</b> {s_info['BrandRecti']} · {s_info['Type_Hub']}</div>
+                                <div>📡 <b>Transport & Akses:</b> {s_info['Transport_type']} · {s_info['Access']}</div>
+                                <div>👷 <b>PIC RTS:</b> {s_info['RTS']}</div>
+                                <hr style="margin:8px 0;">
+                                <div>📋 <b>Status PM di SIDATA:</b> <b>{s_info['Status_Kunjungan']}</b></div>
+                                <div>🗓️ <b>Visit Terakhir:</b> {s_info['Tgl_Visit_Terakhir']} ({s_info['Status_PM_Terakhir']})</div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        st.link_button("🧭 BUKA NAVIGASI GOOGLE MAPS KE SITE INI", gmaps_url, type="primary", use_container_width=True)
+
+    with tab_pop:
+        st.markdown("#### 📊 Distribusi Populasi Site Berdasarkan Kabupaten & Infrastruktur")
+        if df_view.empty:
+            st.info("Tidak ada data untuk divisualisasikan.")
+        else:
+            cp_1, cp_2 = st.columns(2)
+            with cp_1:
+                with st.container(border=True):
+                    st.markdown("**🏛️ Populasi Site per Kabupaten / Kategori Wilayah**")
+                    df_kab_cnt = df_view['Kabupaten'].value_counts().to_frame("Jumlah Site")
+                    ui_bar_chart(df_kab_cnt, color="#2563EB", horizontal=True)
+            with cp_2:
+                with st.container(border=True):
+                    st.markdown("**🏢 Populasi Berdasarkan Tower Owner (Mitra Tower)**")
+                    df_own_cnt = df_view['Site_Owner'].value_counts().head(10).to_frame("Jumlah Site")
+                    ui_bar_chart(df_own_cnt, color="#10B981", horizontal=True)
+
+            cp_3, cp_4 = st.columns(2)
+            with cp_3:
+                with st.container(border=True):
+                    st.markdown("**⚡ Distribusi Catuan Daya (Power Source)**")
+                    df_pwr_cnt = df_view['Power_Source'].value_counts().head(8).to_frame("Jumlah Site")
+                    ui_bar_chart(df_pwr_cnt, color="#F59E0B", horizontal=True)
+            with cp_4:
+                with st.container(border=True):
+                    st.markdown("**⭐ Distribusi Kelas Site (Site Class) & Brand Rectifier**")
+                    df_cls_cnt = df_view['site_class'].value_counts().to_frame("Jumlah Site")
+                    ui_bar_chart(df_cls_cnt, color="#8B5CF6")
+                    df_rect_cnt = df_view['BrandRecti'].value_counts().head(6).to_frame("Jumlah Site")
+                    ui_bar_chart(df_rect_cnt, color="#EC4899", horizontal=True)
+
+            st.markdown("##### 📋 Tabel Rekapitulasi Populasi & Progres Kunjungan per Kabupaten")
+            rekap_kab = df_view.groupby('Kabupaten').agg(
+                Total_Site=('site_id', 'count'),
+                Sudah_Dikunjungi=('Jumlah_Visit_PM', lambda x: int((x > 0).sum())),
+                Belum_Dikunjungi=('Jumlah_Visit_PM', lambda x: int((x == 0).sum())),
+                Site_Platinum_Diamond=('site_class', lambda x: int(x.isin(['Platinum', 'Diamond']).sum())),
+                Site_Gold=('site_class', lambda x: int((x == 'Gold').sum())),
+                Site_SPS=('RemarkSite', lambda x: int(x.str.contains('SPS', case=False, na=False).sum()))
+            ).reset_index()
+            rekap_kab['Coverage_PM (%)'] = (rekap_kab['Sudah_Dikunjungi'] / rekap_kab['Total_Site'] * 100).round(1)
+            rekap_kab = rekap_kab.sort_values(by='Total_Site', ascending=False).reset_index(drop=True)
+            st.dataframe(rekap_kab, use_container_width=True, hide_index=True)
+
+    with tab_comp:
+        st.markdown("#### 🔄 Komparasi Otomatis: Data KML Sysinfomap vs Database Existing SIDATA")
+        st.info("💡 Modul ini membandingkan seluruh **Site ID di Sysinfomap (KML)** dengan **Master Excel Sidata**, **File Combat NOP Palangkaraya**, serta **Database Laporan Kunjungan Tim (Google Sheets)** sehingga terlihat jelas site mana yang baru, yang sudah terinspeksi, dan yang belum tersentuh.")
+
+        kml_set = set(df_map['site_id'].unique())
+        baru_di_kml = sorted(list(kml_set - master_excel_ids))
+        sinkron_master = sorted(list(kml_set.intersection(master_excel_ids)))
+        hanya_di_master = sorted(list(master_excel_ids - kml_set))
+
+        cc_1, cc_2, cc_3, cc_4 = st.columns(4)
+        cc_1.metric("🌐 Total Site di KML", f"{len(kml_set)} Site")
+        cc_2.metric("🔗 Sinkron dgn Master Excel", f"{len(sinkron_master)} Site")
+        cc_3.metric("🆕 Site Baru (Ada di KML, Belum di Excel)", f"{len(baru_di_kml)} Site")
+        cc_4.metric("📂 Hanya Ada di Master/Combat Excel", f"{len(hanya_di_master)} Site")
+
+        sub_c1, sub_c2, sub_c3 = st.tabs([
+            f"✅ Site Sudah Dikunjungi PM ({tot_visited})",
+            f"⏳ Daftar Antrean Site Belum Dikunjungi ({tot_unvisited})",
+            f"🆕 Audit Perbedaan Master Excel vs KML ({len(baru_di_kml)})"
+        ])
+
+        with sub_c1:
+            df_done_pm = df_map[df_map['Jumlah_Visit_PM'] > 0][['site_id', 'Sitename', 'Kabupaten', 'site_class', 'RTS', 'Jumlah_Visit_PM', 'Tgl_Visit_Terakhir', 'Status_PM_Terakhir', 'Teknisi_Terakhir']].sort_values(by='Jumlah_Visit_PM', ascending=False)
+            if df_done_pm.empty:
+                st.warning("Belum ada site dari KML yang tercatat di laporan kunjungan PM.")
+            else:
+                st.dataframe(df_done_pm, use_container_width=True, hide_index=True)
+
+        with sub_c2:
+            df_unv = df_map[df_map['Jumlah_Visit_PM'] == 0][['site_id', 'Sitename', 'Kabupaten', 'site_class', 'Site_Owner', 'Power_Source', 'RTS', 'Access']]
+            st.dataframe(df_unv, use_container_width=True, hide_index=True)
+            st.download_button(
+                "📥 Download Daftar Site Belum Dikunjungi (.csv)",
+                data=df_unv.to_csv(index=False).encode('utf-8'),
+                file_name=f"Unvisited_Sites_Sysinfomap_{datetime.date.today()}.csv",
+                mime="text/csv",
+                key="dl_unv_sim"
+            )
+
+        with sub_c3:
+            col_au1, col_au2 = st.columns(2)
+            with col_au1:
+                st.markdown(f"**🆕 Site Ada di KML Tapi Belum Masuk Excel Master ({len(baru_di_kml)} Site):**")
+                if baru_di_kml:
+                    df_new_kml = df_map[df_map['site_id'].isin(baru_di_kml)][['site_id', 'Sitename', 'Kabupaten', 'site_class', 'Status_site', 'RTS']]
+                    st.dataframe(df_new_kml, use_container_width=True, hide_index=True)
+                else:
+                    st.success("✅ Seluruh Site ID KML sudah terdaftar di Master Excel!")
+            with col_au2:
+                st.markdown(f"**📂 Site Ada di Excel Master/Combat Tapi Tidak Ada di KML ({len(hanya_di_master)} Site):**")
+                if hanya_di_master:
+                    st.dataframe(pd.DataFrame({"Site ID (Hanya di Master/Combat)": hanya_di_master}), use_container_width=True, hide_index=True)
+                else:
+                    st.success("✅ Tidak ada selisih Site ID!")
+
+    with tab_detail:
+        st.markdown("#### 📋 Explorer Tabel Data Sysinfomap Lengkap")
+        cols_tampil = ['site_id', 'Sitename', 'Kabupaten', 'site_class', 'Site_Owner', 'Status_site', 'Power_Source', 'BrandRecti', 'Transport_type', 'Type_Hub', 'Access', 'RTS', 'Status_Kunjungan', 'Tgl_Visit_Terakhir', 'lat', 'lon']
+        st.dataframe(df_view[cols_tampil], use_container_width=True, hide_index=True, height=480)
+        st.download_button(
+            "📥 Download Data Sysinfomap Terfilter (.csv)",
+            data=df_view[cols_tampil].to_csv(index=False).encode('utf-8'),
+            file_name=f"Database_Sysinfomap_{datetime.date.today()}.csv",
+            mime="text/csv",
+            type="primary",
+            use_container_width=True,
+            key="dl_full_sim"
+        )
 # FOOTER HAK CIPTA OKTA PRADIKA
 # -------------------------------------------------------------------------
 st.markdown("""
