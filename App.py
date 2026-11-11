@@ -4393,12 +4393,145 @@ elif menu == "📈 Monitoring Improvement":
 # MENU 4: DAPOT POWER HASIL PMS (MENU TERPISAH KHUSUS EXECUTIVE DASHBOARD)
 # =========================================================================
 elif menu == "⚡ Dapot Power Hasil PMS":
-    st.markdown("<h1 style='text-align: center;'>⚡ Dapot Power Hasil PMS (Palangkaraya)</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; opacity: 0.8;'>Power Infrastructure Performance Dashboard — Analisa Perbandingan Bulanan & Troubleshooting Berulang</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>⚡ Executive Dapot Power</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.8;'>Power Infrastructure Performance Dashboard — Analisa & Komparasi Master vs Aktual</p>", unsafe_allow_html=True)
 
     dapot_file = "Dapot_Power_Executive_Dashboard.xlsx"
     db = st.session_state.get('laporan_db', [])
 
+    st.markdown("<br>", unsafe_allow_html=True)
+    area_dapot = st.radio("📍 Pilih Area Dapot Power:", ["🔵 Palangkaraya", "🔴 Pangkalan Bun"], horizontal=True)
+    st.markdown("<hr style='margin: 5px 0 20px 0;'>", unsafe_allow_html=True)
+
+    # =========================================================
+    # DAPOT KHUSUS PANGKALAN BUN
+    # =========================================================
+    if area_dapot == "🔴 Pangkalan Bun":
+        st.markdown("### 🔴 Komparasi Dapot Power vs Aktual Lapangan (Pangkalan Bun)")
+        st.info("💡 Sistem membandingkan data master dari sheet **'dapot pbun'** dengan hasil laporan (Onsite) terbaru dari tim lapangan untuk melihat gap / selisih aktual.")
+        
+        if not os.path.exists(dapot_file):
+            st.error(f"❌ File **`{dapot_file}`** belum ditemukan.")
+        else:
+            try:
+                df_dapot_pbu = read_excel_cached(dapot_file, sheet_name='dapot pbun')
+                
+                # Cari kolom yang mengandung kata 'site' sebagai kunci ID
+                site_col = next((c for c in df_dapot_pbu.columns if 'site' in str(c).lower() or 'id' in str(c).lower()), df_dapot_pbu.columns[0])
+                df_dapot_pbu[site_col] = df_dapot_pbu[site_col].astype(str).str.strip().str.upper()
+                
+                # Filter DB hanya untuk laporan Pangkalan Bun terbaru
+                db_pbu = [r for r in db if r.get('kategori') == 'Pangkalan Bun']
+                latest_onsite = {}
+                for r in db_pbu:
+                    sid = str(r.get('pb_site_id', '')).strip().upper()
+                    if sid:
+                        latest_onsite[sid] = r # Dictionary otomatis mereplace key sama dgn data paling akhir
+                        
+                komparasi_data = []
+                for _, row_dapot in df_dapot_pbu.iterrows():
+                    sid = str(row_dapot[site_col]).strip().upper()
+                    onsite_r = latest_onsite.get(sid)
+                    
+                    row_dict = {"Site ID (Master)": sid}
+                    
+                    # Ambil beberapa kolom dari Master Dapot sebagai info target (Max 4 kolom agar tidak terlalu panjang)
+                    for col in [c for c in df_dapot_pbu.columns if c != site_col][:4]:
+                        row_dict[f"Master: {col}"] = row_dapot[col]
+                    
+                    if onsite_r:
+                        rects = onsite_r.get('pb_rectifiers', [])
+                        aktual_rect = rects[0].get('tipe', '-') if rects else '-'
+                        aktual_load = rects[0].get('load', '-') if rects else '-'
+                        aktual_modul = rects[0].get('mod_ok', '-') if rects else '-'
+                        aktual_bat = rects[0].get('jml_batt', '-') if rects else '-'
+                        
+                        gen = onsite_r.get('pb_genset', {})
+                        aktual_genset = gen.get('cap', '-')
+                        
+                        tgl_aktual = str(onsite_r.get('timestamp', ''))[:10]
+                        fme = onsite_r.get('pb_te', '-')
+                        status_visit = "✅ Sudah Visit"
+                        act_power = onsite_r.get('pb_act_power', [])
+                        act = ", ".join(act_power) if isinstance(act_power, list) else str(act_power)
+                    else:
+                        aktual_rect = "-"
+                        aktual_load = "-"
+                        aktual_modul = "-"
+                        aktual_bat = "-"
+                        aktual_genset = "-"
+                        tgl_aktual = "-"
+                        fme = "-"
+                        act = "-"
+                        status_visit = "❌ Belum Visit"
+                        
+                    row_dict.update({
+                        "Status Aktual": status_visit,
+                        "Tgl Visit Lapangan": tgl_aktual,
+                        "Tim FME": fme,
+                        "Aktual Rectifier": aktual_rect,
+                        "Aktual Load DC (A)": aktual_load,
+                        "Aktual Modul OK": aktual_modul,
+                        "Aktual Baterai": aktual_bat,
+                        "Aktual Genset": aktual_genset,
+                        "Activity": act
+                    })
+                    komparasi_data.append(row_dict)
+                    
+                df_komp = pd.DataFrame(komparasi_data)
+                
+                tot_dapot = len(df_komp)
+                tot_visit = len(df_komp[df_komp['Status Aktual'] == "✅ Sudah Visit"])
+                
+                c_m1, c_m2, c_m3 = st.columns(3)
+                c_m1.metric("Total Site (Master Dapot PBU)", f"{tot_dapot} Site")
+                c_m2.metric("Tersinkron Data Onsite (Sudah Visit)", f"{tot_visit} Site")
+                c_m3.metric("Gap Belum Di-Visit", f"{tot_dapot - tot_visit} Site")
+                
+                tab_k1, tab_k2 = st.tabs(["📊 Tabel Komparasi Master vs Onsite", "🗂️ Live Editor Master Dapot PBUN"])
+                
+                with tab_k1:
+                    st.dataframe(df_komp, use_container_width=True, hide_index=True)
+                    st.download_button(
+                        "📥 Download Data Komparasi (.csv)",
+                        data=df_komp.to_csv(index=False).encode('utf-8'),
+                        file_name=f"Komparasi_Dapot_PBU_{datetime.date.today()}.csv",
+                        mime="text/csv",
+                        type="primary",
+                        use_container_width=True
+                    )
+                    
+                with tab_k2:
+                    st.write("Klik dua kali (*double-click*) pada sel tabel di bawah untuk merevisi data Master Dapot PBUN secara langsung. Jangan lupa klik tombol Simpan di bawah.")
+                    edited_pbun = st.data_editor(df_dapot_pbu, use_container_width=True, num_rows="dynamic")
+                    if st.button("💾 Simpan Perubahan Dapot PBUN ke Excel", type="primary"):
+                        with st.spinner("Menyimpan ke Excel Master..."):
+                            import openpyxl
+                            wb = openpyxl.load_workbook(dapot_file)
+                            ws = wb['dapot pbun']
+                            ws.delete_rows(1, ws.max_row)
+                            
+                            for c_idx, c_name in enumerate(edited_pbun.columns, 1):
+                                ws.cell(row=1, column=c_idx).value = c_name
+                                
+                            for r_idx, row in edited_pbun.iterrows():
+                                for c_idx, c_name in enumerate(edited_pbun.columns, 1):
+                                    ws.cell(row=r_idx+2, column=c_idx).value = row[c_name]
+                                    
+                            buf = BytesIO()
+                            wb.save(buf)
+                            st.success("✅ Dapot Pangkalan Bun berhasil diperbarui di Master Excel!")
+                            st.download_button("📥 Download Dapot Terupdate", data=buf.getvalue(), file_name=f"Updated_Dapot_PBU_{datetime.date.today()}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                            
+            except Exception as e:
+                st.error(f"⚠️ Terjadi kesalahan saat membaca sheet 'dapot pbun': {e}. Pastikan nama sheet di dalam file Excel 'Dapot_Power_Executive_Dashboard.xlsx' benar-benar 'dapot pbun'.")
+        
+        # Hentikan eksekusi di sini agar tidak menjalankan logika Palangkaraya di bawahnya
+        st.stop()
+
+    # =========================================================
+    # DAPOT PALANGKARAYA (KODE EXISTING)
+    # =========================================================
     tab_comp, tab_rekap, tab_reguler, tab_master = st.tabs([
         "📈 Compare Bulanan PMS (Master Excel)", 
         "📋 Daftar Site Rutin vs 1x Visit", 
