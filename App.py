@@ -1321,8 +1321,7 @@ def generate_wa_pbu(r):
         if line.strip(): text += f"{line}\n"
         
     text += f"\n\n🔗 Foto & Dokumentasi lengkap tersimpan di Dashboard SPS Portal."
-    return text
-# =============================================================================
+    return text# =============================================================================
 # 💠 INTERNAL FUNGSI SiSAVA — Sistem Service Variable Activity
 # =============================================================================
 import hashlib as _hl
@@ -1339,1172 +1338,11 @@ SV_PRICELIST_PATTERNS = ["Summary*Final*Price*.xlsx", "*Shoping*List*.xlsx", "*S
 SV_LOCAL_DB = "sisava_local_db.json"        
 SV_ALLOW_SELF_APPROVE = False               
 
+# Parameter hitung sesuai dengan logika Bapak
+# - f_mat: Harga KUT = Harga 3E x f_mat
+# - hpp_pct: HPP = Harga KUT x hpp_pct
 SV_PARAMS_DEFAULT = dict(
-    f_mat=0.92,       
-    f_jasa=1.177,     
-    hpp_pct=0.85,     
-    fee_3e=0.0, fee_kut=0.0, biaya_lain=0.0,
-    com_rate=0.075, com_bulan=3.0,   
-    pph=0.0285,                       
-)
-SV_JASA_KW = ("jasa", "instalasi", "pemasangan", "pekerjaan", "perbaikan", "relokasi", "rebalancing", "sewa", "mobilisasi",
-              "penggantian", "pengecatan", "overhaul", "overhoul", "deinstalasi", "patroli", "pengurusan", "pembayaran", "servis",
-              "service", "pembersihan", "pengukuran", "commissioning", "survey", "retrofit", "penarikan", "perawatan",
-              "maintenance", "pengelasan", "galian", "pengiriman", "management fee", "transport")
-
-S_RAB_SPV = "RAB: Menunggu SPV"
-S_RAB_MGR = "RAB: Menunggu Manager"
-S_RAB_TOLAK = "RAB: Ditolak (Perlu Revisi)"
-S_RAB_OK = "RAB: Disetujui (Isi Nilai SVA)"
-S_SVA = "SVA: Terisi (Pekerjaan Berjalan)"
-S_KRJ_SPV = "Pekerjaan: Menunggu SPV"
-S_KRJ_MGR = "Pekerjaan: Menunggu Manager"
-S_KRJ_TOLAK = "Pekerjaan: Ditolak (Perbaiki Upload)"
-S_DONE = "SAH / Selesai"
-SV_STATUS_COLOR = {S_RAB_SPV: "#F59E0B", S_RAB_MGR: "#F59E0B", S_RAB_TOLAK: "#E11D48", S_RAB_OK: "#2563EB", S_SVA: "#8B5CF6",
-                   S_KRJ_SPV: "#F59E0B", S_KRJ_MGR: "#F59E0B", S_KRJ_TOLAK: "#E11D48", S_DONE: "#059669"}
-SV_PIPELINE = [S_RAB_SPV, S_RAB_MGR, S_RAB_OK, S_SVA, S_KRJ_SPV, S_KRJ_MGR, S_DONE]
-
-SV_ROLES = {"STAFF": "Staff / Tim Operation", "SPV": "SPV Operation", "MANAGER": "Manager"}
-SV_PERMS = {
-    "STAFF":   {"rab_create", "sva_fill", "kerja_upload"},
-    "SPV":     {"rab_create", "sva_fill", "kerja_upload", "approve_spv", "view_all"},
-    "MANAGER": {"rab_create", "sva_fill", "kerja_upload", "approve_spv", "approve_mgr", "view_all", "manage_users", "pricelist", "rekap"},
-}
-SV_URGENSI = ["Normal", "Penting", "Urgent", "Emergency"]
-SV_STATUS_TIKET = ["Open", "On Progress", "Menunggu Approval Telkomsel", "Closed"]
-
-SV_RAB_COLS = ["rab_id", "ticket_no", "nop", "area", "kota", "tgl_pengajuan", "dibuat_oleh", "nama_pembuat", "jabatan_pembuat", "status",
-               "tot_tsel", "tot_rev", "tot_hpp", "margin", "gpm", "net", "payload", "evidence_rab",
-               "spv_oleh", "spv_nama", "spv_jabatan", "spv_at", "spv_catatan", "mgr_oleh", "mgr_nama", "mgr_jabatan", "mgr_at", "mgr_catatan",
-               "sva", "sva_oleh", "sva_at", "kerja_catatan", "kerja_urls", "kerja_oleh", "kerja_at",
-               "f_spv_oleh", "f_spv_at", "f_spv_catatan", "f_mgr_oleh", "f_mgr_at", "f_mgr_catatan", "revisi", "log", "updated_at"]
-SV_USER_COLS = ["username", "nama", "jabatan", "role", "pw_hash", "aktif", "dibuat"]
-
-def _sv_num(x):
-    try:
-        v = float(x)
-        return 0.0 if v != v else v
-    except Exception: return 0.0
-
-def sv_rp(x): return "Rp {:,.0f}".format(_sv_num(x))
-
-_BULAN_ID = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
-def sv_tgl_id(d):
-    if isinstance(d, str): d = _dtm.date.fromisoformat(d[:10])
-    return "%d %s %d" % (d.day, _BULAN_ID[d.month - 1], d.year)
-
-def sv_now(): return _dtm.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-def sv_guess_jenis(desc):
-    d = str(desc).lower()
-    return "Jasa" if any(k in d for k in SV_JASA_KW) else "Material"
-
-def sv_find_pricelist():
-    import os as _os
-    bases = [_os.getcwd()]
-    try: bases.append(_os.path.dirname(_os.path.abspath(__file__)))
-    except: pass
-    for b in bases:
-        for pat in SV_PRICELIST_PATTERNS:
-            hits = sorted(_glob.glob(_os.path.join(b, pat)))
-            hits = [h for h in hits if "~$" not in h]
-            if hits: return hits[0]
-    return None
-
-def sv_parse_pricelist(df):
-    items, cat = [], "Umum"
-    n = len(df)
-    for r in range(3, n):
-        def g(c):
-            try: v = df.iat[r, c]
-            except: return None
-            return None if (v is None or (isinstance(v, float) and v != v)) else v
-        a, b = g(0), g(1)
-        if b is None or str(b).strip() == "":
-            if isinstance(a, str) and a.strip() not in ("", "-", "xxx"): cat = a.strip()
-            continue
-        price, ket = {}, ""
-        for area, c in zip(SV_AREAS, (5, 6, 7)):
-            v = g(c)
-            if isinstance(v, (int, float)) and not isinstance(v, bool): price[area] = float(v)
-            elif isinstance(v, str) and v.strip() not in ("", "-"): ket = v.strip()
-        desc = " ".join(str(b).split())
-        items.append(dict(uid="%s-%d" % (a if a is not None else "x", r), no=a, cat=cat, desc=desc, uom=str(g(2) or "").strip(),
-                          remark=str(g(3) or "").strip(), price=price, ket=ket, jenis=sv_guess_jenis(desc)))
-    return items
-
-@st.cache_data(show_spinner=False, max_entries=4)
-def _sv_load_pricelist(path, stamp):
-    try: df = read_excel_cached(path, sheet_name="List", header=None)
-    except: df = pd.read_excel(path, sheet_name="List", header=None)
-    return sv_parse_pricelist(df)
-
-def sv_pricelist():
-    p = sv_find_pricelist()
-    if not p: return [], None
-    stt = os.stat(p)
-    return _sv_load_pricelist(p, (stt.st_mtime_ns, stt.st_size)), p
-
-def sv_params(p=None):
-    d = dict(SV_PARAMS_DEFAULT)
-    if p: d.update({k: _sv_num(v) for k, v in p.items() if k in d})
-    if d["f_mat"] <= 0: d["f_mat"] = SV_PARAMS_DEFAULT["f_mat"]
-    return d
-
-def sv_line_calc(line, p):
-    qty, hk = _sv_num(line.get("qty")), _sv_num(line.get("harga_kut"))
-    ht = line.get("harga_tsel")
-    if ht is None or ht == "": ht = hk / p["f_mat"] if line.get("jenis") == "Material" else hk * p["f_jasa"]
-    ht = _sv_num(ht)
-    hp = line.get("hpp")
-    hp = hk * p["hpp_pct"] if (hp is None or hp == "") else _sv_num(hp)
-    sub_t = ht * qty; fee_t = sub_t * p["fee_3e"]
-    sub_k = hk * qty; fee_k = sub_k * p["fee_kut"]
-    return dict(qty=qty, harga_kut=hk, harga_tsel=ht, hpp_unit=hp, sub_tsel=sub_t, fee_tsel=fee_t, tot_tsel=sub_t + fee_t,
-                sub_kut=sub_k, fee_kut=fee_k, rev=sub_k + fee_k, hpp=hp * qty)
-
-def sv_calc(rab):
-    p = sv_params(rab.get("params"))
-    out_sites, T = [], dict(tsel=0.0, rev=0.0, hpp=0.0, other_rev=0.0)
-    for s in rab.get("sites", []):
-        blk = {"site_id": s.get("site_id", ""), "site_name": s.get("site_name", ""), "A": [], "B": [], "sum": {}}
-        for sec in ("A", "B"):
-            for ln in s.get("items", []):
-                if ln.get("sec", "A") != sec: continue
-                c = sv_line_calc(ln, p)
-                c.update(desc=ln.get("desc", ""), uom=ln.get("uom", ""), jenis=ln.get("jenis", "Material"))
-                blk[sec].append(c)
-        for sec in ("A", "B"):
-            blk["sum"][sec] = {k: sum(c[k] for c in blk[sec]) for k in ("tot_tsel", "rev", "hpp")}
-        T["tsel"] += blk["sum"]["A"]["tot_tsel"] + blk["sum"]["B"]["tot_tsel"]
-        T["rev"] += blk["sum"]["A"]["rev"] + blk["sum"]["B"]["rev"]
-        T["hpp"] += blk["sum"]["A"]["hpp"] + blk["sum"]["B"]["hpp"]
-        T["other_rev"] += blk["sum"]["B"]["rev"]
-        out_sites.append(blk)
-    hpp_all = T["hpp"] + p["biaya_lain"]
-    margin = T["rev"] - hpp_all
-    gpm = (margin / T["rev"]) if T["rev"] else 0.0
-    com = margin * p["com_rate"] * p["com_bulan"] / 12.0
-    pph = margin * p["pph"]
-    return dict(params=p, sites=out_sites, tot_tsel=T["tsel"], tot_rev=T["rev"], tot_hpp_items=T["hpp"], biaya_lain=p["biaya_lain"],
-                tot_hpp=hpp_all, margin=margin, gpm=gpm, com=com, pph=pph, net=margin - com - pph, other_rev=T["other_rev"])
-
-def _sv_prep_image(raw, maxw=1000):
-    from PIL import ImageOps
-    im = Image.open(_io.BytesIO(raw))
-    try: im = ImageOps.exif_transpose(im)
-    except: pass
-    im = im.convert("RGB")
-    if im.width > maxw: im = im.resize((maxw, int(im.height * maxw / im.width)))
-    buf = _io.BytesIO()
-    im.save(buf, "JPEG", quality=82)
-    return buf.getvalue(), im.width, im.height
-
-def sv_build_xlsx(rab, calc, meta=None, images=None):
-    import math as _m
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
-    from openpyxl.drawing.image import Image as _XLImage
-    from openpyxl.workbook.properties import CalcProperties
-    meta, images, p = meta or {}, images or [], calc["params"]
-    wb = Workbook(); ws = wb.active; ws.title = "RAB"
-    ws.sheet_view.showGridLines = False
-    BLUE, BLUE_L, PINK, PINK_L, GRAY = "4874CB", "DAE3F5", "E54C5E", "F5B7BF", "D9D9D9"
-    thin, med = Side(style="thin"), Side(style="medium")
-    MONEY, PCT, QTY = '#,##0;-#,##0;"-"', '0.0%;-0.0%;""', "General"
-    def put(ref, v=None, bold=False, size=12, color="000000", fill=None, fmt=None, h=None, vv="center", wrap=False, italic=False, brd=True, ul=False):
-        c = ws[ref]
-        if v is not None: c.value = v
-        c.font = Font(name="Calibri", size=size, bold=bold, color=color, italic=italic, underline="single" if ul else None)
-        if fill: c.fill = PatternFill("solid", fgColor=fill)
-        if fmt: c.number_format = fmt
-        c.alignment = Alignment(horizontal=h, vertical=vv, wrap_text=wrap)
-        if brd: c.border = Border(left=thin, right=thin, top=thin, bottom=thin)
-        return c
-    widths = dict(A=4.6, B=10.1, C=20.7, D=13, E=3.7, F=39.4, G=56.1, H=11.6, I=5.4, J=12, K=5.3, L=10.1, M=12.5, N=11.5, O=6.3, P=11, Q=5.9, R=11, S=12.7, T=12.1, U=13.3)
-    for k, v in widths.items(): ws.column_dimensions[k].width = v
-    cols = "ABCDEFGHIJKLMNOPQRSTU"
-    put("A1", "RENCANA ANGGARAN BIAYA", bold=True, size=20, brd=False); ws.row_dimensions[1].height = 26.25
-    put("A3", "NOP", bold=True, size=16, brd=False); put("C3", ": " + str(rab.get("nop", "")), bold=True, size=16, brd=False)
-    put("A4", "No. Ticket", bold=True, size=14, brd=False); put("C4", ": " + str(rab.get("ticket", "")), bold=True, size=14, brd=False)
-    if meta.get("rab_id"):
-        put("N3", "No. Dokumen", size=10, italic=True, brd=False); put("Q3", ": " + meta["rab_id"], size=10, italic=True, brd=False)
-        put("N4", "Status", size=10, italic=True, brd=False); put("Q4", ": " + str(meta.get("status", "")), size=10, italic=True, brd=False)
-    heads = ["NO", "SITE ID", "SITE NAME", "PEKERJAAN", "SL", "Pekerjaan", "SL", "HARGA SATUAN", "QTY", "Sub Total", "Fee", "Nilai Fee", "TOTAL",
-             "SL KUT-3E", "QTY", "Sub Total", "Fee", "Nilai Fee", "TOTAL REVENUE", "NILAI HPP", "TOTAL HPP"]
-    for i, t in enumerate(heads):
-        put("%s5" % cols[i], t, bold=True, color="FFFFFF", fill=(BLUE if i < 13 else PINK), h="center", wrap=True, size=12 if i not in (0, 4) else 11)
-    ws.row_dimensions[5].height = 40
-    r, hdr_rows = 6, []
-    for idx, (site, cs) in enumerate(zip(rab.get("sites", []), calc["sites"]), 1):
-        start = r
-        for sec, title in (("A", "Jasa dan material with SL"), ("B", "Jasa dan material (Other Material ME)")):
-            hdr = r; hdr_rows.append(hdr)
-            put("E%d" % r, sec, bold=True, fill=BLUE_L, h="center"); put("F%d" % r, title, bold=True, fill=BLUE_L, h="left")
-            for c in "GHIJKL": put("%s%d" % (c, r), None, fill=BLUE_L)
-            for c in "NOPQR": put("%s%d" % (c, r), None, fill=PINK_L)
-            put("T%d" % r, None, fill=PINK_L)
-            lines = cs[sec]; r += 1
-            first = r
-            for ln in lines:
-                put("F%d" % r, "Pengadaan material" if ln["jenis"] == "Material" else "Jasa pekerjaan", wrap=True, h="left")
-                put("G%d" % r, ln["desc"], wrap=True, h="left")
-                put("H%d" % r, round(ln["harga_tsel"], 2), fmt=MONEY); put("I%d" % r, ln["qty"], fmt=QTY, h="center")
-                put("J%d" % r, "=H%d*I%d" % (r, r), fmt=MONEY); put("K%d" % r, p["fee_3e"], fmt=PCT, h="center")
-                put("L%d" % r, "=J%d*K%d" % (r, r), fmt=MONEY); put("M%d" % r, "=J%d+L%d" % (r, r), fmt=MONEY)
-                put("N%d" % r, round(ln["harga_kut"], 2), fmt=MONEY); put("O%d" % r, "=I%d" % r, fmt=QTY, h="center")
-                put("P%d" % r, "=N%d*O%d" % (r, r), fmt=MONEY); put("Q%d" % r, p["fee_kut"], fmt=PCT, h="center")
-                put("R%d" % r, "=P%d*Q%d" % (r, r), fmt=MONEY); put("S%d" % r, "=P%d+R%d" % (r, r), fmt=MONEY)
-                put("T%d" % r, round(ln["hpp_unit"], 2), fmt=MONEY); put("U%d" % r, "=T%d*O%d" % (r, r), fmt=MONEY)
-                ws.row_dimensions[r].height = 25 if len(ln["desc"]) <= 60 else 40
-                r += 1
-            last = r - 1
-            if lines:
-                put("M%d" % hdr, "=SUM(M%d:M%d)" % (first, last), bold=True, fill=BLUE_L, fmt=MONEY)
-                put("S%d" % hdr, "=SUM(S%d:S%d)" % (first, last), bold=True, fill=PINK_L, fmt=MONEY)
-                put("U%d" % hdr, "=SUM(U%d:U%d)" % (first, last), bold=True, fill=PINK_L, fmt=MONEY)
-            else:
-                if sec == "B": put("G%d" % hdr, "Other Material ME", bold=True, fill=BLUE_L, h="left")
-                put("M%d" % hdr, 0, bold=True, fill=BLUE_L, fmt=MONEY); put("S%d" % hdr, 0, bold=True, fill=PINK_L, fmt=MONEY)
-                put("U%d" % hdr, 0, bold=True, fill=PINK_L, fmt=MONEY)
-            ws.row_dimensions[hdr].height = 25
-            if sec == "A":                         
-                for c in cols[4:]: put("%s%d" % (c, r), None)
-                ws.row_dimensions[r].height = 12
-                r += 1
-        end = r - 1
-        for col, val in (("A", idx), ("B", site.get("site_id", "")), ("C", site.get("site_name", "")), ("D", site.get("pekerjaan", ""))):
-            ws.merge_cells("%s%d:%s%d" % (col, start, col, end))
-            put("%s%d" % (col, start), val, bold=(col in "ABC"), h="center", vv="center" if col != "D" else "top", wrap=True, size=12 if col != "D" else 11)
-            for rr in range(start, end + 1): ws["%s%d" % (col, rr)].border = Border(left=thin, right=thin, top=thin if rr == start else None, bottom=thin if rr == end else None)
-    
-    r_lain = r
-    for c in cols[:13]: put("%s%d" % (c, r_lain), None)
-    for c in cols[13:]: put("%s%d" % (c, r_lain), None, fill=PINK_L)
-    put("T%d" % r_lain, "Biaya lain-lain", fill=PINK_L, h="right", size=10); put("U%d" % r_lain, p["biaya_lain"], fill=PINK_L, fmt=MONEY)
-    rt = r_lain + 1
-    for c in cols: put("%s%d" % (c, rt), None, bold=True, fill=GRAY)
-    put("L%d" % rt, "TOTAL", bold=True, fill=GRAY, h="center")
-    put("M%d" % rt, ("=" + "+".join("M%d" % h for h in hdr_rows)) if hdr_rows else 0, bold=True, fill=GRAY, fmt=MONEY)
-    ws.merge_cells("N%d:R%d" % (rt, rt)); put("N%d" % rt, "TOTAL", bold=True, fill=GRAY, h="center")
-    put("S%d" % rt, ("=" + "+".join("S%d" % h for h in hdr_rows)) if hdr_rows else 0, bold=True, fill=GRAY, fmt=MONEY)
-    put("U%d" % rt, ("=" + "+".join(["U%d" % h for h in hdr_rows] + ["U%d" % r_lain])), bold=True, fill=GRAY, fmt=MONEY)
-    ws.row_dimensions[rt].height = 35
-    def pc(x): return ("%g" % x).replace(".", ",")
-    labels = [("Margin", None, "=S%d-U%d" % (rt, rt), MONEY, True),
-              ("GPM", None, "=IF(S%d=0,0,U%d/S%d)" % (rt, rt + 1, rt), "0.0%", False),
-              ("Cost of Money (%s%% x %s bulan/12 Bulan)" % (pc(p["com_rate"] * 100), pc(p["com_bulan"])), p["com_rate"] * p["com_bulan"] / 12.0, "=U%d*T%d" % (rt + 1, rt + 3), MONEY, False),
-              ("PPh", p["pph"], "=T%d*U%d" % (rt + 4, rt + 1), MONEY, False),
-              ("Margin Bersih (setelah Cost of Money & PPh)", None, "=U%d-U%d-U%d" % (rt + 1, rt + 3, rt + 4), MONEY, True)]
-    for k, (lab, rate, form, fmt, bold) in enumerate(labels, 1):
-        rr = rt + k
-        for c in cols: put("%s%d" % (c, rr), None, brd=(c in "NOPQRSTU"))
-        ws.merge_cells("N%d:S%d" % (rr, rr)); put("N%d" % rr, lab, bold=bold, h="left", wrap=True)
-        if rate is not None: put("T%d" % rr, rate, fmt="0.000%", h="center")
-        else: put("T%d" % rr, None)
-        put("U%d" % rr, form, bold=bold, fmt=fmt)
-        ws.row_dimensions[rr].height = 25
-    ws.merge_cells("A%d:M%d" % (rt + 1, rt + 4))
-    put("A%d" % (rt + 1), "Lampiran Referensi harga (gambar terlampir di bawah)", italic=True, h="center", size=11)
-    r = rt + 6
-    put("A%d" % r, "Noted: untuk pekerjaan Other material mohon diberikan evidence Refrensi harga nya", italic=True, size=11, brd=False)
-    r += 3
-    put("A%d" % r, "%s, %s" % (rab.get("kota", ""), sv_tgl_id(rab.get("tanggal") or _dtm.date.today())), size=12, brd=False)
-    r += 1
-    for col, t in (("A", "Diajukan Oleh"), ("H", "Diketahui Oleh"), ("S", "Disetujui Oleh")): put("%s%d" % (col, r), t, brd=False)
-    r += 5
-    sig = [("A", meta.get("pembuat_nama") or "(Pemohon)", meta.get("pembuat_jabatan") or ""),
-           ("H", meta.get("spv_nama") or "( menunggu persetujuan SPV )", meta.get("spv_jabatan") or "SPV Operation"),
-           ("S", meta.get("mgr_nama") or "( menunggu persetujuan Manager )", meta.get("mgr_jabatan") or "Manager")]
-    for col, nm, jb in sig:
-        put("%s%d" % (col, r), nm, bold=True, brd=False, ul=True); put("%s%d" % (col, r + 1), jb, size=11, brd=False)
-    last_text_row = r + 1
-    r += 4
-    put("A%d" % r, "Lampiran Referensi harga", bold=True, brd=False)
-    r += 2
-    for raw in images:
-        try:
-            data, w, h = _sv_prep_image(raw)
-            xi = _XLImage(_io.BytesIO(data)); xi.width, xi.height = w, h
-            ws.add_image(xi, "B%d" % r)
-            r += int(_m.ceil(h / 20.0)) + 2
-        except Exception: continue
-    ws.print_area = "A1:U%d" % max(last_text_row, r)
-    ws.page_setup.orientation = "landscape"; ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 0
-    ws.sheet_properties.pageSetUpPr.fitToPage = True
-    wb.calculation = CalcProperties(fullCalcOnLoad=True)
-    buf = _io.BytesIO(); wb.save(buf)
-    return buf.getvalue()
-
-def sv_rab_filename(rab, rab_id=""):
-    import re as _re
-    base = "RAB_%s_%s" % (rab.get("ticket") or rab_id or "SVA", (rab.get("sites") or [{}])[0].get("site_name", ""))
-    return _re.sub(r"[^A-Za-z0-9_.-]+", "_", base).strip("_")[:120] + ".xlsx"
-
-def _sv_json(o):
-    return _json.dumps(o, ensure_ascii=False, separators=(",", ":"), default=str)
-
-def _sv_jload(s, default=None):
-    try: return _json.loads(s) if s else default
-    except Exception: return default
-
-class _SvLocalStore:
-    kind = "lokal"
-    def __init__(self, path=None): self.path = path or SV_LOCAL_DB
-    def _read(self):
-        try:
-            with open(self.path, "r", encoding="utf-8") as f: return _json.load(f)
-        except Exception: return {"rab": [], "users": []}
-    def _write(self, d):
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f: _json.dump(d, f, ensure_ascii=False)
-        os.replace(tmp, self.path)
-    def list_rabs(self): return self._read()["rab"]
-    def list_users(self): return self._read()["users"]
-    def add_rab(self, rec):
-        d = self._read(); d["rab"].append({k: rec.get(k, "") for k in SV_RAB_COLS}); self._write(d)
-    def update_rab(self, rab_id, fields):
-        d = self._read()
-        for r in d["rab"]:
-            if r.get("rab_id") == rab_id:
-                r.update({k: v for k, v in fields.items() if k in SV_RAB_COLS}); self._write(d); return True
-        return False
-    def upsert_user(self, u):
-        d = self._read()
-        for r in d["users"]:
-            if r.get("username") == u["username"]:
-                r.update(u); self._write(d); return
-        d["users"].append({k: u.get(k, "") for k in SV_USER_COLS}); self._write(d)
-
-@st.cache_resource(show_spinner=False, ttl=1800)
-def _sv_spreadsheet():
-    creds = Credentials.from_service_account_info(json.loads(st.secrets["gcp_json"]),
-                                                  scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"])
-    return gspread.authorize(creds).open_by_key(SHEET_ID)
-
-@st.cache_resource(show_spinner=False, ttl=1800)
-def _sv_worksheet(name, cols_key):
-    sh = _sv_spreadsheet()
-    cols = list(cols_key)
-    try: ws = sh.worksheet(name)
-    except Exception:
-        ws = sh.add_worksheet(title=name, rows=500, cols=max(len(cols), 10) + 2)
-        ws.update(range_name="A1", values=[cols])
-        return ws
-    head = ws.row_values(1)
-    if head != cols[:len(head)] or len(head) < len(cols):     
-        ws.update(range_name="A1", values=[head + [c for c in cols if c not in head]])
-    return ws
-
-@st.cache_data(ttl=12, show_spinner=False)
-def _sv_rows(name, cols_key):
-    return _sv_worksheet(name, cols_key).get_all_records()
-
-class _SvSheetsStore:
-    kind = "Google Sheets"
-    def _cols(self, name): return tuple(SV_RAB_COLS if name == "SISAVA_RAB" else SV_USER_COLS)
-    def _rows(self, name): return _sv_rows(name, self._cols(name))
-    def list_rabs(self): return self._rows("SISAVA_RAB")
-    def list_users(self): return self._rows("SISAVA_USERS")
-    def _row_values(self, ws, rec, cols):
-        head = ws.row_values(1)
-        return head, [str(rec.get(c, "")) if rec.get(c, "") is not None else "" for c in head]
-    def add_rab(self, rec):
-        ws = _sv_worksheet("SISAVA_RAB", self._cols("SISAVA_RAB"))
-        head, vals = self._row_values(ws, rec, SV_RAB_COLS)
-        ws.append_row(vals, value_input_option="RAW"); _sv_rows.clear()
-    def update_rab(self, rab_id, fields):
-        ws = _sv_worksheet("SISAVA_RAB", self._cols("SISAVA_RAB"))
-        try: cell = ws.find(rab_id, in_column=1)
-        except Exception: cell = None
-        if not cell: return False
-        head = ws.row_values(1); cur = ws.row_values(cell.row)
-        cur += [""] * (len(head) - len(cur))
-        for k, v in fields.items():
-            if k in head:
-                cur[head.index(k)] = "" if v is None else str(v)
-        ws.update(range_name="A%d" % cell.row, values=[cur], value_input_option="RAW"); _sv_rows.clear()
-        return True
-    def upsert_user(self, u):
-        ws = _sv_worksheet("SISAVA_USERS", self._cols("SISAVA_USERS"))
-        try: cell = ws.find(u["username"], in_column=1)
-        except Exception: cell = None
-        head = ws.row_values(1)
-        if cell:                                  
-            cur = ws.row_values(cell.row); cur += [""] * (len(head) - len(cur))
-            row = dict(zip(head, cur)); row.update({k: v for k, v in u.items() if k in head})
-            ws.update(range_name="A%d" % cell.row, values=[[str(row.get(c, "")) for c in head]], value_input_option="RAW")
-        else:
-            ws.append_row([str(u.get(c, "")) for c in head], value_input_option="RAW")
-        _sv_rows.clear()
-
-def sv_store():
-    try:
-        _sv_spreadsheet()
-        return _SvSheetsStore()
-    except Exception:
-        _sv_spreadsheet.clear()
-        return _SvLocalStore()
-
-def sv_hash_pw(pw, salt=None):
-    salt = salt or _pysecrets.token_hex(8)
-    dk = _hl.pbkdf2_hmac("sha256", pw.encode("utf-8"), salt.encode(), 120000)
-    return "pbkdf2$%s$%s" % (salt, dk.hex())
-
-def sv_check_pw(pw, stored):
-    try:
-        _, salt, hx = str(stored).split("$")
-        return _hmac.compare_digest(sv_hash_pw(pw, salt).split("$")[2], hx)
-    except Exception: return False
-
-def sv_can(user, perm):
-    return bool(user) and perm in SV_PERMS.get(user.get("role"), set())
-
-def sv_user_find(store, username):
-    u = str(username).strip().lower()
-    for r in store.list_users():
-        if str(r.get("username", "")).strip().lower() == u: return r
-    return None
-
-def sv_login(store, username, pw):
-    r = sv_user_find(store, username)
-    if not r or str(r.get("aktif", "1")).strip() in ("0", "False", "false", "nonaktif") or not sv_check_pw(pw, r.get("pw_hash", "")):
-        return None
-    return {"username": r["username"], "nama": r.get("nama", r["username"]), "jabatan": r.get("jabatan", ""), "role": r.get("role", "STAFF")}
-
-def sv_validate_new_user(u, pw, existing=None):
-    if not str(u.get("username", "")).strip() or not str(u.get("nama", "")).strip(): return "Username dan nama wajib diisi."
-    if any(ch.isspace() for ch in u["username"]): return "Username tidak boleh mengandung spasi."
-    if u.get("role") not in SV_ROLES: return "Role tidak valid."
-    if len(pw) < 8: return "Sandi minimal 8 karakter."
-    return ""
-
-def sv_log_add(rec, user, aksi, catatan=""):
-    log = _sv_jload(rec.get("log"), []) or []
-    log.append({"ts": sv_now(), "oleh": user["username"], "nama": user.get("nama", ""), "role": user["role"], "aksi": aksi, "catatan": catatan})
-    return log
-
-def sv_next_id(recs, year=None):
-    year = year or _dtm.date.today().year
-    nums = []
-    for r in recs:
-        parts = str(r.get("rab_id", "")).split("-")
-        if len(parts) == 3 and parts[1] == str(year) and parts[2].isdigit(): nums.append(int(parts[2]))
-    return "RAB-%d-%04d" % (year, (max(nums) if nums else 0) + 1)
-
-def sv_transition(rec, action, user, note="", data=None):
-    st_, role, uname = rec.get("status"), user.get("role"), user.get("username")
-    creator = rec.get("dibuat_oleh")
-    def deny(m): return False, m, {}
-    need_note = action in ("spv_reject", "mgr_reject", "f_spv_reject", "f_mgr_reject")
-    if need_note and not str(note).strip(): return deny("Catatan wajib diisi saat menolak.")
-    if action in ("spv_approve", "spv_reject", "f_spv_approve", "f_spv_reject") and not sv_can(user, "approve_spv"): return deny("Akun Anda tidak berwenang sebagai SPV.")
-    if action in ("mgr_approve", "mgr_reject", "f_mgr_approve", "f_mgr_reject") and not sv_can(user, "approve_mgr"): return deny("Hanya Manager yang dapat melakukan persetujuan ini.")
-    if action in ("spv_approve", "spv_reject", "mgr_approve", "mgr_reject", "f_spv_approve", "f_spv_reject", "f_mgr_approve", "f_mgr_reject") and uname == creator and not SV_ALLOW_SELF_APPROVE: return deny("Anda tidak dapat menyetujui/menolak dokumen yang Anda ajukan sendiri.")
-    f = {"updated_at": sv_now()}
-    ok_msg = ""
-    if action == "spv_approve" and st_ == S_RAB_SPV:
-        f.update(status=S_RAB_MGR, spv_oleh=uname, spv_nama=user["nama"], spv_jabatan=user.get("jabatan", ""), spv_at=sv_now(), spv_catatan=note); ok_msg = "RAB diteruskan ke Manager."
-    elif action == "spv_reject" and st_ == S_RAB_SPV:
-        f.update(status=S_RAB_TOLAK, spv_oleh=uname, spv_nama=user["nama"], spv_at=sv_now(), spv_catatan=note); ok_msg = "RAB dikembalikan untuk revisi."
-    elif action == "mgr_approve" and st_ in (S_RAB_MGR, S_RAB_SPV):
-        if st_ == S_RAB_SPV: f.update(spv_oleh=uname, spv_nama=user["nama"], spv_jabatan=user.get("jabatan", ""), spv_at=sv_now(), spv_catatan="(disetujui langsung oleh Manager) " + note)
-        f.update(status=S_RAB_OK, mgr_oleh=uname, mgr_nama=user["nama"], mgr_jabatan=user.get("jabatan", ""), mgr_at=sv_now(), mgr_catatan=note); ok_msg = "RAB DISETUJUI. Silakan isi Nilai SVA."
-    elif action == "mgr_reject" and st_ in (S_RAB_MGR, S_RAB_SPV):
-        f.update(status=S_RAB_TOLAK, mgr_oleh=uname, mgr_nama=user["nama"], mgr_at=sv_now(), mgr_catatan=note); ok_msg = "RAB dikembalikan untuk revisi."
-    elif action == "sva_fill" and st_ == S_RAB_OK:
-        if not sv_can(user, "sva_fill"): return deny("Akun Anda tidak berwenang mengisi Nilai SVA.")
-        d = data or {}
-        miss = [k for k in ("ticket_no", "status_tiket", "urgensi", "keperluan", "tgl_rencana") if not str(d.get(k, "")).strip()]
-        if miss: return deny("Lengkapi: " + ", ".join(miss))
-        if _sv_num(d.get("nilai_sva")) <= 0 or _sv_num(d.get("keperluan_dana")) <= 0: return deny("Nilai SVA dan Keperluan Dana harus lebih dari 0.")
-        f.update(status=S_SVA, sva=_sv_json(d), sva_oleh=uname, sva_at=sv_now()); ok_msg = "Nilai SVA tersimpan. Pekerjaan dapat berjalan."
-    elif action == "kerja_upload" and st_ in (S_SVA, S_KRJ_TOLAK):
-        if not sv_can(user, "kerja_upload"): return deny("Akun Anda tidak berwenang mengunggah pekerjaan.")
-        d = data or {}
-        if not d.get("urls"): return deny("Unggah minimal 1 foto/berkas bukti pekerjaan.")
-        f.update(status=S_KRJ_SPV, kerja_urls=_sv_json(d["urls"]), kerja_catatan=note, kerja_oleh=uname, kerja_at=sv_now(),
-                 f_spv_oleh="", f_spv_at="", f_spv_catatan="", f_mgr_oleh="", f_mgr_at="", f_mgr_catatan=""); ok_msg = "Bukti pekerjaan terkirim, menunggu SPV."
-    elif action == "f_spv_approve" and st_ == S_KRJ_SPV:
-        f.update(status=S_KRJ_MGR, f_spv_oleh=uname, f_spv_at=sv_now(), f_spv_catatan=note); ok_msg = "Diteruskan ke Manager."
-    elif action == "f_spv_reject" and st_ == S_KRJ_SPV:
-        f.update(status=S_KRJ_TOLAK, f_spv_oleh=uname, f_spv_at=sv_now(), f_spv_catatan=note); ok_msg = "Pekerjaan dikembalikan untuk diperbaiki."
-    elif action == "f_mgr_approve" and st_ in (S_KRJ_MGR, S_KRJ_SPV):
-        if st_ == S_KRJ_SPV: f.update(f_spv_oleh=uname, f_spv_at=sv_now(), f_spv_catatan="(disetujui langsung oleh Manager) " + note)
-        f.update(status=S_DONE, f_mgr_oleh=uname, f_mgr_at=sv_now(), f_mgr_catatan=note); ok_msg = "Pekerjaan SAH."
-    elif action == "f_mgr_reject" and st_ in (S_KRJ_MGR, S_KRJ_SPV):
-        f.update(status=S_KRJ_TOLAK, f_mgr_oleh=uname, f_mgr_at=sv_now(), f_mgr_catatan=note); ok_msg = "Pekerjaan dikembalikan untuk diperbaiki."
-    else: return deny("Aksi tidak sesuai dengan status dokumen saat ini (%s)." % st_)
-    f["log"] = _sv_json(sv_log_add(rec, user, action, note))
-    return True, ok_msg, f
-
-def sv_rab_to_record(rab, calc, user, rab_id, evidence_urls, kota=None):
-    return {"rab_id": rab_id, "ticket_no": rab.get("ticket", ""), "nop": rab.get("nop", ""), "area": rab.get("area", ""), "kota": rab.get("kota", ""),
-            "tgl_pengajuan": sv_now(), "dibuat_oleh": user["username"], "nama_pembuat": user["nama"], "jabatan_pembuat": user.get("jabatan", ""),
-            "status": S_RAB_SPV, "tot_tsel": round(calc["tot_tsel"], 2), "tot_rev": round(calc["tot_rev"], 2), "tot_hpp": round(calc["tot_hpp"], 2),
-            "margin": round(calc["margin"], 2), "gpm": round(calc["gpm"], 6), "net": round(calc["net"], 2), "payload": _sv_json(rab),
-            "evidence_rab": _sv_json(evidence_urls), "revisi": 0, "updated_at": sv_now()}
-
-def sv_visible(recs, user):
-    return list(recs) if sv_can(user, "view_all") else [r for r in recs if r.get("dibuat_oleh") == user.get("username")]
-
-def _sv_badge(status):
-    return '<span style="display:inline-block;padding:3px 11px;border-radius:99px;font-size:.74rem;font-weight:800;color:#fff;background:%s">%s</span>' % (
-        SV_STATUS_COLOR.get(status, "#64748B"), _esc(status))
-
-def _sv_flash():
-    m = st.session_state.pop("sv_flash", None)
-    if m: (st.success if m[0] != "!" else st.error)(m.lstrip("!"))
-
-@st.cache_data(ttl=3600, show_spinner=False, max_entries=80)
-def _sv_fetch_img(url):
-    r = requests.get(url, timeout=10)
-    r.raise_for_status(); return r.content
-
-@st.cache_data(ttl=300, show_spinner=False, max_entries=20)
-def _sv_xlsx_cached(rab_id, stamp, payload, meta_json, ev_json):
-    rab = _sv_jload(payload, {}) or {}
-    meta = _sv_jload(meta_json, {}) or {}
-    imgs = []
-    for u in (_sv_jload(ev_json, []) or [])[:6]:
-        try: imgs.append(_sv_fetch_img(u))
-        except: pass
-    return sv_build_xlsx(rab, sv_calc(rab), meta, imgs)
-
-def sv_record_xlsx(rec):
-    meta = {"rab_id": rec.get("rab_id"), "status": rec.get("status"), "pembuat_nama": rec.get("nama_pembuat"), "pembuat_jabatan": rec.get("jabatan_pembuat"),
-            "spv_nama": rec.get("spv_nama"), "spv_jabatan": rec.get("spv_jabatan"), "mgr_nama": rec.get("mgr_nama"), "mgr_jabatan": rec.get("mgr_jabatan")}
-    return _sv_xlsx_cached(rec.get("rab_id"), str(rec.get("updated_at")), rec.get("payload", ""), _sv_json(meta), rec.get("evidence_rab", ""))
-
-def _sv_autodownload(data, name):
-    import base64 as _b64
-    safe = "".join(ch for ch in name if ch.isalnum() or ch in "._-")
-    js = ("<script>(function(){try{var b=atob('%s');var a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);"
-          "var u=URL.createObjectURL(new Blob([a],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));"
-          "var l=document.createElement('a');l.href=u;l.download='%s';document.body.appendChild(l);l.click();"
-          "setTimeout(function(){URL.revokeObjectURL(u);l.remove();},3000);}catch(e){}})();</script>") % (_b64.b64encode(data).decode(), safe)
-    st.components.v1.html(js, height=0)
-
-def _sv_new_site():
-    return {"uid": _pysecrets.token_hex(3), "site_id": "", "site_name": "", "pekerjaan": "", "items": []}
-
-def _sv_form_reset():
-    ss = st.session_state
-    for k in [k for k in list(ss.keys()) if str(k).startswith("svw_") or str(k).startswith("svl_")]: ss.pop(k, None)
-    ss["sv_form"] = {"nop": SV_NOPS[0], "ticket": "", "area": "KALIMANTAN", "kota": "Balikpapan", "tanggal": _dtm.date.today().isoformat(),
-                     "params": dict(SV_PARAMS_DEFAULT), "sites": [_sv_new_site()], "evidence": [], "catatan": "", "edit_id": None, "old_urls": [], "ver": 0}
-
-def _sv_form_load(rec):
-    _sv_form_reset()
-    rab = _sv_jload(rec.get("payload"), {}) or {}
-    f = st.session_state["sv_form"]
-    f.update(nop=rab.get("nop", f["nop"]), ticket=rab.get("ticket", ""), area=rab.get("area", f["area"]), kota=rab.get("kota", f["kota"]),
-             tanggal=rab.get("tanggal", f["tanggal"]), edit_id=rec["rab_id"], old_urls=_sv_jload(rec.get("evidence_rab"), []) or [])
-    f["params"] = sv_params(rab.get("params"))
-    f["sites"] = []
-    for s in rab.get("sites", []):
-        s = dict(s); s["uid"] = _pysecrets.token_hex(3); s.setdefault("items", [])
-        for ln in s["items"]: ln.setdefault("sec", "A"); ln.setdefault("harga_tsel", None); ln.setdefault("hpp", None)
-        f["sites"].append(s)
-    f["sites"] = f["sites"] or [_sv_new_site()]
-    st.session_state["sv_nav"] = "➕ Pengajuan RAB"
-    st.session_state["sv_flash"] = "Data %s dimuat ke form. Perbaiki lalu ajukan ulang." % rec["rab_id"]
-
-def _sv_rab_from_form(f):
-    return {"nop": f["nop"], "ticket": f["ticket"].strip(), "area": f["area"], "kota": f["kota"], "tanggal": f["tanggal"],
-            "params": dict(f["params"]), "sites": [{k: s[k] for k in ("site_id", "site_name", "pekerjaan", "items")} for s in f["sites"]]}
-
-def _sv_add_a(uid):
-    ss = st.session_state; f = ss["sv_form"]
-    s = next((x for x in f["sites"] if x["uid"] == uid), None)
-    item = (ss.get("svl_%s" % uid) or {}).get(ss.get("svw_pick_%s" % uid))
-    if not s or not item: return
-    price = item["price"].get(f["area"])
-    s["items"].append({"sec": "A", "jenis": item["jenis"], "desc": item["desc"], "uom": item["uom"], "qty": _sv_num(ss.get("svw_qty_%s" % uid, 1)) or 1.0,
-                       "harga_kut": float(price or 0.0), "harga_tsel": None, "hpp": None, "ref": item["uid"]})
-    f["ver"] += 1
-    if price is None: ss["sv_flash"] = "!Item ini tidak punya harga tetap (%s). Isi harga di tabel." % (item["ket"] or "harga manual")
-
-def _sv_add_b(uid):
-    ss = st.session_state; f = ss["sv_form"]
-    s = next((x for x in f["sites"] if x["uid"] == uid), None)
-    desc = str(ss.get("svw_bd_%s" % uid, "")).strip()
-    if not s or not desc: ss["sv_flash"] = "!Isi uraian Other Material terlebih dahulu."; return
-    hpp = _sv_num(ss.get("svw_bh_%s" % uid, 0))
-    s["items"].append({"sec": "B", "jenis": ss.get("svw_bj_%s" % uid, "Material"), "desc": desc, "uom": str(ss.get("svw_bu_%s" % uid, "")).strip(),
-                       "qty": _sv_num(ss.get("svw_bq_%s" % uid, 1)) or 1.0, "harga_kut": _sv_num(ss.get("svw_bk_%s" % uid, 0)),
-                       "harga_tsel": None, "hpp": hpp if hpp > 0 else None})
-    f["ver"] += 1
-
-def _sv_del_site(uid):
-    f = st.session_state["sv_form"]
-    if len(f["sites"]) > 1: f["sites"] = [s for s in f["sites"] if s["uid"] != uid]; f["ver"] += 1
-
-def _sv_reset_auto(uid):
-    f = st.session_state["sv_form"]
-    for s in f["sites"]:
-        if s["uid"] == uid:
-            for ln in s["items"]: ln["harga_tsel"] = None; ln["hpp"] = None
-    f["ver"] += 1
-
-def _sv_line_editor(f, s, sec, p):
-    items, uid = s["items"], s["uid"]
-    idxs = [i for i, ln in enumerate(items) if ln.get("sec", "A") == sec]
-    if not idxs: st.caption("Belum ada item pada bagian ini."); return
-    rows = []
-    for i in idxs:
-        ln = items[i]; c = sv_line_calc(ln, p)
-        rows.append({"Jenis": ln["jenis"], "Uraian": ln["desc"], "UoM": ln.get("uom", ""), "Qty": float(c["qty"]), "Harga KUT→3E": round(c["harga_kut"], 2),
-                     "Harga 3E→Tsel": round(c["harga_tsel"], 2), "HPP/unit": round(c["hpp_unit"], 2), "Hapus": False})
-    df = pd.DataFrame(rows)
-    ed = st.data_editor(df, key="svw_ed_%s_%s_%d" % (uid, sec, f["ver"]), hide_index=True, use_container_width=True, num_rows="fixed",
-                        disabled=["Uraian", "UoM"],
-                        column_config={"Jenis": st.column_config.SelectboxColumn("Jenis", options=["Material", "Jasa"], required=True, width="small"),
-                                       "Uraian": st.column_config.TextColumn("Uraian", width="large"),
-                                       "Qty": st.column_config.NumberColumn("Qty", min_value=0.0, step=1.0, format="%.2f", width="small"),
-                                       "Harga KUT→3E": st.column_config.NumberColumn("Harga KUT→3E", min_value=0.0, format="%.2f"),
-                                       "Harga 3E→Tsel": st.column_config.NumberColumn("Harga 3E→Tsel", min_value=0.0, format="%.2f"),
-                                       "HPP/unit": st.column_config.NumberColumn("HPP/unit", min_value=0.0, format="%.2f"),
-                                       "Hapus": st.column_config.CheckboxColumn("Hapus", width="small")})
-    drop = []
-    for k, i in enumerate(idxs):
-        er, orig, ln = ed.iloc[k], rows[k], items[i]
-        if bool(er["Hapus"]): drop.append(i); continue
-        ln["jenis"] = er["Jenis"]; ln["qty"] = _sv_num(er["Qty"]); ln["harga_kut"] = _sv_num(er["Harga KUT→3E"])
-        if abs(_sv_num(er["Harga 3E→Tsel"]) - orig["Harga 3E→Tsel"]) > 0.005: ln["harga_tsel"] = _sv_num(er["Harga 3E→Tsel"])
-        if abs(_sv_num(er["HPP/unit"]) - orig["HPP/unit"]) > 0.005: ln["hpp"] = _sv_num(er["HPP/unit"])
-    if drop: s["items"] = [ln for j, ln in enumerate(items) if j not in drop]; f["ver"] += 1; st.rerun()
-
-def _sv_picker_a(f, s, pl):
-    uid, ss = s["uid"], st.session_state
-    if not pl: st.info("Daftar Shopping List belum terbaca. Gunakan Other Material (bagian B), atau letakkan file Excel Shopping List di folder aplikasi."); return
-    c1, c2 = st.columns([1, 2])
-    cat = c1.selectbox("Kategori", ["Semua kategori"] + sorted({i["cat"] for i in pl}), key="svw_cat_%s" % uid)
-    q = c2.text_input("Cari uraian", key="svw_q_%s" % uid, placeholder="mis. kabel twist 4 x 25")
-    words = q.lower().split()
-    cand = [i for i in pl if (cat == "Semua kategori" or i["cat"] == cat) and all(w in i["desc"].lower() for w in words)]
-    shown, labels = cand[:150], {}
-    for i in shown:
-        harga = sv_rp(i["price"][f["area"]]) if f["area"] in i["price"] else (i["ket"] or "harga manual")
-        lab = "%s · %s · %s" % (i["desc"][:90], i["uom"] or "-", harga)
-        labels[lab if lab not in labels else lab + " #" + i["uid"]] = i
-    ss["svl_%s" % uid] = labels
-    st.selectbox("Pilih item — %d ditemukan%s" % (len(cand), " (menampilkan 150 pertama, persempit pencarian)" if len(cand) > 150 else ""),
-                 list(labels) or ["(tidak ada hasil)"], key="svw_pick_%s" % uid)
-    c3, c4 = st.columns(2)
-    c3.number_input("Qty", min_value=0.0, value=1.0, step=1.0, key="svw_qty_%s" % uid)
-    c4.markdown("<div style='height:1.9rem'></div>", unsafe_allow_html=True)
-    c4.button("➕ Tambah ke RAB", key="svw_add_%s" % uid, on_click=_sv_add_a, args=(uid,), use_container_width=True)
-
-def _sv_picker_b(s):
-    uid = s["uid"]
-    with st.expander("➕ Tambah Other Material / pekerjaan di luar Shopping List", expanded=False):
-        st.text_input("Uraian", key="svw_bd_%s" % uid, placeholder="mis. Kabel NYY 4x10 (harga pasar)")
-        c1, c2, c3 = st.columns(3)
-        c1.selectbox("Jenis", ["Material", "Jasa"], key="svw_bj_%s" % uid)
-        c2.text_input("UoM", key="svw_bu_%s" % uid, placeholder="meter / unit")
-        c3.number_input("Qty", min_value=0.0, value=1.0, step=1.0, key="svw_bq_%s" % uid)
-        c4, c5 = st.columns(2)
-        c4.number_input("Harga KUT→3E (per unit)", min_value=0.0, value=0.0, step=1000.0, key="svw_bk_%s" % uid)
-        c5.number_input("HPP per unit (0 = otomatis)", min_value=0.0, value=0.0, step=1000.0, key="svw_bh_%s" % uid)
-        st.button("➕ Tambah Other Material", key="svw_addb_%s" % uid, on_click=_sv_add_b, args=(uid,), use_container_width=True)
-
-def _sv_step_info(f, pl_path):
-    st.markdown("##### 1️⃣ Informasi RAB")
-    c1, c2, c3 = st.columns(3)
-    nops = SV_NOPS + ([f["nop"]] if f["nop"] not in SV_NOPS else [])
-    f["nop"] = c1.selectbox("NOP", nops, index=nops.index(f["nop"]), key="svw_nop")
-    f["ticket"] = c2.text_input("No. Ticket SVA", value=f["ticket"], key="svw_ticket", placeholder="SVA-2026-000000006886")
-    f["area"] = c3.selectbox("Area harga Shopping List", SV_AREAS, index=SV_AREAS.index(f["area"]) if f["area"] in SV_AREAS else 0, key="svw_area")
-    c4, c5 = st.columns(2)
-    f["kota"] = c4.text_input("Kota (untuk tanda tangan)", value=f["kota"], key="svw_kota")
-    f["tanggal"] = c5.date_input("Tanggal RAB", value=_dtm.date.fromisoformat(f["tanggal"][:10]), key="svw_tgl").isoformat()
-    if f.get("edit_id"): st.info("✏️ Mode REVISI untuk %s. Setelah diajukan, RAB kembali ke SPV." % f["edit_id"])
-    if not pl_path: st.warning("File Shopping List tidak ditemukan. Letakkan file Excel *Summary Final Price Shopping List* di folder yang sama dengan App.py.")
-    with st.expander("⚙️ Parameter perhitungan (asumsi dari contoh RAB, boleh diubah)", expanded=False):
-        p = f["params"]
-        a, b, c = st.columns(3)
-        p["f_mat"] = a.number_input("Faktor material (harga KUT→3E = x × harga 3E→Tsel)", 0.10, 2.0, float(p["f_mat"]), 0.01, format="%.3f", key="svw_pfm")
-        p["f_jasa"] = b.number_input("Faktor jasa (harga 3E→Tsel = harga KUT→3E × x)", 0.10, 3.0, float(p["f_jasa"]), 0.001, format="%.3f", key="svw_pfj")
-        p["hpp_pct"] = c.number_input("HPP default (% dari harga KUT→3E)", 0.0, 200.0, float(p["hpp_pct"]) * 100, 0.5, key="svw_php") / 100.0
-        d, e, g = st.columns(3)
-        p["fee_3e"] = d.number_input("Fee 3E→Telkomsel (%)", 0.0, 100.0, float(p["fee_3e"]) * 100, 0.5, key="svw_pf3") / 100.0
-        p["fee_kut"] = e.number_input("Fee KUT→3E (%)", 0.0, 100.0, float(p["fee_kut"]) * 100, 0.5, key="svw_pfk") / 100.0
-        p["biaya_lain"] = g.number_input("Biaya lain-lain (Rp)", 0.0, 1e12, float(p["biaya_lain"]), 500.0, format="%.0f", key="svw_pbl")
-        h, i, j = st.columns(3)
-        p["com_rate"] = h.number_input("Cost of Money (% per tahun)", 0.0, 100.0, float(p["com_rate"]) * 100, 0.5, key="svw_pcr") / 100.0
-        p["com_bulan"] = i.number_input("Cost of Money: jumlah bulan", 0.0, 36.0, float(p["com_bulan"]), 1.0, key="svw_pcb")
-        p["pph"] = j.number_input("PPh (% dari margin)", 0.0, 100.0, float(p["pph"]) * 100, 0.05, format="%.2f", key="svw_ppp") / 100.0
-        st.caption("Nilai awal berasal dari contoh RAB. Harga 3E→Telkomsel dan HPP per baris juga bisa diubah langsung di tabel item.")
-
-def _sv_step_sites(f, pl):
-    st.markdown("##### 2️⃣ Site, Pekerjaan & Item")
-    p = sv_params(f["params"])
-    for n, s in enumerate(list(f["sites"]), 1):
-        uid = s["uid"]
-        with st.expander("📍 Site %d" % n, expanded=True):
-            c1, c2 = st.columns([1, 2])
-            s["site_id"] = c1.text_input("Site ID", value=s["site_id"], key="svw_sid_%s" % uid, placeholder="PRC025").strip().upper()
-            s["site_name"] = c2.text_input("Nama Site", value=s["site_name"], key="svw_snm_%s" % uid, placeholder="TUMBANGMASAO").strip().upper()
-            s["pekerjaan"] = st.text_area("Pekerjaan", value=s["pekerjaan"], key="svw_job_%s" % uid, height=70, placeholder="mis. Vandalisme cable power BTS and Hybrid SPS and PLN")
-            st.markdown("**A. Jasa dan material dengan Shopping List**")
-            _sv_picker_a(f, s, pl)
-            _sv_line_editor(f, s, "A", p)
-            st.markdown("**B. Other Material ME** (di luar Shopping List — wajib lampirkan referensi harga)")
-            _sv_picker_b(s)
-            _sv_line_editor(f, s, "B", p)
-            cc1, cc2 = st.columns(2)
-            cc1.button("↺ Kembalikan harga 3E→Tsel & HPP ke otomatis", key="svw_rst_%s" % uid, on_click=_sv_reset_auto, args=(uid,), use_container_width=True)
-            if len(f["sites"]) > 1: cc2.button("🗑️ Hapus site ini", key="svw_dels_%s" % uid, on_click=_sv_del_site, args=(uid,), use_container_width=True)
-    if st.button("➕ Tambah Site", key="svw_adds", use_container_width=True):
-        f["sites"].append(_sv_new_site()); f["ver"] += 1; st.rerun()
-
-def _sv_step_hitung(f, calc):
-    st.markdown("##### 3️⃣ Hitungan Revenue & Margin")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Total ditagihkan 3E → Telkomsel", sv_rp(calc["tot_tsel"]))
-    c2.metric("Total Revenue KUT → 3E", sv_rp(calc["tot_rev"]))
-    c3.metric("Total HPP (+ biaya lain)", sv_rp(calc["tot_hpp"]))
-    d1, d2, d3, d4 = st.columns(4)
-    d1.metric("Margin", sv_rp(calc["margin"]))
-    d2.metric("GPM", "%.1f%%" % (calc["gpm"] * 100))
-    d3.metric("Cost of Money + PPh", sv_rp(calc["com"] + calc["pph"]))
-    d4.metric("Margin bersih", sv_rp(calc["net"]))
-    if calc["tot_rev"] > 0:
-        ux_progress([("HPP", calc["tot_hpp_items"], "#2563EB"), ("Biaya lain", calc["biaya_lain"], "#94A3B8"), ("Margin", max(calc["margin"], 0), "#10B981")])
-    if calc["margin"] < 0: st.error("⚠️ Margin NEGATIF. Periksa harga KUT→3E, HPP, atau biaya lain sebelum mengajukan.")
-    elif calc["tot_rev"] > 0 and calc["gpm"] < 0.05: st.warning("GPM di bawah 5%. Pastikan harga dan HPP sudah benar.")
-    rows = [{"Site": "%s %s" % (b["site_id"], b["site_name"]), "Ditagih ke Tsel": sv_rp(b["sum"]["A"]["tot_tsel"] + b["sum"]["B"]["tot_tsel"]),
-             "Revenue KUT": sv_rp(b["sum"]["A"]["rev"] + b["sum"]["B"]["rev"]), "HPP": sv_rp(b["sum"]["A"]["hpp"] + b["sum"]["B"]["hpp"])} for b in calc["sites"]]
-    if rows: st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-    st.caption("Margin = Total Revenue KUT→3E − (Total HPP + biaya lain). GPM = Margin ÷ Revenue. Margin bersih = Margin − Cost of Money − PPh.")
-
-def _sv_step_ajukan(store, user, f, rab, calc):
-    st.markdown("##### 4️⃣ Lampiran & Ajukan")
-    files = st.file_uploader("Evidence referensi harga (gambar) — wajib bila ada Other Material", type=["png", "jpg", "jpeg", "webp"],
-                             accept_multiple_files=True, key="svw_files")
-    if files: f["evidence"] = [(x.name, x.getvalue()) for x in files]
-    if f["evidence"]:
-        cc1, cc2 = st.columns([3, 1])
-        cc1.caption("%d gambar siap dilampirkan (tetap tersimpan walau Anda berpindah menu)." % len(f["evidence"]))
-        if cc2.button("Hapus lampiran", key="svw_clr_ev", use_container_width=True):
-            f["evidence"] = []; st.session_state.pop("svw_files", None); st.rerun()
-    if f.get("old_urls"): st.caption("%d lampiran lama dari pengajuan sebelumnya tetap dipakai." % len(f["old_urls"]))
-    f["catatan"] = st.text_area("Catatan untuk approver (opsional)", value=f["catatan"], key="svw_cat", height=70)
-    errs = _sv_rab_problems(rab, calc, f, len(f["evidence"]))
-    for e in errs: st.warning(e)
-    ok = st.checkbox("Saya menyatakan data RAB ini benar.", key="svw_ok")
-    label = "🚀 Ajukan Ulang RAB & Unduh Excel" if f.get("edit_id") else "🚀 Ajukan RAB & Unduh Excel"
-    if st.button(label, type="primary", use_container_width=True, disabled=bool(errs) or not ok, key="svw_submit"):
-        _sv_submit(store, user, f, rab, calc)
-
-def _sv_submit(store, user, f, rab, calc):
-    with st.spinner("Menyimpan RAB & membuat Excel..."):
-        urls = []
-        for name, raw in f["evidence"]:
-            class _F:                                   
-                def __init__(s, b): s.b = b
-                def getvalue(s): return s.b
-            u = upload_image(_F(raw), "sisava_rab_evidence")
-            if u: urls.append(u)
-        all_urls = list(f.get("old_urls") or []) + urls
-        try:
-            if f.get("edit_id"):
-                rab_id = f["edit_id"]
-                cur = next((r for r in store.list_rabs() if r.get("rab_id") == rab_id), {})
-                rec = sv_rab_to_record(rab, calc, user, rab_id, all_urls)
-                upd = {k: rec[k] for k in ("ticket_no", "nop", "area", "kota", "tot_tsel", "tot_rev", "tot_hpp", "margin", "gpm", "net", "payload", "evidence_rab")}
-                upd.update(status=S_RAB_SPV, revisi=int(_sv_num(cur.get("revisi"))) + 1, updated_at=sv_now(),
-                           spv_oleh="", spv_nama="", spv_jabatan="", spv_at="", spv_catatan="", mgr_oleh="", mgr_nama="", mgr_jabatan="", mgr_at="", mgr_catatan="",
-                           log=_sv_json(sv_log_add(cur, user, "revisi_diajukan", f["catatan"])))
-                store.update_rab(rab_id, upd)
-            else:
-                rab_id = sv_next_id(store.list_rabs())
-                rec = sv_rab_to_record(rab, calc, user, rab_id, all_urls)
-                rec["log"] = _sv_json(sv_log_add({}, user, "diajukan", f["catatan"]))
-                store.add_rab(rec)
-        except Exception as e:
-            st.error("Gagal menyimpan: %s" % e); return
-        meta = {"rab_id": rab_id, "status": S_RAB_SPV, "pembuat_nama": user["nama"], "pembuat_jabatan": user.get("jabatan", "")}
-        data = sv_build_xlsx(rab, calc, meta, [b for _, b in f["evidence"]])
-    st.session_state["sv_last"] = {"id": rab_id, "name": sv_rab_filename(rab, rab_id), "data": data, "tot": calc["tot_tsel"], "margin": calc["margin"]}
-    st.session_state["sv_autodl"] = True
-    _sv_form_reset()
-    st.rerun()
-
-def sv_page_form(store, user, pl, pl_path):
-    last = st.session_state.get("sv_last")
-    if last:
-        st.success("✅ RAB **%s** berhasil diajukan dan tercatat. Menunggu persetujuan SPV Operation." % last["id"])
-        if st.session_state.pop("sv_autodl", False): _sv_autodownload(last["data"], last["name"])
-        c1, c2 = st.columns([3, 1])
-        c1.download_button("📥 Unduh Excel RAB (jika unduhan otomatis diblokir browser)", last["data"], file_name=last["name"],
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True, type="primary", key="svw_dl_last")
-        if c2.button("Tutup", use_container_width=True, key="svw_close_last"):
-            st.session_state.pop("sv_last", None); st.rerun()
-    if "sv_form" not in st.session_state: _sv_form_reset()
-    f = st.session_state["sv_form"]
-    t1, t2, t3, t4 = st.tabs(["1️⃣ Info", "2️⃣ Site & Item", "3️⃣ Hitungan", "4️⃣ Ajukan"])
-    with t1: _sv_step_info(f, pl_path)
-    with t2: _sv_step_sites(f, pl)
-    rab = _sv_rab_from_form(f); calc = sv_calc(rab)
-    with t3: _sv_step_hitung(f, calc)
-    with t4: _sv_step_ajukan(store, user, f, rab, calc)
-    if f.get("edit_id") or any(s["items"] for s in f["sites"]) or f["ticket"]:
-        if st.button("🧹 Kosongkan form", key="svw_clear"): _sv_form_reset(); st.rerun()
-
-def _sv_act(rab_id, action, note_key=None, data=None):
-    ss = st.session_state; store = sv_store(); user = ss.get("sv_user")
-    rec = next((r for r in store.list_rabs() if r.get("rab_id") == rab_id), None)
-    if not rec or not user: ss["sv_flash"] = "!Data tidak ditemukan / sesi berakhir."; return
-    ok, msg, fields = sv_transition(rec, action, user, ss.get(note_key, "") if note_key else "", data() if callable(data) else data)
-    if not ok: ss["sv_flash"] = "!" + msg; return
-    try:
-        store.update_rab(rab_id, fields); ss["sv_flash"] = "%s (%s)" % (msg, rab_id)
-        if note_key: ss[note_key] = ""
-        if action == "sva_fill": ss.pop("sv_sva_open", None)
-    except Exception as e: ss["sv_flash"] = "!Gagal menyimpan: %s" % e
-
-def _sv_timeline(rec):
-    log = _sv_jload(rec.get("log"), []) or []
-    if not log: st.caption("Belum ada riwayat."); return
-    h = "".join('<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--ux-line)"><div style="min-width:132px;font-size:.78rem;color:var(--ux-muted)">%s</div>'
-                '<div style="font-size:.88rem"><b>%s</b> — %s%s</div></div>' % (_esc(x.get("ts", "")), _esc(_SV_AKSI.get(x.get("aksi"), x.get("aksi"))),
-                _esc(x.get("nama") or x.get("oleh")), (" · <i>“%s”</i>" % _esc(x["catatan"])) if x.get("catatan") else "") for x in log)
-    st.markdown(h, unsafe_allow_html=True)
-
-def _sv_summary(rec):
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Ditagih ke Telkomsel", sv_rp(rec.get("tot_tsel")))
-    c2.metric("Revenue KUT→3E", sv_rp(rec.get("tot_rev")))
-    c3.metric("HPP", sv_rp(rec.get("tot_hpp")))
-    d1, d2, d3 = st.columns(3)
-    d1.metric("Margin", sv_rp(rec.get("margin")))
-    d2.metric("GPM", "%.1f%%" % (_sv_num(rec.get("gpm")) * 100))
-    d3.metric("Margin bersih", sv_rp(rec.get("net")))
-
-def _sv_rec_header(rec):
-    st.markdown("**%s** · Tiket `%s` · NOP %s · diajukan %s oleh **%s**<br>%s" % (_esc(rec.get("rab_id")), _esc(rec.get("ticket_no")), _esc(rec.get("nop")),
-                _esc(str(rec.get("tgl_pengajuan"))[:16]), _esc(rec.get("nama_pembuat")), _sv_badge(rec.get("status"))), unsafe_allow_html=True)
-
-def _sv_xlsx_button(rec, key):
-    ss = st.session_state; k = "svx_%s" % key
-    if ss.get(k, (None,))[0] == str(rec.get("updated_at")):
-        data = ss[k][1]
-        st.download_button("📥 Unduh Excel RAB", data, file_name=sv_rab_filename(_sv_jload(rec.get("payload"), {}) or {}, rec.get("rab_id")),
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="svdl_%s" % key, use_container_width=True)
-    else:
-        if st.button("📄 Siapkan Excel RAB", key="svprep_%s" % key, use_container_width=True):
-            try: ss[k] = (str(rec.get("updated_at")), sv_record_xlsx(rec)); st.rerun()
-            except Exception as e: st.error("Gagal membuat Excel: %s" % e)
-
-def _sv_evidence_view(rec):
-    ev = _sv_jload(rec.get("evidence_rab"), []) or []
-    if ev: tampilkan_grid_foto(ev, "Referensi harga")
-    kr = _sv_jload(rec.get("kerja_urls"), []) or []
-    if kr:
-        tampilkan_grid_foto([u for u in kr if not str(u).lower().endswith(".pdf")], "Bukti pekerjaan")
-        for u in kr:
-            if str(u).lower().endswith(".pdf"): st.markdown("[📎 Berkas PDF](%s)" % u)
-
-def _sv_sva_view(rec):
-    d = _sv_jload(rec.get("sva"), None)
-    if d:
-        st.markdown("**Nilai SVA** — Tiket `%s` · Status tiket: %s · Urgensi: **%s**<br>Nilai SVA %s · Keperluan dana %s · Rencana pekerjaan %s<br>Keperluan: %s" % (
-            _esc(d.get("ticket_no")), _esc(d.get("status_tiket")), _esc(d.get("urgensi")), sv_rp(d.get("nilai_sva")), sv_rp(d.get("keperluan_dana")),
-            _esc(d.get("tgl_rencana")), _esc(d.get("keperluan"))), unsafe_allow_html=True)
-
-def sv_page_dashboard(user, recs):
-    n = len(recs); cnt = {s: sum(1 for r in recs if r.get("status") == s) for s in SV_PIPELINE + [S_RAB_TOLAK, S_KRJ_TOLAK]}
-    wait = cnt[S_RAB_SPV] + cnt[S_RAB_MGR] + cnt[S_KRJ_SPV] + cnt[S_KRJ_MGR]
-    run = cnt[S_RAB_OK] + cnt[S_SVA]; tolak = cnt[S_RAB_TOLAK] + cnt[S_KRJ_TOLAK]
-    ux_hero(SV_ROLES.get(user["role"], ""), "SiSAVA Dashboard", "Pantau seluruh siklus RAB sampai pekerjaan SAH.",
-            stats=[(n, "Total RAB"), (wait, "Menunggu approval"), (run, "Berjalan"), (cnt[S_DONE], "SAH")],
-            split=[("Menunggu approval", wait, "#FBBF24"), ("Berjalan", run, "#5B9BFF"), ("SAH", cnt[S_DONE], "#34D399"), ("Ditolak", tolak, "#FB7185")])
-    aksi = {"STAFF": cnt[S_RAB_OK] + cnt[S_SVA] + tolak, "SPV": cnt[S_RAB_SPV] + cnt[S_KRJ_SPV], "MANAGER": cnt[S_RAB_SPV] + cnt[S_RAB_MGR] + cnt[S_KRJ_SPV] + cnt[S_KRJ_MGR]}[user["role"]]
-    appr = [r for r in recs if r.get("status") not in (S_RAB_SPV, S_RAB_MGR, S_RAB_TOLAK)]
-    rev, mar = sum(_sv_num(r.get("tot_rev")) for r in appr), sum(_sv_num(r.get("margin")) for r in appr)
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Perlu tindakan Anda", aksi); c2.metric("Revenue (RAB disetujui)", sv_rp(rev))
-    c3.metric("Margin (RAB disetujui)", sv_rp(mar)); c4.metric("GPM", "%.1f%%" % ((mar / rev * 100) if rev else 0))
-    if n:
-        st.markdown("##### Posisi dokumen per tahap")
-        ui_bar_chart(pd.DataFrame({"Jumlah RAB": [cnt[s] for s in SV_PIPELINE]}, index=SV_PIPELINE), color="#2563EB", horizontal=True)
-        st.markdown("##### Terbaru")
-        last = sorted(recs, key=lambda r: str(r.get("tgl_pengajuan")), reverse=True)[:8]
-        st.dataframe(pd.DataFrame([{"No. RAB": r.get("rab_id"), "Tiket": r.get("ticket_no"), "NOP": r.get("nop"), "Status": r.get("status"), "Revenue": sv_rp(r.get("tot_rev")),
-                                    "Margin": sv_rp(r.get("margin"))} for r in last]), use_container_width=True, hide_index=True)
-    else: st.info("Belum ada RAB. Mulai dari menu ➕ Pengajuan RAB.")
-
-def sv_page_list(user, recs):
-    if not recs: st.info("Belum ada RAB."); return
-    c1, c2 = st.columns([2, 1])
-    q = c1.text_input("Cari (No. RAB / tiket / site / pembuat)", key="svw_lq")
-    stt = c2.multiselect("Status", SV_PIPELINE + [S_RAB_TOLAK, S_KRJ_TOLAK], key="svw_ls")
-    rows = [r for r in recs if (not stt or r.get("status") in stt) and (not q or q.lower() in (str(r.get("rab_id")) + str(r.get("ticket_no")) + str(r.get("payload"))[:3000] + str(r.get("nama_pembuat"))).lower())]
-    rows = sorted(rows, key=lambda r: str(r.get("tgl_pengajuan")), reverse=True)
-    st.dataframe(pd.DataFrame([{"No. RAB": r.get("rab_id"), "Tiket": r.get("ticket_no"), "NOP": r.get("nop"), "Pembuat": r.get("nama_pembuat"), "Status": r.get("status"),
-                                "Revenue": sv_rp(r.get("tot_rev")), "Margin": sv_rp(r.get("margin")), "GPM": "%.1f%%" % (_sv_num(r.get("gpm")) * 100)} for r in rows]),
-                 use_container_width=True, hide_index=True)
-    if not rows: return
-    ids = [r["rab_id"] for r in rows]
-    pick = st.selectbox("Buka detail RAB", ids, key="svw_lpick")
-    rec = next(r for r in rows if r["rab_id"] == pick)
-    st.markdown("---"); _sv_rec_header(rec); _sv_summary(rec)
-    a, b = st.columns(2)
-    with a: _sv_xlsx_button(rec, "list_" + pick)
-    with b:
-        if rec.get("status") == S_RAB_TOLAK and (rec.get("dibuat_oleh") == user["username"] or user["role"] == "MANAGER"):
-            st.button("✏️ Revisi RAB ini", key="svw_rev_" + pick, on_click=_sv_form_load, args=(rec,), type="primary", use_container_width=True)
-    for lab, a_, c_ in (("SPV", rec.get("spv_nama"), rec.get("spv_catatan")), ("Manager", rec.get("mgr_nama"), rec.get("mgr_catatan"))):
-        if a_ and c_: st.markdown("**Catatan %s (%s):** %s" % (lab, _esc(a_), _esc(c_)))
-    _sv_sva_view(rec); _sv_evidence_view(rec)
-    st.markdown("**Riwayat**"); _sv_timeline(rec)
-
-def sv_page_approval(user, recs):
-    can_spv, can_mgr = sv_can(user, "approve_spv"), sv_can(user, "approve_mgr")
-    stat = set()
-    if can_spv: stat |= {S_RAB_SPV, S_KRJ_SPV}
-    if can_mgr: stat |= {S_RAB_SPV, S_RAB_MGR, S_KRJ_SPV, S_KRJ_MGR}
-    q = [r for r in recs if r.get("status") in stat and (SV_ALLOW_SELF_APPROVE or r.get("dibuat_oleh") != user["username"])]
-    own = [r for r in recs if r.get("status") in stat and r.get("dibuat_oleh") == user["username"] and not SV_ALLOW_SELF_APPROVE]
-    st.markdown("##### Menunggu persetujuan Anda (%d)" % len(q))
-    if own: st.caption("%d dokumen yang Anda ajukan sendiri tidak muncul di sini (harus disetujui orang lain)." % len(own))
-    if not q: st.success("Tidak ada dokumen yang menunggu persetujuan Anda."); return
-    for r in sorted(q, key=lambda x: str(x.get("tgl_pengajuan"))):
-        rid, s_ = r["rab_id"], r["status"]
-        with st.expander("%s · %s · %s" % (rid, r.get("ticket_no"), s_), expanded=False):
-            _sv_rec_header(r); _sv_summary(r)
-            _sv_xlsx_button(r, "ap_" + rid)
-            _sv_sva_view(r); _sv_evidence_view(r)
-            st.markdown("**Riwayat**"); _sv_timeline(r)
-            nk = "svw_note_%s_%s" % (rid, s_)
-            st.text_area("Catatan (wajib bila menolak)", key=nk, height=70)
-            if s_ in (S_RAB_SPV, S_RAB_MGR): ya, tidak = ("spv_approve", "spv_reject") if (s_ == S_RAB_SPV and user["role"] == "SPV") else ("mgr_approve", "mgr_reject")
-            else: ya, tidak = ("f_spv_approve", "f_spv_reject") if (s_ == S_KRJ_SPV and user["role"] == "SPV") else ("f_mgr_approve", "f_mgr_reject")
-            lab = "✅ Setujui" + (" langsung (sebagai Manager)" if (user["role"] == "MANAGER" and s_ in (S_RAB_SPV, S_KRJ_SPV)) else "")
-            b1, b2 = st.columns(2)
-            b1.button(lab, key="svw_ok_%s_%s" % (rid, s_), type="primary", use_container_width=True, on_click=_sv_act, args=(rid, ya, nk))
-            b2.button("↩️ Tolak / minta revisi", key="svw_no_%s_%s" % (rid, s_), use_container_width=True, on_click=_sv_act, args=(rid, tidak, nk))
-
-def sv_page_sva(user, recs):
-    todo = [r for r in recs if r.get("status") == S_RAB_OK]
-    st.markdown("##### Validasi RAB & pengisian Nilai SVA (%d RAB siap)" % len(todo))
-    if not todo: st.info("Belum ada RAB yang disetujui dan menunggu pengisian Nilai SVA."); 
-    for r in todo:
-        rid = r["rab_id"]
-        with st.container(border=True):
-            _sv_rec_header(r); _sv_summary(r)
-            st.caption("✅ RAB telah disetujui SPV (%s) dan Manager (%s). Nilai di atas sudah tervalidasi." % (r.get("spv_nama") or "-", r.get("mgr_nama") or "-"))
-            if sv_can(user, "sva_fill"):
-                if st.session_state.get("sv_sva_open") != rid:
-                    st.button("🧾 Isi Nilai SVA", key="svw_open_%s" % rid, type="primary", use_container_width=True, on_click=lambda i=rid: st.session_state.update(sv_sva_open=i))
-                else:
-                    k = lambda x: "svw_sva_%s_%s" % (x, rid)
-                    c1, c2 = st.columns(2)
-                    c1.text_input("No. Tiket", value=str(r.get("ticket_no", "")), key=k("t"))
-                    c2.selectbox("Status Tiket", SV_STATUS_TIKET, key=k("st"))
-                    c3, c4 = st.columns(2)
-                    c3.number_input("Nilai SVA (Rp)", min_value=0.0, value=float(_sv_num(r.get("tot_tsel"))), step=1000.0, format="%.0f", key=k("n"))
-                    c4.number_input("Keperluan Dana (Rp)", min_value=0.0, value=float(_sv_num(r.get("tot_hpp"))), step=1000.0, format="%.0f", key=k("d"))
-                    c5, c6 = st.columns(2)
-                    c5.selectbox("Urgensi Pekerjaan", SV_URGENSI, key=k("u"))
-                    c6.date_input("Rencana tanggal pekerjaan diajukan", value=_dtm.date.today() + _dtm.timedelta(days=1), key=k("tg"))
-                    st.text_area("Keperluan / uraian pekerjaan", key=k("kp"), height=80)
-                    def _data(rid=rid):
-                        g = st.session_state.get
-                        return {"ticket_no": str(g("svw_sva_t_%s" % rid, "")).strip(), "status_tiket": g("svw_sva_st_%s" % rid, ""), "nilai_sva": g("svw_sva_n_%s" % rid, 0),
-                                "keperluan_dana": g("svw_sva_d_%s" % rid, 0), "urgensi": g("svw_sva_u_%s" % rid, ""), "keperluan": str(g("svw_sva_kp_%s" % rid, "")).strip(),
-                                "tgl_rencana": str(g("svw_sva_tg_%s" % rid, ""))}
-                    b1, b2 = st.columns(2)
-                    b1.button("💾 Simpan Nilai SVA", key="svw_save_%s" % rid, type="primary", use_container_width=True, on_click=_sv_act, args=(rid, "sva_fill", None, _data))
-                    b2.button("Batal", key="svw_cancel_%s" % rid, use_container_width=True, on_click=lambda: st.session_state.pop("sv_sva_open", None))
-    done = [r for r in recs if r.get("sva")]
-    if done:
-        st.markdown("##### Nilai SVA yang sudah diisi")
-        st.dataframe(pd.DataFrame([{"No. RAB": r["rab_id"], "Tiket": (_sv_jload(r["sva"], {}) or {}).get("ticket_no"), "Status Tiket": (_sv_jload(r["sva"], {}) or {}).get("status_tiket"),
-                                    "Urgensi": (_sv_jload(r["sva"], {}) or {}).get("urgensi"), "Nilai SVA": sv_rp((_sv_jload(r["sva"], {}) or {}).get("nilai_sva")),
-                                    "Keperluan Dana": sv_rp((_sv_jload(r["sva"], {}) or {}).get("keperluan_dana")), "Rencana": (_sv_jload(r["sva"], {}) or {}).get("tgl_rencana"),
-                                    "Status": r["status"]} for r in done]), use_container_width=True, hide_index=True)
-
-def sv_page_kerja(user, recs):
-    todo = [r for r in recs if r.get("status") in (S_SVA, S_KRJ_TOLAK)]
-    st.markdown("##### Upload bukti pekerjaan (%d menunggu)" % len(todo))
-    if not todo: st.info("Tidak ada pekerjaan yang menunggu unggahan bukti."); return
-    pick = st.selectbox("Pilih RAB / pekerjaan", [r["rab_id"] for r in todo], format_func=lambda i: "%s · %s" % (i, next(x for x in todo if x["rab_id"] == i).get("ticket_no")), key="svw_kpick")
-    r = next(x for x in todo if x["rab_id"] == pick)
-    _sv_rec_header(r); _sv_sva_view(r)
-    if r.get("status") == S_KRJ_TOLAK: st.warning("Pekerjaan ditolak. Catatan SPV: %s · Catatan Manager: %s" % (r.get("f_spv_catatan") or "-", r.get("f_mgr_catatan") or "-"))
-    if not sv_can(user, "kerja_upload"): st.info("Akun Anda tidak berwenang mengunggah pekerjaan."); return
-    fs = st.file_uploader("Foto / berkas bukti pekerjaan (sebelum, sesudah, BA, dll.)", type=["png", "jpg", "jpeg", "webp", "pdf"], accept_multiple_files=True, key="svw_kf_" + pick)
-    cat = st.text_area("Catatan pekerjaan", key="svw_kc_" + pick, height=80)
-    if st.button("📤 Kirim Bukti Pekerjaan", type="primary", use_container_width=True, key="svw_ksend_" + pick, disabled=not fs):
-        with st.spinner("Mengunggah bukti..."):
-            urls = []
-            for fobj in fs:
-                u = upload_datalog(fobj, "sisava_pekerjaan") if fobj.name.lower().endswith(".pdf") else upload_image(fobj, "sisava_pekerjaan")
-                if u: urls.append(u)
-        if len(urls) < len(fs): st.error("Sebagian berkas gagal diunggah (%d dari %d berhasil). Coba lagi." % (len(urls), len(fs)))
-        else:
-            ss = st.session_state; ss["svw_kc_tmp"] = cat
-            _sv_act(pick, "kerja_upload", "svw_kc_tmp", {"urls": urls}); st.rerun()
-
-def sv_page_kelola(store, user):
-    t1, t2, t3 = st.tabs(["👥 Akun", "💲 Shopping List", "📊 Rekap"])
-    with t1:
-        users = store.list_users()
-        st.dataframe(pd.DataFrame([{"Username": u.get("username"), "Nama": u.get("nama"), "Jabatan": u.get("jabatan"), "Role": SV_ROLES.get(u.get("role"), u.get("role")),
-                                    "Aktif": "Ya" if str(u.get("aktif", "1")) not in ("0", "False", "false") else "Tidak"} for u in users]), use_container_width=True, hide_index=True)
-        with st.expander("➕ Tambah akun", expanded=False):
-            a, b = st.columns(2)
-            nu = a.text_input("Username", key="svw_nu"); nn = b.text_input("Nama lengkap", key="svw_nn")
-            c, d = st.columns(2)
-            nj = c.text_input("Jabatan (tampil di tanda tangan Excel)", key="svw_nj", placeholder="mis. Spv Support Reg. Kalimantan")
-            nr = d.selectbox("Role", list(SV_ROLES), format_func=lambda x: SV_ROLES[x], key="svw_nr")
-            npw = st.text_input("Sandi awal (min. 8 karakter)", type="password", key="svw_npw")
-            if st.button("Simpan akun baru", key="svw_nsave", type="primary"):
-                msg = sv_validate_new_user({"username": nu.strip(), "nama": nn, "role": nr}, npw)
-                if not msg and sv_user_find(store, nu): msg = "Username sudah dipakai."
-                if msg: st.error(msg)
-                else:
-                    store.upsert_user({"username": nu.strip(), "nama": nn.strip(), "jabatan": nj.strip(), "role": nr, "pw_hash": sv_hash_pw(npw), "aktif": "1", "dibuat": sv_now()})
-                    st.success("Akun %s dibuat." % nu.strip()); st.rerun()
-        if users:
-            with st.expander("🔑 Reset sandi / nonaktifkan akun", expanded=False):
-                un = st.selectbox("Pilih akun", [u["username"] for u in users], key="svw_rpick")
-                npw2 = st.text_input("Sandi baru (min. 8 karakter)", type="password", key="svw_rpw")
-                x1, x2 = st.columns(2)
-                if x1.button("Reset sandi", key="svw_rreset", use_container_width=True):
-                    if len(npw2) < 8: st.error("Sandi minimal 8 karakter.")
-                    else: store.upsert_user({"username": un, "pw_hash": sv_hash_pw(npw2)}); st.success("Sandi %s direset." % un)
-                cur = sv_user_find(store, un) or {}
-                aktif = str(cur.get("aktif", "1")) not in ("0", "False", "false")
-                managers = [u for u in users if u.get("role") == "MANAGER" and str(u.get("aktif", "1")) not in ("0", "False", "false")]
-                if x2.button("Nonaktifkan" if aktif else "Aktifkan", key="svw_rtoggle", use_container_width=True):
-                    if aktif and (un == user["username"] or (cur.get("role") == "MANAGER" and len(managers) <= 1)): st.error("Tidak dapat menonaktifkan akun Anda sendiri / Manager aktif terakhir.")
-                    else: store.upsert_user({"username": un, "aktif": "0" if aktif else "1"}); st.rerun()
-    with t2:
-        pl, path = sv_pricelist()
-        if not pl: st.warning("File Shopping List belum ditemukan di folder aplikasi."); 
-        else:
-            st.success("Terbaca %d item dari `%s` (%d berharga tetap)." % (len(pl), os.path.basename(path), sum(1 for i in pl if i["price"])))
-            q = st.text_input("Cari uraian", key="svw_plq")
-            rows = [{"Kategori": i["cat"], "Uraian": i["desc"], "UoM": i["uom"], "Jenis": i["jenis"], "Kalimantan": i["price"].get("KALIMANTAN"), "Sulawesi": i["price"].get("SULAWESI"),
-                     "PUMA": i["price"].get("PUMA"), "Keterangan": i["ket"]} for i in pl if not q or q.lower() in i["desc"].lower()][:400]
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-            st.caption("Untuk memperbarui harga, ganti file Excel di folder aplikasi lalu deploy ulang (cache otomatis membaca file baru).")
-    with t3:
-        recs = store.list_rabs()
-        st.caption("%d RAB tercatat." % len(recs))
-        if recs: st.download_button("📥 Unduh Rekap Seluruh RAB (Excel)", sv_rekap_xlsx(recs), file_name="Rekap_SiSAVA.xlsx",
-                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True, key="svw_rekap")
-
-def _sv_logout(): st.session_state.pop("sv_user", None)
-
-def _sv_login_view(store):
-    ss = st.session_state
-    ux_hero("AKUN SiSAVA", "SiSAVA", "Sistem Service Variable Activity — RAB, Approval, Nilai SVA, dan Bukti Pekerjaan.")
-    users = store.list_users()
-    
-    # --- BLOK PEMBUATAN AKUN OLEH ADMIN (TERLIHAT JIKA LOGIN SEBAGAI ADMIN SIDATA) ---
-    if ss.get("role") == "Admin":
-        with st.expander("🛠️ Manajemen Akun SiSAVA (Khusus Admin SiDATA)", expanded=(not users)):
-            if not users:
-                st.warning("Belum ada akun SiSAVA yang terdaftar. Silakan buat akun Manager pertama di bawah ini.")
-            st.markdown("##### ➕ Buat Akun SiSAVA Baru")
-            a, b = st.columns(2)
-            nu = a.text_input("Username Baru", key="svw_nu_adm")
-            nn = b.text_input("Nama Lengkap", key="svw_nn_adm")
-            c, d = st.columns(2)
-            nj = c.text_input("Jabatan", key="svw_nj_adm", placeholder="mis. Spv Support Reg. Kalimantan")
-            nr = d.selectbox("Role", list(SV_ROLES), format_func=lambda x: SV_ROLES[x], key="svw_nr_adm")
-            npw = st.text_input("Sandi (min. 8 karakter)", type="password", key="svw_npw_adm")
-            
-            if st.button("Simpan Akun Baru", key="svw_nsave_adm", type="primary"):
-                msg = sv_validate_new_user({"username": nu.strip(), "nama": nn, "role": nr}, npw)
-                if not msg and sv_user_find(store, nu): msg = "Username sudah dipakai."
-                if msg: st.error(msg)
-                else:
-                    store.upsert_user({"username": nu.strip(), "nama": nn.strip(), "jabatan": nj.strip(), "role": nr, "pw_hash": sv_hash_pw(npw), "aktif": "1", "dibuat": sv_now()})
-                    st.success("Akun %s berhasil dibuat." % nu.strip()); st.rerun()
-            
-            if users:
-                st.markdown("---")
-                st.markdown("##### 🔑 Reset Sandi Akun")
-                ru = st.selectbox("Pilih Akun", [x["username"] for x in users], key="svw_ru")
-                rp = st.text_input("Sandi Baru (min. 8 karakter)", type="password", key="svw_rp")
-                if st.button("Reset Sandi", key="svw_rgo"):
-                    if len(rp) < 8: st.error("Sandi minimal 8 karakter.")
-                    else: store.upsert_user({"username": ru, "pw_hash": sv_hash_pw(rp)}); st.success("Sandi %s berhasil direset." % ru)
-    
-    if not users:
-        if ss.get("role") != "Admin":
-            st.info("Sistem belum memiliki akun SiSAVA. Hubungi Admin SiDATA untuk mendaftarkan akun pertama."); 
-        return
-
-    # --- BLOK LOGIN SISAVA ---
-    locked = ss.get("sv_lock_until", 0) - _dtm.datetime.now().timestamp()
-    c = st.columns([1, 2, 1])[1]
-    with c:
-        u = st.text_input("Username SiSAVA", key="svw_lu"); p = st.text_input("Sandi SiSAVA", type="password", key="svw_lp")
-        if locked > 0: st.error("Terlalu banyak percobaan gagal. Coba lagi dalam %d detik." % int(locked))
-        if st.button("🔓 Masuk SiSAVA", type="primary", use_container_width=True, key="svw_lgo", disabled=locked > 0):
-            usr = sv_login(store, u, p)
-            if usr:
-                ss["sv_user"] = usr; ss["sv_fail"] = 0; ss["sv_nav"] = "🏠 Dashboard"; st.rerun()
-            else:
-                ss["sv_fail"] = ss.get("sv_fail", 0) + 1
-                if ss["sv_fail"] >= 5: ss["sv_lock_until"] = _dtm.datetime.now().timestamp() + 60; ss["sv_fail"] = 0
-                st.error("Username atau sandi salah, atau akun nonaktif.")
-
-def sisava_page():
-    ss = st.session_state
-    store = sv_store()
-    _sv_flash()
-    if store.kind == "lokal": st.warning("⚠️ Google Sheets belum tersambung (st.secrets 'gcp_json'). Data disimpan sementara di file lokal dan bisa hilang saat aplikasi restart.")
-    user = ss.get("sv_user")
-    if not user: _sv_login_view(store); return
-    c1, c2 = st.columns([4, 1])
-    c1.markdown("<div style='padding:8px 2px'>👤 <b>%s</b> · %s%s</div>" % (_esc(user["nama"]), _esc(SV_ROLES.get(user["role"], "")), (" · " + _esc(user["jabatan"])) if user.get("jabatan") else ""), unsafe_allow_html=True)
-    c2.button("Keluar SiSAVA", key="svw_logout", on_click=_sv_logout, use_container_width=True)
-    nav = ["🏠 Dashboard", "➕ Pengajuan RAB", "📋 Daftar RAB"]
-    if sv_can(user, "approve_spv") or sv_can(user, "approve_mgr"): nav.append("✅ Approval")
-    nav += ["🧾 Nilai SVA", "📤 Upload Pekerjaan"]
-    if sv_can(user, "manage_users"): nav.append("🛠️ Kelola")
-    if ss.get("sv_nav") not in nav: ss["sv_nav"] = nav[0]
-    page = st.radio("Menu SiSAVA", nav, horizontal=True, key="sv_nav", label_visibility="collapsed")
-    try: recs = sv_visible(store.list_rabs(), user)
-    except Exception as e: st.error("Gagal membaca database SiSAVA: %s" % e); return
-    if page == "🏠 Dashboard": sv_page_dashboard(user, recs)
-    elif page == "➕ Pengajuan RAB":
-        pl, path = sv_pricelist(); sv_page_form(store, user, pl, path)
-    elif page == "📋 Daftar RAB": sv_page_list(user, recs)
-    elif page == "✅ Approval": sv_page_approval(user, recs)
-    elif page == "🧾 Nilai SVA": sv_page_sva(user, recs)
-    elif page == "📤 Upload Pekerjaan": sv_page_kerja(user, recs)
-    elif page == "🛠️ Kelola": sv_page_kelola(store, user)
-# =============================================================================
-
-# =============================================================================
-# 💠 INTERNAL FUNGSI SiSAVA — Sistem Service Variable Activity
-# =============================================================================
-import hashlib as _hl
-import hmac as _hmac
-import glob as _glob
-import io as _io
-import secrets as _pysecrets
-import datetime as _dtm
-
-SV_MENU = "💠 SiSAVA"
-SV_AREAS = ["KALIMANTAN", "SULAWESI", "PUMA"]
-SV_NOPS = ["PALANGKA RAYA", "PANGKALAN BUN"]
-SV_PRICELIST_PATTERNS = ["Summary*Final*Price*.xlsx", "*Shoping*List*.xlsx", "*Shopping*List*.xlsx"]
-SV_LOCAL_DB = "sisava_local_db.json"        
-SV_ALLOW_SELF_APPROVE = False               
-
-SV_PARAMS_DEFAULT = dict(
-    f_mat=0.92, f_jasa=1.177, hpp_pct=0.85, fee_3e=0.0, fee_kut=0.0, biaya_lain=0.0,
+    f_mat=0.92, f_jasa=0.85, hpp_pct=0.85, fee_3e=0.0, fee_kut=0.0, biaya_lain=0.0,
     com_rate=0.075, com_bulan=3.0, pph=0.0285
 )
 SV_JASA_KW = ("jasa", "instalasi", "pemasangan", "pekerjaan", "perbaikan", "relokasi", "rebalancing", "sewa", "mobilisasi",
@@ -2525,9 +1363,10 @@ SV_STATUS_COLOR = {S_RAB_SPV: "#F59E0B", S_RAB_MGR: "#F59E0B", S_RAB_TOLAK: "#E1
                    S_KRJ_SPV: "#F59E0B", S_KRJ_MGR: "#F59E0B", S_KRJ_TOLAK: "#E11D48", S_DONE: "#059669"}
 SV_PIPELINE = [S_RAB_SPV, S_RAB_MGR, S_RAB_OK, S_SVA, S_KRJ_SPV, S_KRJ_MGR, S_DONE]
 
-SV_ROLES = {"STAFF": "Staff / Tim Operation", "SPV": "SPV Operation", "MANAGER": "Manager"}
+SV_ROLES = {"STAFF": "Staff / Tim Operation", "SPV": "SPV Operation", "MANAGER": "Manager", "ENGINEERING": "Tim Engineering"}
 SV_PERMS = {
     "STAFF":   {"rab_create", "sva_fill", "kerja_upload"},
+    "ENGINEERING": {"rab_create", "sva_fill", "kerja_upload"},
     "SPV":     {"rab_create", "sva_fill", "kerja_upload", "approve_spv", "view_all"},
     "MANAGER": {"rab_create", "sva_fill", "kerja_upload", "approve_spv", "approve_mgr", "view_all", "manage_users", "pricelist", "rekap"},
 }
@@ -2556,44 +1395,65 @@ def sv_now(): return _dtm.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 def sv_guess_jenis(desc): return "Jasa" if any(k in str(desc).lower() for k in SV_JASA_KW) else "Material"
 
 def sv_find_pricelist():
-    bases = [os.getcwd()]
+    import os as _os
+    bases = [_os.getcwd()]
     for b in bases:
         for pat in SV_PRICELIST_PATTERNS:
-            hits = sorted(_glob.glob(os.path.join(b, pat)))
+            hits = sorted(_glob.glob(_os.path.join(b, pat)))
             hits = [h for h in hits if "~$" not in h]
             if hits: return hits[0]
     return None
 
 def sv_parse_pricelist(df):
     items, cat = [], "Umum"
-    for r in range(3, len(df)):
+    n = len(df)
+    
+    col_desc = 1
+    col_uom = 2
+    col_kali = 5
+    
+    for c in range(df.shape[1]):
+        val = str(df.iat[0, c]).upper()
+        if "DESCRIP" in val or "DESKRIPSI" in val: col_desc = c
+        elif "UOM" in val or "SATUAN" in val: col_uom = c
+        elif "KALIMANTAN" in val: col_kali = c
+
+    for r in range(3, n):
         def g(c):
             try: v = df.iat[r, c]
             except: return None
             return None if (v is None or (isinstance(v, float) and v != v)) else v
-        a, b = g(0), g(1)
+            
+        a = g(0)
+        b = g(col_desc)
+        
         if b is None or str(b).strip() == "":
-            if isinstance(a, str) and a.strip() not in ("", "-", "xxx"): cat = a.strip()
+            if isinstance(a, str) and a.strip() not in ("", "-", "xxx", "NO"): cat = a.strip()
             continue
+            
         price, ket = {}, ""
-        for area, c in zip(SV_AREAS, (5, 6, 7)):
-            v = g(c)
-            if isinstance(v, (int, float)) and not isinstance(v, bool): price[area] = float(v)
-            elif isinstance(v, str) and v.strip() not in ("", "-"): ket = v.strip()
-        items.append(dict(uid=f"{a if a is not None else 'x'}-{r}", no=a, cat=cat, desc=" ".join(str(b).split()), uom=str(g(2) or "").strip(),
-                          remark=str(g(3) or "").strip(), price=price, ket=ket, jenis=sv_guess_jenis(" ".join(str(b).split()))))
+        v = g(col_kali)
+        if isinstance(v, (int, float)) and not isinstance(v, bool): price["KALIMANTAN"] = float(v)
+        elif isinstance(v, str) and v.strip() not in ("", "-"): ket = v.strip()
+            
+        desc = " ".join(str(b).split())
+        items.append(dict(uid=f"{a if a is not None else 'x'}-{r}", no=a, cat=cat, desc=desc, uom=str(g(col_uom) or "").strip(),
+                          price=price, ket=ket, jenis=sv_guess_jenis(desc)))
     return items
 
 @st.cache_data(show_spinner=False, max_entries=4)
 def _sv_load_pricelist(path, stamp):
-    try: df = read_excel_cached(path, sheet_name="List", header=None)
-    except: df = pd.read_excel(path, sheet_name="List", header=None)
+    try: df = read_excel_cached(path, sheet_name="List (2)", header=None)
+    except: 
+        try: df = read_excel_cached(path, sheet_name="Sheet1", header=None)
+        except: df = pd.read_excel(path, header=None)
     return sv_parse_pricelist(df)
 
 def sv_pricelist():
+    import os as _os
     p = sv_find_pricelist()
     if not p: return [], None
-    stt = os.stat(p)
+    stt = _os.stat(p)
     return _sv_load_pricelist(p, (stt.st_mtime_ns, stt.st_size)), p
 
 def sv_params(p=None):
@@ -2603,15 +1463,20 @@ def sv_params(p=None):
     return d
 
 def sv_line_calc(line, p):
-    qty, hk = _sv_num(line.get("qty")), _sv_num(line.get("harga_kut"))
-    ht = line.get("harga_tsel")
-    if ht is None or ht == "": ht = hk / p["f_mat"] if line.get("jenis") == "Material" else hk * p["f_jasa"]
-    ht = _sv_num(ht)
-    hp = line.get("hpp")
+    qty, ht = _sv_num(line.get("qty")), _sv_num(line.get("harga_tsel")) # Harga dasar = Tagihan 3E ke Tsel
+    hk = line.get("harga_kut") # Tagihan KUT ke 3E
+    
+    if hk is None or hk == "":
+        hk = ht * p["f_mat"] if line.get("jenis") == "Material" else ht * p["f_jasa"]
+    hk = _sv_num(hk)
+    
+    hp = line.get("hpp") # HPP Lapangan
     hp = hk * p["hpp_pct"] if (hp is None or hp == "") else _sv_num(hp)
+    
     sub_t = ht * qty; fee_t = sub_t * p["fee_3e"]
     sub_k = hk * qty; fee_k = sub_k * p["fee_kut"]
-    return dict(qty=qty, harga_kut=hk, harga_tsel=ht, hpp_unit=hp, sub_tsel=sub_t, fee_tsel=fee_t, tot_tsel=sub_t + fee_t,
+    
+    return dict(qty=qty, harga_tsel=ht, harga_kut=hk, hpp_unit=hp, sub_tsel=sub_t, fee_tsel=fee_t, tot_tsel=sub_t + fee_t,
                 sub_kut=sub_k, fee_kut=fee_k, rev=sub_k + fee_k, hpp=hp * qty)
 
 def sv_calc(rab):
@@ -2681,8 +1546,8 @@ def sv_build_xlsx(rab, calc, meta=None, images=None):
     if meta.get("rab_id"):
         put("N3", "No. Dokumen", size=10, italic=True, brd=False); put("Q3", ": " + meta["rab_id"], size=10, italic=True, brd=False)
         put("N4", "Status", size=10, italic=True, brd=False); put("Q4", ": " + str(meta.get("status", "")), size=10, italic=True, brd=False)
-    heads = ["NO", "SITE ID", "SITE NAME", "PEKERJAAN", "SL", "Pekerjaan", "SL", "HARGA SATUAN", "QTY", "Sub Total", "Fee", "Nilai Fee", "TOTAL",
-             "SL KUT-3E", "QTY", "Sub Total", "Fee", "Nilai Fee", "TOTAL REVENUE", "NILAI HPP", "TOTAL HPP"]
+    heads = ["NO", "SITE ID", "SITE NAME", "PEKERJAAN", "SL", "Pekerjaan", "SL", "HARGA 3E (Tsel)", "QTY", "Sub Total", "Fee", "Nilai Fee", "TOTAL",
+             "HARGA KUT (3E)", "QTY", "Sub Total", "Fee", "Nilai Fee", "TOTAL REVENUE", "NILAI HPP", "TOTAL HPP"]
     for i, t in enumerate(heads):
         put("%s5" % cols[i], t, bold=True, color="FFFFFF", fill=(BLUE if i < 13 else PINK), h="center", wrap=True, size=12 if i not in (0, 4) else 11)
     ws.row_dimensions[5].height = 40
@@ -2793,10 +1658,10 @@ def sv_rab_filename(rab, rab_id=""):
     return _re.sub(r"[^A-Za-z0-9_.-]+", "_", base).strip("_")[:120] + ".xlsx"
 
 def _sv_json(o):
-    return _json.dumps(o, ensure_ascii=False, separators=(",", ":"), default=str)
+    return json.dumps(o, ensure_ascii=False, separators=(",", ":"), default=str)
 
 def _sv_jload(s, default=None):
-    try: return _json.loads(s) if s else default
+    try: return json.loads(s) if s else default
     except Exception: return default
 
 class _SvLocalStore:
@@ -2804,11 +1669,11 @@ class _SvLocalStore:
     def __init__(self, path=None): self.path = path or SV_LOCAL_DB
     def _read(self):
         try:
-            with open(self.path, "r", encoding="utf-8") as f: return _json.load(f)
+            with open(self.path, "r", encoding="utf-8") as f: return json.load(f)
         except Exception: return {"rab": [], "users": []}
     def _write(self, d):
         tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f: _json.dump(d, f, ensure_ascii=False)
+        with open(tmp, "w", encoding="utf-8") as f: json.dump(d, f, ensure_ascii=False)
         os.replace(tmp, self.path)
     def list_rabs(self): return self._read()["rab"]
     def list_users(self): return self._read()["users"]
@@ -3072,7 +1937,7 @@ def _sv_add_a(uid):
     if not s or not item: return
     price = item["price"].get(f["area"])
     s["items"].append({"sec": "A", "jenis": item["jenis"], "desc": item["desc"], "uom": item["uom"], "qty": _sv_num(ss.get("svw_qty_%s" % uid, 1)) or 1.0,
-                       "harga_kut": float(price or 0.0), "harga_tsel": None, "hpp": None, "ref": item["uid"]})
+                       "harga_tsel": float(price or 0.0), "harga_kut": None, "hpp": None, "ref": item["uid"]})
     f["ver"] += 1
     if price is None: ss["sv_flash"] = "!Item ini tidak punya harga tetap (%s). Isi harga di tabel." % (item["ket"] or "harga manual")
 
@@ -3083,8 +1948,8 @@ def _sv_add_b(uid):
     if not s or not desc: ss["sv_flash"] = "!Isi uraian Other Material terlebih dahulu."; return
     hpp = _sv_num(ss.get("svw_bh_%s" % uid, 0))
     s["items"].append({"sec": "B", "jenis": ss.get("svw_bj_%s" % uid, "Material"), "desc": desc, "uom": str(ss.get("svw_bu_%s" % uid, "")).strip(),
-                       "qty": _sv_num(ss.get("svw_bq_%s" % uid, 1)) or 1.0, "harga_kut": _sv_num(ss.get("svw_bk_%s" % uid, 0)),
-                       "harga_tsel": None, "hpp": hpp if hpp > 0 else None})
+                       "qty": _sv_num(ss.get("svw_bq_%s" % uid, 1)) or 1.0, "harga_tsel": _sv_num(ss.get("svw_bt_%s" % uid, 0)),
+                       "harga_kut": _sv_num(ss.get("svw_bk_%s" % uid, 0)), "hpp": hpp if hpp > 0 else None})
     f["ver"] += 1
 
 def _sv_del_site(uid):
@@ -3095,7 +1960,7 @@ def _sv_reset_auto(uid):
     f = st.session_state["sv_form"]
     for s in f["sites"]:
         if s["uid"] == uid:
-            for ln in s["items"]: ln["harga_tsel"] = None; ln["hpp"] = None
+            for ln in s["items"]: ln["harga_kut"] = None; ln["hpp"] = None
     f["ver"] += 1
 
 def _sv_line_editor(f, s, sec, p):
@@ -3105,30 +1970,30 @@ def _sv_line_editor(f, s, sec, p):
     rows = []
     for i in idxs:
         ln = items[i]; c = sv_line_calc(ln, p)
-        rows.append({"Jenis": ln["jenis"], "Uraian": ln["desc"], "UoM": ln.get("uom", ""), "Qty": float(c["qty"]), "Harga KUT→3E": round(c["harga_kut"], 2),
-                     "Harga 3E→Tsel": round(c["harga_tsel"], 2), "HPP/unit": round(c["hpp_unit"], 2), "Hapus": False})
+        rows.append({"Jenis": ln["jenis"], "Uraian": ln["desc"], "UoM": ln.get("uom", ""), "Qty": float(c["qty"]), "Harga 3E→Tsel": round(c["harga_tsel"], 2),
+                     "Harga KUT→3E": round(c["harga_kut"], 2), "HPP Lapangan": round(c["hpp_unit"], 2), "Hapus": False})
     df = pd.DataFrame(rows)
     ed = st.data_editor(df, key="svw_ed_%s_%s_%d" % (uid, sec, f["ver"]), hide_index=True, use_container_width=True, num_rows="fixed",
                         disabled=["Uraian", "UoM"],
                         column_config={"Jenis": st.column_config.SelectboxColumn("Jenis", options=["Material", "Jasa"], required=True, width="small"),
                                        "Uraian": st.column_config.TextColumn("Uraian", width="large"),
                                        "Qty": st.column_config.NumberColumn("Qty", min_value=0.0, step=1.0, format="%.2f", width="small"),
-                                       "Harga KUT→3E": st.column_config.NumberColumn("Harga KUT→3E", min_value=0.0, format="%.2f"),
                                        "Harga 3E→Tsel": st.column_config.NumberColumn("Harga 3E→Tsel", min_value=0.0, format="%.2f"),
-                                       "HPP/unit": st.column_config.NumberColumn("HPP/unit", min_value=0.0, format="%.2f"),
+                                       "Harga KUT→3E": st.column_config.NumberColumn("Harga KUT→3E", min_value=0.0, format="%.2f"),
+                                       "HPP Lapangan": st.column_config.NumberColumn("HPP Lapangan", min_value=0.0, format="%.2f"),
                                        "Hapus": st.column_config.CheckboxColumn("Hapus", width="small")})
     drop = []
     for k, i in enumerate(idxs):
         er, orig, ln = ed.iloc[k], rows[k], items[i]
         if bool(er["Hapus"]): drop.append(i); continue
-        ln["jenis"] = er["Jenis"]; ln["qty"] = _sv_num(er["Qty"]); ln["harga_kut"] = _sv_num(er["Harga KUT→3E"])
-        if abs(_sv_num(er["Harga 3E→Tsel"]) - orig["Harga 3E→Tsel"]) > 0.005: ln["harga_tsel"] = _sv_num(er["Harga 3E→Tsel"])
-        if abs(_sv_num(er["HPP/unit"]) - orig["HPP/unit"]) > 0.005: ln["hpp"] = _sv_num(er["HPP/unit"])
+        ln["jenis"] = er["Jenis"]; ln["qty"] = _sv_num(er["Qty"]); ln["harga_tsel"] = _sv_num(er["Harga 3E→Tsel"])
+        if abs(_sv_num(er["Harga KUT→3E"]) - orig["Harga KUT→3E"]) > 0.005: ln["harga_kut"] = _sv_num(er["Harga KUT→3E"])
+        if abs(_sv_num(er["HPP Lapangan"]) - orig["HPP Lapangan"]) > 0.005: ln["hpp"] = _sv_num(er["HPP Lapangan"])
     if drop: s["items"] = [ln for j, ln in enumerate(items) if j not in drop]; f["ver"] += 1; st.rerun()
 
 def _sv_picker_a(f, s, pl):
     uid, ss = s["uid"], st.session_state
-    if not pl: st.info("Daftar Shopping List belum terbaca. Gunakan Other Material (bagian B), atau letakkan file Excel Shopping List di folder aplikasi."); return
+    if not pl: st.info("Daftar Shopping List belum terbaca. Gunakan Other Material (bagian B), atau pastikan file Excel Shopping List ada di folder aplikasi."); return
     c1, c2 = st.columns([1, 2])
     cat = c1.selectbox("Kategori", ["Semua kategori"] + sorted({i["cat"] for i in pl}), key="svw_cat_%s" % uid)
     q = c2.text_input("Cari uraian", key="svw_q_%s" % uid, placeholder="mis. kabel twist 4 x 25")
@@ -3155,9 +2020,10 @@ def _sv_picker_b(s):
         c1.selectbox("Jenis", ["Material", "Jasa"], key="svw_bj_%s" % uid)
         c2.text_input("UoM", key="svw_bu_%s" % uid, placeholder="meter / unit")
         c3.number_input("Qty", min_value=0.0, value=1.0, step=1.0, key="svw_bq_%s" % uid)
-        c4, c5 = st.columns(2)
-        c4.number_input("Harga KUT→3E (per unit)", min_value=0.0, value=0.0, step=1000.0, key="svw_bk_%s" % uid)
-        c5.number_input("HPP per unit (0 = otomatis)", min_value=0.0, value=0.0, step=1000.0, key="svw_bh_%s" % uid)
+        c4, c5, c6 = st.columns(3)
+        c4.number_input("Harga 3E→Tsel", min_value=0.0, value=0.0, step=1000.0, key="svw_bt_%s" % uid)
+        c5.number_input("Harga KUT→3E (0 = otomatis)", min_value=0.0, value=0.0, step=1000.0, key="svw_bk_%s" % uid)
+        c6.number_input("HPP Lapangan (0 = otomatis)", min_value=0.0, value=0.0, step=1000.0, key="svw_bh_%s" % uid)
         st.button("➕ Tambah Other Material", key="svw_addb_%s" % uid, on_click=_sv_add_b, args=(uid,), use_container_width=True)
 
 def _sv_step_info(f, pl_path):
@@ -3171,13 +2037,13 @@ def _sv_step_info(f, pl_path):
     f["kota"] = c4.text_input("Kota (untuk tanda tangan)", value=f["kota"], key="svw_kota")
     f["tanggal"] = c5.date_input("Tanggal RAB", value=_dtm.date.fromisoformat(f["tanggal"][:10]), key="svw_tgl").isoformat()
     if f.get("edit_id"): st.info("✏️ Mode REVISI untuk %s. Setelah diajukan, RAB kembali ke SPV." % f["edit_id"])
-    if not pl_path: st.warning("File Shopping List tidak ditemukan. Letakkan file Excel *Summary Final Price Shopping List* di folder yang sama dengan App.py.")
-    with st.expander("⚙️ Parameter perhitungan (asumsi dari contoh RAB, boleh diubah)", expanded=False):
+    if not pl_path: st.warning("File Shopping List tidak ditemukan. Letakkan file Excel di folder yang sama dengan App.py.")
+    with st.expander("⚙️ Parameter perhitungan (RAB KUT & HPP)", expanded=False):
         p = f["params"]
         a, b, c = st.columns(3)
-        p["f_mat"] = a.number_input("Faktor material (harga KUT→3E = x × harga 3E→Tsel)", 0.10, 2.0, float(p["f_mat"]), 0.01, format="%.3f", key="svw_pfm")
-        p["f_jasa"] = b.number_input("Faktor jasa (harga 3E→Tsel = harga KUT→3E × x)", 0.10, 3.0, float(p["f_jasa"]), 0.001, format="%.3f", key="svw_pfj")
-        p["hpp_pct"] = c.number_input("HPP default (% dari harga KUT→3E)", 0.0, 200.0, float(p["hpp_pct"]) * 100, 0.5, key="svw_php") / 100.0
+        p["f_mat"] = a.number_input("Faktor Material (Hrg KUT = Hrg 3E × x)", 0.10, 2.0, float(p["f_mat"]), 0.01, format="%.3f", key="svw_pfm")
+        p["f_jasa"] = b.number_input("Faktor Jasa (Hrg KUT = Hrg 3E × x)", 0.10, 3.0, float(p["f_jasa"]), 0.01, format="%.3f", key="svw_pfj")
+        p["hpp_pct"] = c.number_input("HPP Lapangan (% dari Hrg KUT)", 0.0, 200.0, float(p["hpp_pct"]) * 100, 0.5, key="svw_php") / 100.0
         d, e, g = st.columns(3)
         p["fee_3e"] = d.number_input("Fee 3E→Telkomsel (%)", 0.0, 100.0, float(p["fee_3e"]) * 100, 0.5, key="svw_pf3") / 100.0
         p["fee_kut"] = e.number_input("Fee KUT→3E (%)", 0.0, 100.0, float(p["fee_kut"]) * 100, 0.5, key="svw_pfk") / 100.0
@@ -3186,7 +2052,7 @@ def _sv_step_info(f, pl_path):
         p["com_rate"] = h.number_input("Cost of Money (% per tahun)", 0.0, 100.0, float(p["com_rate"]) * 100, 0.5, key="svw_pcr") / 100.0
         p["com_bulan"] = i.number_input("Cost of Money: jumlah bulan", 0.0, 36.0, float(p["com_bulan"]), 1.0, key="svw_pcb")
         p["pph"] = j.number_input("PPh (% dari margin)", 0.0, 100.0, float(p["pph"]) * 100, 0.05, format="%.2f", key="svw_ppp") / 100.0
-        st.caption("Nilai awal berasal dari contoh RAB. Harga 3E→Telkomsel dan HPP per baris juga bisa diubah langsung di tabel item.")
+        st.caption("Rumus: Harga 3E didapat dari Shopping List. Harga KUT dihitung otomatis berdasarkan Faktor Material (0.92) / Jasa (0.85). HPP dihitung dari persentase KUT (85%). Bisa diedit manual per item di tabel.")
 
 def _sv_step_sites(f, pl):
     st.markdown("##### 2️⃣ Site, Pekerjaan & Item")
@@ -3205,7 +2071,7 @@ def _sv_step_sites(f, pl):
             _sv_picker_b(s)
             _sv_line_editor(f, s, "B", p)
             cc1, cc2 = st.columns(2)
-            cc1.button("↺ Kembalikan harga 3E→Tsel & HPP ke otomatis", key="svw_rst_%s" % uid, on_click=_sv_reset_auto, args=(uid,), use_container_width=True)
+            cc1.button("↺ Kembalikan Harga KUT & HPP ke Otomatis", key="svw_rst_%s" % uid, on_click=_sv_reset_auto, args=(uid,), use_container_width=True)
             if len(f["sites"]) > 1: cc2.button("🗑️ Hapus site ini", key="svw_dels_%s" % uid, on_click=_sv_del_site, args=(uid,), use_container_width=True)
     if st.button("➕ Tambah Site", key="svw_adds", use_container_width=True):
         f["sites"].append(_sv_new_site()); f["ver"] += 1; st.rerun()
@@ -3216,29 +2082,29 @@ def _sv_rab_problems(rab, calc, f, n_files):
     if not rab["sites"] or any(not (s["site_id"] and s["site_name"]) for s in rab["sites"]): errs.append("Setiap site wajib punya Site ID dan Nama Site.")
     if any(not s["pekerjaan"].strip() for s in rab["sites"]): errs.append("Isi kolom Pekerjaan pada setiap site.")
     if any(not s["items"] for s in rab["sites"]): errs.append("Setiap site harus memiliki minimal 1 item.")
-    if any(_sv_num(ln.get("qty")) <= 0 or _sv_num(ln.get("harga_kut")) <= 0 for s in rab["sites"] for ln in s["items"]): errs.append("Qty dan Harga KUT→3E semua item harus lebih dari 0.")
+    if any(_sv_num(ln.get("qty")) <= 0 or _sv_num(ln.get("harga_tsel")) <= 0 for s in rab["sites"] for ln in s["items"]): errs.append("Qty dan Harga Tsel semua item harus lebih dari 0.")
     if calc["other_rev"] > 0 and (n_files + len(f.get("old_urls") or [])) == 0: errs.append("Ada Other Material: lampirkan evidence referensi harga (minimal 1 gambar).")
     return errs
 
 def _sv_step_hitung(f, calc):
     st.markdown("##### 3️⃣ Hitungan Revenue & Margin")
     c1, c2, c3 = st.columns(3)
-    c1.metric("Total ditagihkan 3E → Telkomsel", sv_rp(calc["tot_tsel"]))
-    c2.metric("Total Revenue KUT → 3E", sv_rp(calc["tot_rev"]))
-    c3.metric("Total HPP (+ biaya lain)", sv_rp(calc["tot_hpp"]))
+    c1.metric("Tagihan 3E → Telkomsel", sv_rp(calc["tot_tsel"]))
+    c2.metric("Tagihan KUT → 3E", sv_rp(calc["tot_rev"]))
+    c3.metric("Total HPP Lapangan (+ biaya lain)", sv_rp(calc["tot_hpp"]))
     d1, d2, d3, d4 = st.columns(4)
-    d1.metric("Margin", sv_rp(calc["margin"]))
+    d1.metric("Margin Kotor", sv_rp(calc["margin"]))
     d2.metric("GPM", "%.1f%%" % (calc["gpm"] * 100))
     d3.metric("Cost of Money + PPh", sv_rp(calc["com"] + calc["pph"]))
-    d4.metric("Margin bersih", sv_rp(calc["net"]))
+    d4.metric("Margin Bersih", sv_rp(calc["net"]))
     if calc["tot_rev"] > 0:
         ux_progress([("HPP", calc["tot_hpp_items"], "#2563EB"), ("Biaya lain", calc["biaya_lain"], "#94A3B8"), ("Margin", max(calc["margin"], 0), "#10B981")])
-    if calc["margin"] < 0: st.error("⚠️ Margin NEGATIF. Periksa harga KUT→3E, HPP, atau biaya lain sebelum mengajukan.")
-    elif calc["tot_rev"] > 0 and calc["gpm"] < 0.05: st.warning("GPM di bawah 5%. Pastikan harga dan HPP sudah benar.")
+    if calc["margin"] < 0: st.error("⚠️ Margin NEGATIF. Periksa Harga Tsel, Harga KUT, dan HPP sebelum mengajukan.")
+    elif calc["tot_rev"] > 0 and calc["gpm"] < 0.05: st.warning("GPM di bawah 5%. Pastikan parameter KUT sudah benar.")
     rows = [{"Site": "%s %s" % (b["site_id"], b["site_name"]), "Ditagih ke Tsel": sv_rp(b["sum"]["A"]["tot_tsel"] + b["sum"]["B"]["tot_tsel"]),
-             "Revenue KUT": sv_rp(b["sum"]["A"]["rev"] + b["sum"]["B"]["rev"]), "HPP": sv_rp(b["sum"]["A"]["hpp"] + b["sum"]["B"]["hpp"])} for b in calc["sites"]]
+             "Ditagih KUT ke 3E": sv_rp(b["sum"]["A"]["rev"] + b["sum"]["B"]["rev"]), "HPP Lapangan": sv_rp(b["sum"]["A"]["hpp"] + b["sum"]["B"]["hpp"])} for b in calc["sites"]]
     if rows: st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-    st.caption("Margin = Total Revenue KUT→3E − (Total HPP + biaya lain). GPM = Margin ÷ Revenue. Margin bersih = Margin − Cost of Money − PPh.")
+    st.caption("Margin = Tagihan KUT→3E − (Total HPP + biaya lain). GPM = Margin ÷ Tagihan KUT. Margin bersih = Margin − Cost of Money − PPh.")
 
 def _sv_step_ajukan(store, user, f, rab, calc):
     st.markdown("##### 4️⃣ Lampiran & Ajukan")
@@ -3299,7 +2165,7 @@ def sv_page_form(store, user, pl, pl_path):
         st.success("✅ RAB **%s** berhasil diajukan dan tercatat. Menunggu persetujuan SPV Operation." % last["id"])
         if st.session_state.pop("sv_autodl", False): _sv_autodownload(last["data"], last["name"])
         c1, c2 = st.columns([3, 1])
-        c1.download_button("📥 Unduh Excel RAB (jika unduhan otomatis diblokir browser)", last["data"], file_name=last["name"],
+        c1.download_button("📥 Unduh Excel RAB", last["data"], file_name=last["name"],
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True, type="primary", key="svw_dl_last")
         if c2.button("Tutup", use_container_width=True, key="svw_close_last"):
             st.session_state.pop("sv_last", None); st.rerun()
@@ -3338,9 +2204,9 @@ def _sv_summary(rec):
     c1, c2, c3 = st.columns(3)
     c1.metric("Ditagih ke Telkomsel", sv_rp(rec.get("tot_tsel")))
     c2.metric("Revenue KUT→3E", sv_rp(rec.get("tot_rev")))
-    c3.metric("HPP", sv_rp(rec.get("tot_hpp")))
+    c3.metric("HPP Lapangan", sv_rp(rec.get("tot_hpp")))
     d1, d2, d3 = st.columns(3)
-    d1.metric("Margin", sv_rp(rec.get("margin")))
+    d1.metric("Margin Kotor", sv_rp(rec.get("margin")))
     d2.metric("GPM", "%.1f%%" % (_sv_num(rec.get("gpm")) * 100))
     d3.metric("Margin bersih", sv_rp(rec.get("net")))
 
@@ -3379,10 +2245,10 @@ def sv_page_dashboard(user, recs):
     n = len(recs); cnt = {s: sum(1 for r in recs if r.get("status") == s) for s in SV_PIPELINE + [S_RAB_TOLAK, S_KRJ_TOLAK]}
     wait = cnt[S_RAB_SPV] + cnt[S_RAB_MGR] + cnt[S_KRJ_SPV] + cnt[S_KRJ_MGR]
     run = cnt[S_RAB_OK] + cnt[S_SVA]; tolak = cnt[S_RAB_TOLAK] + cnt[S_KRJ_TOLAK]
-    ux_hero(SV_ROLES.get(user["role"], ""), "SiSAVA Dashboard", "Pantau seluruh siklus RAB sampai pekerjaan SAH.",
+    ux_hero(SV_ROLES.get(user["role"], ""), "Portal SiSAVA", "Sistem Service Variable Activity — RAB, Approval, Nilai SVA, dan Bukti Pekerjaan.",
             stats=[(n, "Total RAB"), (wait, "Menunggu approval"), (run, "Berjalan"), (cnt[S_DONE], "SAH")],
             split=[("Menunggu approval", wait, "#FBBF24"), ("Berjalan", run, "#5B9BFF"), ("SAH", cnt[S_DONE], "#34D399"), ("Ditolak", tolak, "#FB7185")])
-    aksi = {"STAFF": cnt[S_RAB_OK] + cnt[S_SVA] + tolak, "SPV": cnt[S_RAB_SPV] + cnt[S_KRJ_SPV], "MANAGER": cnt[S_RAB_SPV] + cnt[S_RAB_MGR] + cnt[S_KRJ_SPV] + cnt[S_KRJ_MGR]}[user["role"]]
+    aksi = {"STAFF": cnt[S_RAB_OK] + cnt[S_SVA] + tolak, "ENGINEERING": cnt[S_RAB_OK] + cnt[S_SVA] + tolak, "SPV": cnt[S_RAB_SPV] + cnt[S_KRJ_SPV], "MANAGER": cnt[S_RAB_SPV] + cnt[S_RAB_MGR] + cnt[S_KRJ_SPV] + cnt[S_KRJ_MGR]}[user["role"]]
     appr = [r for r in recs if r.get("status") not in (S_RAB_SPV, S_RAB_MGR, S_RAB_TOLAK)]
     rev, mar = sum(_sv_num(r.get("tot_rev")) for r in appr), sum(_sv_num(r.get("margin")) for r in appr)
     c1, c2, c3, c4 = st.columns(4)
@@ -3516,20 +2382,6 @@ def sv_page_kelola(store, user):
         users = store.list_users()
         st.dataframe(pd.DataFrame([{"Username": u.get("username"), "Nama": u.get("nama"), "Jabatan": u.get("jabatan"), "Role": SV_ROLES.get(u.get("role"), u.get("role")),
                                     "Aktif": "Ya" if str(u.get("aktif", "1")) not in ("0", "False", "false") else "Tidak"} for u in users]), use_container_width=True, hide_index=True)
-        with st.expander("➕ Tambah akun", expanded=False):
-            a, b = st.columns(2)
-            nu = a.text_input("Username", key="svw_nu"); nn = b.text_input("Nama lengkap", key="svw_nn")
-            c, d = st.columns(2)
-            nj = c.text_input("Jabatan (tampil di tanda tangan Excel)", key="svw_nj", placeholder="mis. Spv Support Reg. Kalimantan")
-            nr = d.selectbox("Role", list(SV_ROLES), format_func=lambda x: SV_ROLES[x], key="svw_nr")
-            npw = st.text_input("Sandi awal (min. 8 karakter)", type="password", key="svw_npw")
-            if st.button("Simpan akun baru", key="svw_nsave", type="primary"):
-                msg = sv_validate_new_user({"username": nu.strip(), "nama": nn, "role": nr}, npw)
-                if not msg and sv_user_find(store, nu): msg = "Username sudah dipakai."
-                if msg: st.error(msg)
-                else:
-                    store.upsert_user({"username": nu.strip(), "nama": nn.strip(), "jabatan": nj.strip(), "role": nr, "pw_hash": sv_hash_pw(npw), "aktif": "1", "dibuat": sv_now()})
-                    st.success("Akun %s dibuat." % nu.strip()); st.rerun()
         if users:
             with st.expander("🔑 Reset sandi / nonaktifkan akun", expanded=False):
                 un = st.selectbox("Pilih akun", [u["username"] for u in users], key="svw_rpick")
@@ -7324,57 +6176,32 @@ elif menu == "💠 SiSAVA":
     
     if st.session_state['sv_user'] is None:
         store = sv_store()
-        ux_hero("AKUN SiSAVA", "SiSAVA", "Sistem Service Variable Activity — RAB, Approval, Nilai SVA, dan Bukti Pekerjaan.")
-        users = store.list_users()
+        ux_hero("AKUN SiSAVA", "Portal SiSAVA", "Sistem Pengajuan RAB, Nilai SVA, Approval Berjenjang, dan Bukti Pekerjaan Lapangan.")
         
         locked = st.session_state.get("sv_lock_until", 0) - _dtm.datetime.now().timestamp()
         
-        # BLOK PEMBUATAN AKUN OLEH ADMIN (TERLIHAT JIKA LOGIN SEBAGAI ADMIN SIDATA)
-        if st.session_state.get("role") == "Admin":
-            with st.expander("🛠️ Manajemen Akun SiSAVA (Khusus Admin SiDATA)", expanded=(not users)):
-                if not users:
-                    st.warning("Belum ada akun SiSAVA yang terdaftar. Silakan buat akun Manager pertama di bawah ini.")
-                st.markdown("##### ➕ Buat Akun SiSAVA Baru")
-                a, b = st.columns(2)
-                nu = a.text_input("Username Baru", key="svw_nu_adm")
-                nn = b.text_input("Nama Lengkap", key="svw_nn_adm")
-                c, d = st.columns(2)
-                nj = c.text_input("Jabatan", key="svw_nj_adm", placeholder="mis. Spv Support Reg. Kalimantan")
-                nr = d.selectbox("Role", list(SV_ROLES), format_func=lambda x: SV_ROLES[x], key="svw_nr_adm")
-                npw = st.text_input("Sandi (min. 8 karakter)", type="password", key="svw_npw_adm")
+        st.markdown("<h3 style='text-align:center;'>Silakan Login ke Portal SiSAVA</h3>", unsafe_allow_html=True)
+        c = st.columns([1.5, 2, 1.5])[1]
+        with c:
+            with st.container(border=True):
+                u = st.text_input("Username SiSAVA", key="svw_lu")
+                p = st.text_input("Kata Sandi", type="password", key="svw_lp")
+                if locked > 0: 
+                    st.error(f"Terlalu banyak percobaan gagal. Coba lagi dalam {int(locked)} detik.")
                 
-                if st.button("Simpan Akun Baru", key="svw_nsave_adm", type="primary"):
-                    msg = sv_validate_new_user({"username": nu.strip(), "nama": nn, "role": nr}, npw)
-                    if not msg and sv_user_find(store, nu): msg = "Username sudah dipakai."
-                    if msg: st.error(msg)
-                    else:
-                        store.upsert_user({"username": nu.strip(), "nama": nn.strip(), "jabatan": nj.strip(), "role": nr, "pw_hash": sv_hash_pw(npw), "aktif": "1", "dibuat": sv_now()})
-                        st.success("Akun %s berhasil dibuat." % nu.strip()); st.rerun()
-                
-                if users:
-                    st.markdown("---")
-                    st.markdown("##### 🔑 Reset Sandi Akun")
-                    ru = st.selectbox("Pilih Akun", [x["username"] for x in users], key="svw_ru")
-                    rp = st.text_input("Sandi Baru (min. 8 karakter)", type="password", key="svw_rp")
-                    if st.button("Reset Sandi", key="svw_rgo"):
-                        if len(rp) < 8: st.error("Sandi minimal 8 karakter.")
-                        else: store.upsert_user({"username": ru, "pw_hash": sv_hash_pw(rp)}); st.success("Sandi %s berhasil direset." % ru)
-        
-        if not users:
-            if st.session_state.get("role") != "Admin":
-                st.info("Sistem belum memiliki akun SiSAVA. Hubungi Admin SiDATA untuk mendaftarkan akun pertama."); 
-        else:
-            c = st.columns([1, 2, 1])[1]
-            with c:
-                u = st.text_input("Username SiSAVA", key="svw_lu"); p = st.text_input("Sandi SiSAVA", type="password", key="svw_lp")
-                if locked > 0: st.error("Terlalu banyak percobaan gagal. Coba lagi dalam %d detik." % int(locked))
-                if st.button("🔓 Masuk SiSAVA", type="primary", use_container_width=True, key="svw_lgo", disabled=locked > 0):
+                st.write("")
+                if st.button("🔓 Masuk Portal SiSAVA", type="primary", use_container_width=True, disabled=locked > 0):
                     usr = sv_login(store, u, p)
                     if usr:
-                        st.session_state["sv_user"] = usr; st.session_state["sv_fail"] = 0; st.session_state["sv_nav"] = "🏠 Dashboard"; st.rerun()
+                        st.session_state["sv_user"] = usr
+                        st.session_state["sv_fail"] = 0
+                        st.session_state["sv_nav"] = "🏠 Dashboard"
+                        st.rerun()
                     else:
                         st.session_state["sv_fail"] = st.session_state.get("sv_fail", 0) + 1
-                        if st.session_state["sv_fail"] >= 5: st.session_state["sv_lock_until"] = _dtm.datetime.now().timestamp() + 60; st.session_state["sv_fail"] = 0
+                        if st.session_state["sv_fail"] >= 5: 
+                            st.session_state["sv_lock_until"] = _dtm.datetime.now().timestamp() + 60
+                            st.session_state["sv_fail"] = 0
                         st.error("Username atau sandi salah, atau akun nonaktif.")
     else:
         sisava_page()
