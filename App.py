@@ -847,7 +847,13 @@ ux_boot()
 if 'role' not in st.session_state: st.session_state['role'] = None
 if 'dashboard_area' not in st.session_state: st.session_state['dashboard_area'] = None
 
-if st.session_state['role'] is None and st.session_state.get('active_menu') not in ["💠 SiSAVA", "🚨 SiHD (Pergerakan Tim)", "🗺️ Sysinfomap (Peta & Populasi Site)"]:
+# -------------------------------------------------------------------------
+# SISTEM LOGIN & ROLE AKSES (MENU UTAMA INDEPENDEN)
+# -------------------------------------------------------------------------
+if 'role' not in st.session_state: st.session_state['role'] = None
+if 'dashboard_area' not in st.session_state: st.session_state['dashboard_area'] = None
+
+if st.session_state['role'] is None and st.session_state.get('active_menu') not in ["💠 SiSAVA", "🚨 SiHD (Pergerakan Tim)", "🗺️ Sysinfomap (Peta & Populasi Site)", "⚡ SiPower"]:
     
     ux_login_css()
     st.markdown("<br>", unsafe_allow_html=True)
@@ -855,12 +861,14 @@ if st.session_state['role'] is None and st.session_state.get('active_menu') not 
     st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Sistem Operasional Terpadu (SIDATA)</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 35px; letter-spacing: 1px; opacity: 0.85;'>Pilih Portal Akses Pekerjaan Anda Hari Ini</p>", unsafe_allow_html=True)
     
-    col_v, col_l, col_a = st.columns([3, 3, 3])
-    with col_v:
+    # --- BARIS 1: LAPANGAN, LOGISTIK, & ADMIN ---
+    col_l1, col_l2, col_l3 = st.columns(3)
+    
+    with col_l1:
         st.markdown("""
             <div class='login-box'>
                 <div style='font-size: 45px; margin-bottom: 10px;'>👷‍♂️</div>
-                <div class='login-title' style='font-size: 20px;'>Mode Lapangan</div>
+                <div class='login-title' style='font-size: 20px;'>Lapangan</div>
                 <div class='login-desc' style='font-size: 13px;'>Akses Form Pendataan PM (SPS, Reguler, Pangkalan Bun).</div>
             </div>
         """, unsafe_allow_html=True)
@@ -872,11 +880,11 @@ if st.session_state['role'] is None and st.session_state.get('active_menu') not 
             st.session_state['role'], st.session_state['area_lapangan'], st.session_state['active_menu'] = 'Lapangan', 'Palangkaraya', None
             st.rerun()
 
-    with col_l:
+    with col_l2:
         st.markdown("""
             <div class='login-box' style='border-color: #FF9800;'>
                 <div style='font-size: 45px; margin-bottom: 10px;'>📦</div>
-                <div class='login-title' style='font-size: 20px;'>Gudang / Logistik</div>
+                <div class='login-title' style='font-size: 20px;'>Logistik</div>
                 <div class='login-desc' style='font-size: 13px;'>Akses stok, In/Out barang, dan Auto-WA Material.</div>
             </div>
         """, unsafe_allow_html=True)
@@ -885,12 +893,12 @@ if st.session_state['role'] is None and st.session_state.get('active_menu') not 
             st.session_state['role'], st.session_state['area_lapangan'], st.session_state['active_menu'] = 'Logistik', 'Logistik', None
             st.rerun()
             
-    with col_a:
+    with col_l3:
         st.markdown("""
             <div class='login-box'>
                 <div style='font-size: 45px; margin-bottom: 10px;'>🔐</div>
-                <div class='login-title' style='font-size: 20px;'>Mode Admin Utama</div>
-                <div class='login-desc' style='font-size: 13px;'>Akses revisi data, Dapot Power, Kurva S & Manajemen User.</div>
+                <div class='login-title' style='font-size: 20px;'>Admin</div>
+                <div class='login-desc' style='font-size: 13px;'>Akses edit data, Kurva S, Manajemen Akun & Pengaturan Sistem.</div>
             </div>
         """, unsafe_allow_html=True)
         admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Sandi...", key="pwd_login", label_visibility="collapsed")
@@ -901,35 +909,37 @@ if st.session_state['role'] is None and st.session_state.get('active_menu') not 
             else:
                 st.error("❌ Sandi salah!")
 
+    # --- BARIS 2: SiSAVA & SiHD ---
     st.markdown("<hr style='margin: 25px 0;'>", unsafe_allow_html=True)
-    c_bot1, c_bot2 = st.columns(2)
+    c_bot1, c_bot2 = st.columns([1, 1])
+    
     with c_bot1:
-        st.markdown("""
-            <div class='area-card' style='border-top-color: #EF4444;'>
-                <div style='font-size: 40px; margin-bottom: 8px;'>🚨</div>
-                <div class='login-title' style='font-size: 18px;'>SiHD (Sistem Helpdesk & Mutasi)</div>
-                <div class='login-desc' style='font-size: 13px;'>Akses langsung Tim Helpdesk: Lapor rute pergerakan harian, pencatatan problem/kendala, dan Auto-WA pergantian shift.</div>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("🚨 MASUK SiHD (MUTASI TIM)", type="primary", use_container_width=True):
-            st.session_state['active_menu'] = "🚨 SiHD (Pergerakan Tim)"
-            st.rerun()
-    with c_bot2:
         st.markdown("""
             <div class='area-card' style='border-top-color: #10B981;'>
                 <div style='font-size: 40px; margin-bottom: 8px;'>💠</div>
                 <div class='login-title' style='font-size: 18px;'>SiSAVA (Service Variable Activity)</div>
-                <div class='login-desc' style='font-size: 13px;'>Pengajuan RAB, validasi Nilai SVA, dan Manajemen Keuangan Project. (Akun dibuat & diatur oleh Admin Utama).</div>
+                <div class='login-desc' style='font-size: 13px;'>Pengajuan RAB, validasi Nilai SVA, dan Manajemen Keuangan Project. (Akun dikelola oleh Admin).</div>
             </div>
         """, unsafe_allow_html=True)
-        if st.button("💠 MASUK PORTAL SiSAVA", type="secondary", use_container_width=True):
+        if st.button("💠 MASUK SiSAVA", type="secondary", use_container_width=True):
             st.session_state['active_menu'] = "💠 SiSAVA"
+            st.rerun()
+            
+    with c_bot2:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #EF4444;'>
+                <div style='font-size: 40px; margin-bottom: 8px;'>🚨</div>
+                <div class='login-title' style='font-size: 18px;'>SiHD (Sistem Helpdesk)</div>
+                <div class='login-desc' style='font-size: 13px;'>Buku mutasi tim, rute harian, kendala lapangan, dan Auto-WA pergantian shift.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("🚨 MASUK SiHD", type="primary", use_container_width=True):
+            st.session_state['active_menu'] = "🚨 SiHD (Pergerakan Tim)"
             st.rerun()
 
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("<div style='text-align: center; font-size: 13px; opacity: 0.7;'>Secured System Application & Database Management<br><b>Created By Okta Pradika © 2026</b></div>", unsafe_allow_html=True)
     st.stop()
-
 # -------------------------------------------------------------------------
 # 🗺️ PARSER KML SYSINFOMAP (IN-MEMORY CACHE — SUPER RINGAN) & MASTER DATA
 # -------------------------------------------------------------------------
@@ -2589,7 +2599,9 @@ if st.session_state['active_menu'] is None:
         st.session_state['active_menu'] = "🗺️ Sysinfomap (Peta & Populasi Site)"
         st.rerun()
     st.markdown("<hr style='margin: 30px 0;'>", unsafe_allow_html=True)
-    c_out1, c_out2, c_out3 = st.columns(3)
+    # Ubah menjadi 2 kolom saja, buang SiHD dan SiSAVA dari sini
+    c_out1, c_out2 = st.columns(2)
+    
     with c_out1:
         st.markdown("""
             <div class='area-card' style='border-top-color: #9C27B0;'>
@@ -2600,6 +2612,18 @@ if st.session_state['active_menu'] is None:
         """, unsafe_allow_html=True)
         if st.button("📅 BUKA DAILY TRACKER", type="primary", use_container_width=True, key="m_tracker"):
             st.session_state['active_menu'] = "📅 Daily Tracker Palangkaraya"
+            st.rerun()
+            
+    with c_out2:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #F59E0B;'>
+                <div style='font-size: 42px; margin-bottom: 8px;'>⚡</div>
+                <div class='login-title' style='font-size: 20px;'>SiPower (Power Analytics)</div>
+                <div class='login-desc' style='font-size: 13px;'>Upload data harian oleh tim HD, pantau riwayat V_AC, V_DC, dan Load site secara Real-Time.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("⚡ BUKA SiPOWER", type="primary", use_container_width=True, key="m_sipower"):
+            st.session_state['active_menu'] = "⚡ SiPower"
             st.rerun()
             
     with c_out2:
