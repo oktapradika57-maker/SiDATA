@@ -3618,10 +3618,56 @@ if bg_base64:
 
 if st.session_state['active_menu'] is None:
     render_header_logo()
-    role_badge = "🟢 MODE ADMIN" if st.session_state['role'] == 'Admin' else f"👷‍♂️ TIM LAPANGAN ({st.session_state.get('area_lapangan', 'Umum').upper()})"
+    role_badge = "🟢 MODE ADMIN UTAMA" if st.session_state['role'] == 'Admin' else f"👷‍♂️ TIM LAPANGAN ({st.session_state.get('area_lapangan', 'Umum').upper()})"
     _ux_stats, _ux_split = ux_stats_from_db(st.session_state.get("laporan_db", []))
-    ux_hero(role_badge, "Menu Utama Operasional", "Pilih modul untuk melanjutkan. Data laporan tersinkron langsung dari server.", stats=_ux_stats, split=_ux_split)
+    ux_hero(role_badge, "Sistem Operasional Terpadu SIDATA", "Pilih modul untuk melanjutkan. Data laporan tersinkron langsung dari server.", stats=_ux_stats, split=_ux_split)
 
+    # === PANEL KHUSUS ADMIN UTAMA: MANAJEMEN AKUN SiSAVA ===
+    if st.session_state['role'] == 'Admin':
+        st.markdown("### 🛠️ Manajemen Akun Pengguna (SiSAVA)")
+        st.info("Sebagai Admin Utama, Anda dapat mendaftarkan akun untuk Manager, SPV, Engineering, dan Tim Operasional agar mereka dapat mengakses Portal SiSAVA.")
+        
+        store = sv_store()
+        users = store.list_users()
+        
+        with st.expander("➕ Buat Akun SiSAVA Baru / Reset Sandi", expanded=True):
+            tb_buat, tb_reset = st.tabs(["📝 Buat Akun Baru", "🔑 Reset Sandi"])
+            
+            with tb_buat:
+                a1, a2 = st.columns(2)
+                nu_adm = a1.text_input("Username Baru (Tanpa Spasi)", key="svw_nu_adm_main")
+                nn_adm = a2.text_input("Nama Lengkap", key="svw_nn_adm_main")
+                a3, a4 = st.columns(2)
+                nj_adm = a3.text_input("Jabatan Tertulis", placeholder="mis: Koordinator / Engineering", key="svw_nj_adm_main")
+                nr_adm = a4.selectbox("Hak Akses (Role)", list(SV_ROLES), format_func=lambda x: SV_ROLES[x], key="svw_nr_adm_main")
+                pw_adm = st.text_input("Sandi (min. 8 karakter)", type="password", key="svw_pw_adm_main")
+                
+                if st.button("💾 Simpan & Daftarkan Akun", type="primary", key="btn_save_akun_main"):
+                    msg = sv_validate_new_user({"username": nu_adm.strip(), "nama": nn_adm, "role": nr_adm}, pw_adm)
+                    if not msg and sv_user_find(store, nu_adm): msg = "Username tersebut sudah dipakai."
+                    if msg: 
+                        st.error(msg)
+                    else:
+                        store.upsert_user({"username": nu_adm.strip(), "nama": nn_adm.strip(), "jabatan": nj_adm.strip(), "role": nr_adm, "pw_hash": sv_hash_pw(pw_adm), "aktif": "1", "dibuat": sv_now()})
+                        st.success(f"✅ Akun untuk {nu_adm.strip()} ({SV_ROLES[nr_adm]}) berhasil didaftarkan! Mereka kini bisa masuk melalui Portal SiSAVA.")
+                        st.rerun()
+
+            with tb_reset:
+                if not users:
+                    st.warning("Belum ada akun terdaftar.")
+                else:
+                    ru_adm = st.selectbox("Pilih Akun yang akan Direset", [x["username"] for x in users], key="svw_ru_adm_main")
+                    rpw_adm = st.text_input("Sandi Baru (min. 8 karakter)", type="password", key="svw_rpw_adm_main")
+                    if st.button("🔄 Reset Sandi Akun", key="btn_reset_akun_main"):
+                        if len(rpw_adm) < 8: 
+                            st.error("Sandi minimal 8 karakter.")
+                        else: 
+                            store.upsert_user({"username": ru_adm, "pw_hash": sv_hash_pw(rpw_adm)})
+                            st.success(f"✅ Sandi untuk akun {ru_adm} berhasil direset.")
+        
+        st.markdown("<hr style='margin: 30px 0;'>", unsafe_allow_html=True)
+
+    # === KOTAK MENU NAVIGASI UTAMA ===
     col_m1, col_m2 = st.columns(2)
     with col_m1:
         if st.session_state['role'] == 'Admin':
@@ -3682,22 +3728,9 @@ if st.session_state['active_menu'] is None:
         if st.button("⚡ BUKA DAPOT POWER HASIL PMS", type="secondary", use_container_width=True, key="m_dapot"):
             st.session_state['active_menu'] = "⚡ Dapot Power Hasil PMS"
             st.rerun()
-            
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("""
-        <div class='area-card' style='border-top-color: #06B6D4;'>
-            <div style='font-size: 44px; margin-bottom: 6px;'>🗺️</div>
-            <div class='login-title'>Sysinfomap (Peta & Populasi Site)</div>
-            <div class='login-desc'>Peta interaktif 910+ Site, populasi per Kabupaten, komparasi Site ID Master vs KML, & status kunjungan PM.</div>
-        </div>
-    """, unsafe_allow_html=True)
-    if st.button("🗺️ BUKA SYSINFOMAP (PETA & POPULASI SITE)", type="primary", use_container_width=True, key="m_sysinfomap"):
-        st.session_state['active_menu'] = "🗺️ Sysinfomap (Peta & Populasi Site)"
-        st.rerun()
+
     st.markdown("<hr style='margin: 30px 0;'>", unsafe_allow_html=True)
-    # Ubah menjadi 2 kolom saja, buang SiHD dan SiSAVA dari sini
-    c_out1, c_out2 = st.columns(2)
-    
+    c_out1, c_out2, c_out3 = st.columns(3)
     with c_out1:
         st.markdown("""
             <div class='area-card' style='border-top-color: #9C27B0;'>
@@ -3712,14 +3745,26 @@ if st.session_state['active_menu'] is None:
             
     with c_out2:
         st.markdown("""
-            <div class='area-card' style='border-top-color: #F59E0B;'>
-                <div style='font-size: 42px; margin-bottom: 8px;'>⚡</div>
-                <div class='login-title' style='font-size: 20px;'>SiPower (Power Analytics)</div>
-                <div class='login-desc' style='font-size: 13px;'>Upload data harian oleh tim HD, pantau riwayat V_AC, V_DC, dan Load site secara Real-Time.</div>
+            <div class='area-card' style='border-top-color: #EF4444;'>
+                <div style='font-size: 42px; margin-bottom: 8px;'>🚨</div>
+                <div class='login-title' style='font-size: 20px;'>SiHD (Sistem Helpdesk)</div>
+                <div class='login-desc' style='font-size: 13px;'>Buku mutasi elektronik pergerakan tim, rincian pekerjaan, dan WA serah terima shift.</div>
             </div>
         """, unsafe_allow_html=True)
-        if st.button("⚡ BUKA SiPOWER", type="primary", use_container_width=True, key="m_sipower"):
-            st.session_state['active_menu'] = "⚡ SiPower"
+        if st.button("🚨 BUKA SiHD (MUTASI TIM)", type="primary", use_container_width=True, key="m_sihd"):
+            st.session_state['active_menu'] = "🚨 SiHD (Pergerakan Tim)"
+            st.rerun()
+
+    with c_out3:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #10B981;'>
+                <div style='font-size: 42px; margin-bottom: 8px;'>💠</div>
+                <div class='login-title' style='font-size: 20px;'>Portal SiSAVA</div>
+                <div class='login-desc' style='font-size: 13px;'>Sistem Service Variable Activity: Pengajuan RAB, Approval SPV, dan Nilai SVA.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("💠 BUKA PORTAL SiSAVA", type="primary", use_container_width=True, key="m_sisava"):
+            st.session_state['active_menu'] = "💠 SiSAVA"
             st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -3751,22 +3796,26 @@ if st.session_state['active_menu'] is None:
                 
     with c_tool3:
         st.markdown("""
-            <div class='area-card' style='border-top-color: #9E9E9E;'>
-                <div style='font-size: 42px; margin-bottom: 8px;'>🚪</div>
-                <div class='login-title' style='font-size: 20px;'>Log Out</div>
-                <div class='login-desc' style='font-size: 13px;'>Keluar dari sesi akun Anda dengan aman untuk melindungi data operasional.</div>
+            <div class='area-card' style='border-top-color: #06B6D4;'>
+                <div style='font-size: 44px; margin-bottom: 6px;'>🗺️</div>
+                <div class='login-title' style='font-size: 19px;'>Sysinfomap (Peta Site)</div>
+                <div class='login-desc' style='font-size: 13px;'>Peta interaktif 910+ Site, populasi per Kabupaten, dan komparasi Master vs KML.</div>
             </div>
         """, unsafe_allow_html=True)
-        if st.button("🚪 KELUAR AKUN", type="primary", use_container_width=True, key="btn_logout_main"):
-            st.session_state['role'] = None
-            st.session_state['dashboard_area'] = None
-            st.session_state['active_menu'] = None
-            st.session_state['proj_dash_unlocked'] = False
-            st.session_state['proj_unlocked'] = False
-            st.session_state.pop('sv_user', None)
+        if st.button("🗺️ BUKA SYSINFOMAP", type="primary", use_container_width=True, key="m_sysinfomap"):
+            st.session_state['active_menu'] = "🗺️ Sysinfomap (Peta & Populasi Site)"
             st.rerun()
-    st.stop()
-else:
+            
+    st.markdown("<br><hr style='margin: 10px 0;'>", unsafe_allow_html=True)
+    if st.button("🚪 KELUAR AKUN", type="secondary", use_container_width=True, key="btn_logout_main"):
+        st.session_state['role'] = None
+        st.session_state['dashboard_area'] = None
+        st.session_state['active_menu'] = None
+        st.session_state['proj_dash_unlocked'] = False
+        st.session_state['proj_unlocked'] = False
+        st.session_state.pop('sv_user', None)
+        st.rerun()
+    st.stop()else:
     menu = st.session_state['active_menu']
     c_top1, c_top2, c_top3 = st.columns([2.2, 5.6, 2.2])
     with c_top1:
