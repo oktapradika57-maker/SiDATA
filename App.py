@@ -2625,30 +2625,6 @@ if st.session_state['active_menu'] is None:
         if st.button("⚡ BUKA SiPOWER", type="primary", use_container_width=True, key="m_sipower"):
             st.session_state['active_menu'] = "⚡ SiPower"
             st.rerun()
-            
-    with c_out2:
-        st.markdown("""
-            <div class='area-card' style='border-top-color: #EF4444;'>
-                <div style='font-size: 42px; margin-bottom: 8px;'>🚨</div>
-                <div class='login-title' style='font-size: 20px;'>SiHD (Sistem Helpdesk)</div>
-                <div class='login-desc' style='font-size: 13px;'>Buku mutasi elektronik pergerakan tim, rincian pekerjaan, dan WA serah terima shift.</div>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("🚨 BUKA SiHD (MUTASI TIM)", type="primary", use_container_width=True, key="m_sihd"):
-            st.session_state['active_menu'] = "🚨 SiHD (Pergerakan Tim)"
-            st.rerun()
-
-    with c_out3:
-        st.markdown("""
-            <div class='area-card' style='border-top-color: #10B981;'>
-                <div style='font-size: 42px; margin-bottom: 8px;'>💠</div>
-                <div class='login-title' style='font-size: 20px;'>SiSAVA</div>
-                <div class='login-desc' style='font-size: 13px;'>Sistem Service Variable Activity: Pengajuan RAB, Margin, Nilai SVA & Bukti Pekerjaan.</div>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("💠 BUKA SiSAVA", type="primary", use_container_width=True, key="m_sisava"):
-            st.session_state['active_menu'] = "💠 SiSAVA"
-            st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
     c_tool1, c_tool2, c_tool3 = st.columns(3)
