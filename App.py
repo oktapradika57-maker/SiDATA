@@ -5971,7 +5971,12 @@ elif menu == "🗺️ Sysinfomap (Peta & Populasi Site)":
     with tab_comp:
         st.markdown("#### 🔄 Komparasi Otomatis: Data KML Sysinfomap vs Database Existing SIDATA")
         st.info("💡 Modul ini membandingkan seluruh **Site ID di Sysinfomap (KML)** dengan **Master Excel Sidata**, **File Combat NOP Palangkaraya**, serta **Database Laporan Kunjungan Tim (Google Sheets)** sehingga terlihat jelas site mana yang baru, yang sudah terinspeksi, dan yang belum tersentuh.")
-
+# =========================================================================
+# MENU 8 ATAU 9: SISAVA (PANGGIL FUNGSINYA DI SINI)
+# =========================================================================
+elif menu == "💠 SiSAVA":
+    sisava_page()
+    
         kml_set = set(df_map['site_id'].unique())
         baru_di_kml = sorted(list(kml_set - master_excel_ids))
         sinkron_master = sorted(list(kml_set.intersection(master_excel_ids)))
