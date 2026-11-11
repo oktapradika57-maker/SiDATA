@@ -3815,7 +3815,8 @@ if st.session_state['active_menu'] is None:
         st.session_state['proj_unlocked'] = False
         st.session_state.pop('sv_user', None)
         st.rerun()
-    st.stop()else:
+    st.stop()
+else:
     menu = st.session_state['active_menu']
     c_top1, c_top2, c_top3 = st.columns([2.2, 5.6, 2.2])
     with c_top1:
