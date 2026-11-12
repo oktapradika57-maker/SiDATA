@@ -2430,26 +2430,72 @@ def sisava_page():
     ss = st.session_state
     store = sv_store()
     _sv_flash()
+    
+    if store.kind == "lokal":
+        st.warning("⚠️ Google Sheets belum tersambung (st.secrets 'gcp_json'). Data disimpan sementara di file lokal dan bisa hilang saat aplikasi restart.")
+        
     user = ss.get("sv_user")
+    if not user:
+        _sv_login_view(store)
+        return
+        
     c1, c2 = st.columns([4, 1])
     c1.markdown("<div style='padding:8px 2px'>👤 <b>%s</b> · %s%s</div>" % (_esc(user["nama"]), _esc(SV_ROLES.get(user["role"], "")), (" · " + _esc(user["jabatan"])) if user.get("jabatan") else ""), unsafe_allow_html=True)
-    c2.button("Keluar SiSAVA", key="svw_logout", on_click=lambda: st.session_state.pop("sv_user", None), use_container_width=True)
-    nav = ["🏠 Dashboard", "➕ Pengajuan RAB", "📋 Daftar RAB"]
-    if sv_can(user, "approve_spv") or sv_can(user, "approve_mgr"): nav.append("✅ Approval")
-    nav += ["🧾 Nilai SVA", "📤 Upload Pekerjaan"]
-    if sv_can(user, "manage_users"): nav.append("🛠️ Kelola")
-    if ss.get("sv_nav") not in nav: ss["sv_nav"] = nav[0]
-    page = st.radio("Menu SiSAVA", nav, horizontal=True, key="sv_nav", label_visibility="collapsed")
-    try: recs = sv_visible(store.list_rabs(), user)
-    except Exception as e: st.error("Gagal membaca database SiSAVA: %s" % e); return
-    if page == "🏠 Dashboard": sv_page_dashboard(user, recs)
+    c2.button("Keluar Portal", key="svw_logout", on_click=lambda: st.session_state.pop("sv_user", None), use_container_width=True)
+    
+    # --- PENGATURAN MENU BERDASARKAN ROLE / HAK AKSES ---
+    nav = ["🏠 Dashboard"]
+    
+    # Jika dia Admin (bisa membuat RAB) atau Tim Lapangan (Staff / Engineering)
+    if sv_can(user, "rab_create"):
+        nav.append("➕ Pengajuan RAB")
+        nav.append("📋 Daftar RAB")
+        
+    # Jika dia Manager atau SPV (berhak Approve)
+    if sv_can(user, "approve_spv") or sv_can(user, "approve_mgr"):
+        nav.append("✅ Approval")
+        
+    # Khusus untuk input Nilai SVA setelah di-Approve (Manager/Admin)
+    if sv_can(user, "sva_fill"):
+        nav.append("🧾 Nilai SVA")
+        
+    # MENU WAJIB TIM LAPANGAN (UPLOAD HASIL PEKERJAAN)
+    if sv_can(user, "kerja_upload"):
+        nav.append("📤 Upload Pekerjaan")
+        
+    # Menu Kelola Akun & Shopping List (Khusus Manager)
+    if sv_can(user, "manage_users"):
+        nav.append("🛠️ Kelola")
+        
+    # Pilihan Menu Default
+    if ss.get("sv_nav") not in nav:
+        ss["sv_nav"] = nav[0]
+        
+    page = st.radio("Menu Navigasi SiSAVA", nav, horizontal=True, key="sv_nav", label_visibility="collapsed")
+    
+    try:
+        recs = sv_visible(store.list_rabs(), user)
+    except Exception as e:
+        st.error("Gagal membaca database SiSAVA: %s" % e)
+        return
+        
+    # --- ROUTING HALAMAN ---
+    if page == "🏠 Dashboard":
+        sv_page_dashboard(user, recs)
     elif page == "➕ Pengajuan RAB":
-        pl, path = sv_pricelist(); sv_page_form(store, user, pl, path)
-    elif page == "📋 Daftar RAB": sv_page_list(user, recs)
-    elif page == "✅ Approval": sv_page_approval(user, recs)
-    elif page == "🧾 Nilai SVA": sv_page_sva(user, recs)
-    elif page == "📤 Upload Pekerjaan": sv_page_kerja(user, recs)
-    elif page == "🛠️ Kelola": sv_page_kelola(store, user)
+        pl, path = sv_pricelist()
+        sv_page_form(store, user, pl, path)
+    elif page == "📋 Daftar RAB":
+        sv_page_list(user, recs)
+    elif page == "✅ Approval":
+        sv_page_approval(user, recs)
+    elif page == "🧾 Nilai SVA":
+        sv_page_sva(user, recs)
+    elif page == "📤 Upload Pekerjaan":
+        # Ini adalah modul yang akan menampilkan pekerjaan yang SIAP dikerjakan oleh Tim Lapangan
+        sv_page_kerja(user, recs)
+    elif page == "🛠️ Kelola":
+        sv_page_kelola(store, user)
 # =============================================================================
 if 'active_menu' not in st.session_state:
     st.session_state['active_menu'] = None
