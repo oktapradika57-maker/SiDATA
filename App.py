@@ -1656,7 +1656,16 @@ def sv_rab_filename(rab, rab_id=""):
     import re as _re
     base = "RAB_%s_%s" % (rab.get("ticket") or rab_id or "SVA", (rab.get("sites") or [{}])[0].get("site_name", ""))
     return _re.sub(r"[^A-Za-z0-9_.-]+", "_", base).strip("_")[:120] + ".xlsx"
-
+def sv_rekap_xlsx(recs):
+    rows = [{"No. RAB": r.get("rab_id"), "Tiket": r.get("ticket_no"), "NOP": r.get("nop"), "Tgl Pengajuan": r.get("tgl_pengajuan"),
+             "Pembuat": r.get("nama_pembuat"), "Status": r.get("status"), "Total ke Telkomsel": _sv_num(r.get("tot_tsel")),
+             "Total Revenue KUT": _sv_num(r.get("tot_rev")), "Total HPP Lapangan": _sv_num(r.get("tot_hpp")), "Margin": _sv_num(r.get("margin")),
+             "GPM": _sv_num(r.get("gpm")), "Margin Bersih": _sv_num(r.get("net")), "SPV": r.get("spv_nama"), "Manager": r.get("mgr_nama")} for r in recs]
+    buf = _io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as xw:
+        pd.DataFrame(rows).to_excel(xw, sheet_name="Rekap SiSAVA", index=False)
+    return buf.getvalue()
+    
 def _sv_json(o):
     return json.dumps(o, ensure_ascii=False, separators=(",", ":"), default=str)
 
