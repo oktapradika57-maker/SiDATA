@@ -2192,6 +2192,11 @@ def _sv_act(rab_id, action, note_key=None, data=None):
         if action == "sva_fill": ss.pop("sv_sva_open", None)
     except Exception as e: ss["sv_flash"] = "!Gagal menyimpan: %s" % e
 
+_SV_AKSI = {"diajukan": "Diajukan", "revisi_diajukan": "Diajukan ulang (revisi)", "spv_approve": "Disetujui SPV", "spv_reject": "Ditolak SPV",
+            "mgr_approve": "Disetujui Manager", "mgr_reject": "Ditolak Manager", "sva_fill": "Nilai SVA diisi", "kerja_upload": "Bukti pekerjaan diunggah",
+            "f_spv_approve": "Pekerjaan disetujui SPV", "f_spv_reject": "Pekerjaan ditolak SPV", "f_mgr_approve": "Pekerjaan disetujui Manager (SAH)",
+            "f_mgr_reject": "Pekerjaan ditolak Manager"}
+        
 def _sv_timeline(rec):
     log = _sv_jload(rec.get("log"), []) or []
     if not log: st.caption("Belum ada riwayat."); return
