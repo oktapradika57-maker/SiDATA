@@ -846,7 +846,66 @@ ux_boot()
 # -------------------------------------------------------------------------
 if 'role' not in st.session_state: st.session_state['role'] = None
 if 'dashboard_area' not in st.session_state: st.session_state['dashboard_area'] = None
+if 'active_menu' not in st.session_state: st.session_state['active_menu'] = None
 
+if st.session_state['role'] is None and st.session_state.get('active_menu') not in ["💠 SiSAVA", "🚨 SiHD (Pergerakan Tim)", "🗺️ Sysinfomap (Peta & Populasi Site)", "🏢 Portal Office"]:
+    
+    ux_login_css()
+    st.markdown("<br>", unsafe_allow_html=True)
+    render_header_logo(is_login=True) 
+    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Sistem Operasional Terpadu (SIDATA)</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 35px; letter-spacing: 1px; opacity: 0.85;'>Pilih Portal Akses Pekerjaan Anda Hari Ini</p>", unsafe_allow_html=True)
+    
+    col_v, col_l, col_a = st.columns([3, 3, 3])
+    
+    with col_v:
+        st.markdown("""
+            <div class='login-box'>
+                <div style='font-size: 45px; margin-bottom: 10px;'>👷‍♂️</div>
+                <div class='login-title' style='font-size: 20px;'>Mode Lapangan</div>
+                <div class='login-desc' style='font-size: 13px;'>Akses Form Pendataan PM (SPS, Reguler, Pangkalan Bun) untuk Teknisi (FME).</div>
+            </div>
+        """, unsafe_allow_html=True)
+        c_v1, c_v2 = st.columns(2)
+        if c_v1.button("🔴 P'BUN", type="primary", use_container_width=True):
+            st.session_state['role'], st.session_state['area_lapangan'], st.session_state['active_menu'] = 'Lapangan', 'Pangkalan Bun', None
+            st.rerun()
+        if c_v2.button("🔵 PLK", type="secondary", use_container_width=True):
+            st.session_state['role'], st.session_state['area_lapangan'], st.session_state['active_menu'] = 'Lapangan', 'Palangkaraya', None
+            st.rerun()
+
+    with col_l:
+        st.markdown("""
+            <div class='login-box' style='border-color: #10B981;'>
+                <div style='font-size: 45px; margin-bottom: 10px;'>🏢</div>
+                <div class='login-title' style='font-size: 20px;'>Portal Office</div>
+                <div class='login-desc' style='font-size: 13px;'>Pintu masuk Sub-Sistem: Gudang Logistik, Mutasi Tim (SiHD), & Keuangan (SiSAVA).</div>
+            </div>
+        """, unsafe_allow_html=True)
+        st.write("")
+        if st.button("🏢 MASUK PORTAL OFFICE", type="secondary", use_container_width=True):
+            st.session_state['active_menu'] = "🏢 Portal Office"
+            st.rerun()
+            
+    with col_a:
+        st.markdown("""
+            <div class='login-box'>
+                <div style='font-size: 45px; margin-bottom: 10px;'>🔐</div>
+                <div class='login-title' style='font-size: 20px;'>Mode Admin Utama</div>
+                <div class='login-desc' style='font-size: 13px;'>Akses Revisi, Dapot Power, Peta Sysinfomap & Manajemen Akun User.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Sandi...", key="pwd_login", label_visibility="collapsed")
+        if st.button("🔓 LOGIN ADMIN", type="primary", use_container_width=True):
+            if admin_pass == "KUT2027":
+                st.session_state['role'], st.session_state['active_menu'] = 'Admin', None
+                st.rerun()
+            else:
+                st.error("❌ Sandi salah!")
+
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; font-size: 13px; opacity: 0.7;'>Secured System Application & Database Management<br><b>Created By Okta Pradika © 2026</b></div>", unsafe_allow_html=True)
+    st.stop()
 # -------------------------------------------------------------------------
 # SISTEM LOGIN & ROLE AKSES (MENU UTAMA INDEPENDEN)
 # -------------------------------------------------------------------------
@@ -6265,6 +6324,53 @@ elif menu == "💠 SiSAVA":
                         st.error("Username atau sandi salah, atau akun nonaktif.")
     else:
         sisava_page()
+# =========================================================================
+# MENU 11: PORTAL OFFICE (SUB-MENU LOGISTIK, SiHD, SiSAVA)
+# =========================================================================
+elif menu == "🏢 Portal Office":
+    st.markdown("<h1 style='text-align: center;'>🏢 Portal Office SIDATA</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.8;'>Pilih sub-modul operasional Office yang ingin Anda akses hari ini.</p>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin: 15px 0 30px 0;'>", unsafe_allow_html=True)
+    
+    c_off1, c_off2, c_off3 = st.columns(3)
+    with c_off1:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #FF9800;'>
+                <div style='font-size: 45px; margin-bottom: 10px;'>📦</div>
+                <div class='login-title' style='font-size: 20px;'>Gudang / Logistik</div>
+                <div class='login-desc' style='font-size: 13px;'>Akses eksklusif pengelolaan stok material, in/out, & sparepart.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("📦 BUKA LOGISTIK", type="primary", use_container_width=True):
+            st.session_state['role'] = 'Logistik'
+            st.session_state['area_lapangan'] = 'Logistik'
+            st.session_state['active_menu'] = None
+            st.rerun()
+            
+    with c_off2:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #EF4444;'>
+                <div style='font-size: 45px; margin-bottom: 10px;'>🚨</div>
+                <div class='login-title' style='font-size: 20px;'>SiHD (Sistem Helpdesk)</div>
+                <div class='login-desc' style='font-size: 13px;'>Buku mutasi elektronik tim, rincian site, & Auto-WA Serah Terima Shift.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("🚨 BUKA SiHD", type="primary", use_container_width=True):
+            st.session_state['active_menu'] = "🚨 SiHD (Pergerakan Tim)"
+            st.rerun()
+            
+    with c_off3:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #10B981;'>
+                <div style='font-size: 45px; margin-bottom: 10px;'>💠</div>
+                <div class='login-title' style='font-size: 20px;'>Portal SiSAVA</div>
+                <div class='login-desc' style='font-size: 13px;'>Pengajuan RAB, Margin, dan Nilai SVA (Akun Pengguna diatur oleh Admin).</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("💠 BUKA SiSAVA", type="primary", use_container_width=True):
+            st.session_state['active_menu'] = "💠 SiSAVA"
+            st.rerun()
+        
 # FOOTER HAK CIPTA OKTA PRADIKA
 # -------------------------------------------------------------------------
 st.markdown("""
