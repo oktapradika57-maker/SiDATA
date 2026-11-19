@@ -1297,7 +1297,88 @@ def fetch_data_from_gsheets():
     return all_data
 if 'laporan_db' not in st.session_state: 
     st.session_state['laporan_db'] = fetch_data_from_gsheets()
+# =========================================================================
+# 🛡️ HELPER DATABASE SiDAVID (AUTO-CREATE WORKSHEET GOOGLE SHEETS & EXCEL)
+# =========================================================================
+def sidavid_get_or_create_ws(sheet_name, default_headers):
+    try:
+        creds_dict = json.loads(st.secrets["gcp_json"])
+        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        sh = gspread.authorize(creds).open_by_key(SHEET_ID)
+        try:
+            ws = sh.worksheet(sheet_name)
+        except Exception:
+            ws = sh.add_worksheet(title=sheet_name, rows=1000, cols=max(len(default_headers) + 4, 20))
+            ws.update(range_name="A1", values=[default_headers])
+            return ws
+        head = ws.row_values(1)
+        if not head or not any(str(c).strip() for c in head):
+            ws.update(range_name="A1", values=[default_headers])
+        return ws
+    except Exception:
+        return None
 
+@st.cache_data(ttl=30, show_spinner=False)
+def sidavid_read_df(sheet_name, default_headers):
+    ws = sidavid_get_or_create_ws(sheet_name, default_headers)
+    if ws is None:
+        return pd.DataFrame(columns=default_headers), False
+    vals = ws.get_all_values()
+    if not vals or len(vals) < 1:
+        return pd.DataFrame(columns=default_headers), True
+    head = vals[0]
+    if not any(str(c).strip() for c in head):
+        return pd.DataFrame(columns=default_headers), True
+    rows = [r + [""] * (len(head) - len(r)) for r in vals[1:]]
+    df = pd.DataFrame(rows, columns=head)
+    for col in default_headers:
+        if col not in df.columns:
+            df[col] = ""
+    return df, True
+
+def sidavid_overwrite_ws(sheet_name, df):
+    df_clean = df.fillna("").astype(str)
+    headers = [str(c) for c in df_clean.columns.tolist()]
+    ws = sidavid_get_or_create_ws(sheet_name, headers)
+    if ws is None:
+        return False
+    ws.clear()
+    payload = [headers] + df_clean.values.tolist()
+    if len(payload) > ws.row_count:
+        ws.resize(rows=len(payload) + 100, cols=max(len(headers) + 2, ws.col_count))
+    ws.update(range_name="A1", values=payload, value_input_option="RAW")
+    sidavid_read_df.clear()
+    return True
+
+def sidavid_append_row(sheet_name, default_headers, row_dict):
+    ws = sidavid_get_or_create_ws(sheet_name, default_headers)
+    if ws is None:
+        return False
+    head = ws.row_values(1)
+    if not head:
+        head = default_headers
+        ws.update(range_name="A1", values=[head])
+    row_vals = [str(row_dict.get(c, "")) for c in head]
+    ws.append_row(row_vals, value_input_option="RAW")
+    sidavid_read_df.clear()
+    return True
+
+def sidavid_eval_expired(punya_status, exp_str):
+    if str(punya_status).strip().lower() != "punya":
+        return "❌ Belum Punya"
+    try:
+        exp_dt = pd.to_datetime(exp_str, errors="coerce")
+        if pd.isna(exp_dt):
+            return "⚠️ Tgl Expired Kosong"
+        sisa_hari = (exp_dt.date() - datetime.date.today()).days
+        if sisa_hari < 0:
+            return f"🔴 Expired ({abs(sisa_hari)} hari lalu)"
+        elif sisa_hari <= 60:
+            return f"🟡 Segera Expired ({sisa_hari} hari lagi)"
+        return f"🟢 Aktif ({sisa_hari} hari)"
+    except Exception:
+        return "⚠️ Cek Tanggal"
 # -------------------------------------------------------------------------
 # WA GENERATOR PANGKALAN BUN (Otomatis Teks)
 # -------------------------------------------------------------------------
