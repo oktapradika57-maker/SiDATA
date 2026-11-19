@@ -13,7 +13,9 @@ import requests
 from io import BytesIO
 from PIL import Image
 import base64
-import tempfile 
+import tempfile
+import re
+import zipfile
 
 # Mengimpor modul PPTX
 try:
@@ -842,36 +844,50 @@ def build_pdf(r):
 ux_boot()
 
 # -------------------------------------------------------------------------
-# SISTEM LOGIN & ROLE AKSES 
+# SISTEM LOGIN & ROLE AKSES (3 KARTU UTAMA: LAPANGAN, OFFICE, ADMIN)
 # -------------------------------------------------------------------------
 if 'role' not in st.session_state: st.session_state['role'] = None
 if 'dashboard_area' not in st.session_state: st.session_state['dashboard_area'] = None
 if 'active_menu' not in st.session_state: st.session_state['active_menu'] = None
 
-if st.session_state['role'] is None and st.session_state.get('active_menu') not in ["💠 SiSAVA", "🚨 SiHD (Pergerakan Tim)", "🗺️ Sysinfomap (Peta & Populasi Site)", "🏢 Portal Office"]:
-    
+OFFICE_ALLOWED_MENUS = [
+    "🏢 Portal Office",
+    "📦 Logistik & SPMS",
+    "🚨 SiHD (Pergerakan Tim)",
+    "💠 SiSAVA",
+    "💎 Executive Project Dashboard",
+    "📋 Program NOP & Task Force",
+    "🛡️ SiDAVID (Verifikasi Internal)",
+    "🗺️ Sysinfomap (Peta & Populasi Site)"
+]
+
+if st.session_state['role'] is None and st.session_state.get('active_menu') not in OFFICE_ALLOWED_MENUS:
     ux_login_css()
     st.markdown("<br>", unsafe_allow_html=True)
-    render_header_logo(is_login=True) 
+    render_header_logo(is_login=True)
     st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Sistem Operasional Terpadu (SIDATA)</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 35px; letter-spacing: 1px; opacity: 0.85;'>Pilih Portal Akses Pekerjaan Anda Hari Ini</p>", unsafe_allow_html=True)
-    
+
     col_v, col_l, col_a = st.columns([3, 3, 3])
-    
+
     with col_v:
         st.markdown("""
             <div class='login-box'>
                 <div style='font-size: 45px; margin-bottom: 10px;'>👷‍♂️</div>
                 <div class='login-title' style='font-size: 20px;'>Mode Lapangan</div>
-                <div class='login-desc' style='font-size: 13px;'>Akses Form Pendataan PM (SPS, Reguler, Pangkalan Bun) untuk Teknisi (FME).</div>
+                <div class='login-desc' style='font-size: 13px;'>Akses Form Pendataan PM (SPS, Reguler & Audit Tower, Pangkalan Bun) untuk Teknisi (FME).</div>
             </div>
         """, unsafe_allow_html=True)
         c_v1, c_v2 = st.columns(2)
-        if c_v1.button("🔴 P'BUN", type="primary", use_container_width=True):
-            st.session_state['role'], st.session_state['area_lapangan'], st.session_state['active_menu'] = 'Lapangan', 'Pangkalan Bun', None
+        if c_v1.button("🔴 P'BUN", type="primary", use_container_width=True, key="btn_login_pbu"):
+            st.session_state['role'] = 'Lapangan'
+            st.session_state['area_lapangan'] = 'Pangkalan Bun'
+            st.session_state['active_menu'] = None
             st.rerun()
-        if c_v2.button("🔵 PLK", type="secondary", use_container_width=True):
-            st.session_state['role'], st.session_state['area_lapangan'], st.session_state['active_menu'] = 'Lapangan', 'Palangkaraya', None
+        if c_v2.button("🔵 PLK", type="secondary", use_container_width=True, key="btn_login_plk"):
+            st.session_state['role'] = 'Lapangan'
+            st.session_state['area_lapangan'] = 'Palangkaraya'
+            st.session_state['active_menu'] = None
             st.rerun()
 
     with col_l:
@@ -879,122 +895,30 @@ if st.session_state['role'] is None and st.session_state.get('active_menu') not 
             <div class='login-box' style='border-color: #10B981;'>
                 <div style='font-size: 45px; margin-bottom: 10px;'>🏢</div>
                 <div class='login-title' style='font-size: 20px;'>Portal Office</div>
-                <div class='login-desc' style='font-size: 13px;'>Pintu masuk Sub-Sistem: Gudang Logistik, Mutasi Tim (SiHD), & Keuangan (SiSAVA).</div>
+                <div class='login-desc' style='font-size: 13px;'>Sub-Sistem: Logistik, Mutasi Tim (SiHD), SiSAVA, Executive Project, Program NOP & SiDAVID.</div>
             </div>
         """, unsafe_allow_html=True)
         st.write("")
-        if st.button("🏢 MASUK PORTAL OFFICE", type="secondary", use_container_width=True):
+        if st.button("🏢 MASUK PORTAL OFFICE", type="secondary", use_container_width=True, key="btn_login_office"):
             st.session_state['active_menu'] = "🏢 Portal Office"
             st.rerun()
-            
+
     with col_a:
         st.markdown("""
             <div class='login-box'>
                 <div style='font-size: 45px; margin-bottom: 10px;'>🔐</div>
                 <div class='login-title' style='font-size: 20px;'>Mode Admin Utama</div>
-                <div class='login-desc' style='font-size: 13px;'>Akses Revisi, Dapot Power, Peta Sysinfomap & Manajemen Akun User.</div>
+                <div class='login-desc' style='font-size: 13px;'>Akses Revisi, Dapot Power, Sysinfomap, Manajemen Akun SiSAVA & Seluruh Portal Office.</div>
             </div>
         """, unsafe_allow_html=True)
-        admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Sandi...", key="pwd_login", label_visibility="collapsed")
-        if st.button("🔓 LOGIN ADMIN", type="primary", use_container_width=True):
+        admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Sandi...", key="pwd_login_main", label_visibility="collapsed")
+        if st.button("🔓 LOGIN ADMIN", type="primary", use_container_width=True, key="btn_login_admin"):
             if admin_pass == "KUT2027":
-                st.session_state['role'], st.session_state['active_menu'] = 'Admin', None
+                st.session_state['role'] = 'Admin'
+                st.session_state['active_menu'] = None
                 st.rerun()
             else:
                 st.error("❌ Sandi salah!")
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown("<div style='text-align: center; font-size: 13px; opacity: 0.7;'>Secured System Application & Database Management<br><b>Created By Okta Pradika © 2026</b></div>", unsafe_allow_html=True)
-    st.stop()
-# -------------------------------------------------------------------------
-# SISTEM LOGIN & ROLE AKSES (MENU UTAMA INDEPENDEN)
-# -------------------------------------------------------------------------
-if 'role' not in st.session_state: st.session_state['role'] = None
-if 'dashboard_area' not in st.session_state: st.session_state['dashboard_area'] = None
-
-if st.session_state['role'] is None and st.session_state.get('active_menu') not in ["💠 SiSAVA", "🚨 SiHD (Pergerakan Tim)", "🗺️ Sysinfomap (Peta & Populasi Site)", "⚡ SiPower"]:
-    
-    ux_login_css()
-    st.markdown("<br>", unsafe_allow_html=True)
-    render_header_logo(is_login=True) 
-    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Sistem Operasional Terpadu (SIDATA)</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 35px; letter-spacing: 1px; opacity: 0.85;'>Pilih Portal Akses Pekerjaan Anda Hari Ini</p>", unsafe_allow_html=True)
-    
-    # --- BARIS 1: LAPANGAN, LOGISTIK, & ADMIN ---
-    col_l1, col_l2, col_l3 = st.columns(3)
-    
-    with col_l1:
-        st.markdown("""
-            <div class='login-box'>
-                <div style='font-size: 45px; margin-bottom: 10px;'>👷‍♂️</div>
-                <div class='login-title' style='font-size: 20px;'>Lapangan</div>
-                <div class='login-desc' style='font-size: 13px;'>Akses Form Pendataan PM (SPS, Reguler, Pangkalan Bun).</div>
-            </div>
-        """, unsafe_allow_html=True)
-        c_v1, c_v2 = st.columns(2)
-        if c_v1.button("🔴 P'BUN", type="primary", use_container_width=True):
-            st.session_state['role'], st.session_state['area_lapangan'], st.session_state['active_menu'] = 'Lapangan', 'Pangkalan Bun', None
-            st.rerun()
-        if c_v2.button("🔵 PLK", type="secondary", use_container_width=True):
-            st.session_state['role'], st.session_state['area_lapangan'], st.session_state['active_menu'] = 'Lapangan', 'Palangkaraya', None
-            st.rerun()
-
-    with col_l2:
-        st.markdown("""
-            <div class='login-box' style='border-color: #FF9800;'>
-                <div style='font-size: 45px; margin-bottom: 10px;'>📦</div>
-                <div class='login-title' style='font-size: 20px;'>Logistik</div>
-                <div class='login-desc' style='font-size: 13px;'>Akses stok, In/Out barang, dan Auto-WA Material.</div>
-            </div>
-        """, unsafe_allow_html=True)
-        st.write("")
-        if st.button("📦 MASUK LOGISTIK", type="secondary", use_container_width=True):
-            st.session_state['role'], st.session_state['area_lapangan'], st.session_state['active_menu'] = 'Logistik', 'Logistik', None
-            st.rerun()
-            
-    with col_l3:
-        st.markdown("""
-            <div class='login-box'>
-                <div style='font-size: 45px; margin-bottom: 10px;'>🔐</div>
-                <div class='login-title' style='font-size: 20px;'>Admin</div>
-                <div class='login-desc' style='font-size: 13px;'>Akses edit data, Kurva S, Manajemen Akun & Pengaturan Sistem.</div>
-            </div>
-        """, unsafe_allow_html=True)
-        admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Sandi...", key="pwd_login", label_visibility="collapsed")
-        if st.button("🔓 LOGIN ADMIN", type="primary", use_container_width=True):
-            if admin_pass == "KUT2027":
-                st.session_state['role'], st.session_state['active_menu'] = 'Admin', None
-                st.rerun()
-            else:
-                st.error("❌ Sandi salah!")
-
-    # --- BARIS 2: SiSAVA & SiHD ---
-    st.markdown("<hr style='margin: 25px 0;'>", unsafe_allow_html=True)
-    c_bot1, c_bot2 = st.columns([1, 1])
-    
-    with c_bot1:
-        st.markdown("""
-            <div class='area-card' style='border-top-color: #10B981;'>
-                <div style='font-size: 40px; margin-bottom: 8px;'>💠</div>
-                <div class='login-title' style='font-size: 18px;'>SiSAVA (Service Variable Activity)</div>
-                <div class='login-desc' style='font-size: 13px;'>Pengajuan RAB, validasi Nilai SVA, dan Manajemen Keuangan Project. (Akun dikelola oleh Admin).</div>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("💠 MASUK SiSAVA", type="secondary", use_container_width=True):
-            st.session_state['active_menu'] = "💠 SiSAVA"
-            st.rerun()
-            
-    with c_bot2:
-        st.markdown("""
-            <div class='area-card' style='border-top-color: #EF4444;'>
-                <div style='font-size: 40px; margin-bottom: 8px;'>🚨</div>
-                <div class='login-title' style='font-size: 18px;'>SiHD (Sistem Helpdesk)</div>
-                <div class='login-desc' style='font-size: 13px;'>Buku mutasi tim, rute harian, kendala lapangan, dan Auto-WA pergantian shift.</div>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("🚨 MASUK SiHD", type="primary", use_container_width=True):
-            st.session_state['active_menu'] = "🚨 SiHD (Pergerakan Tim)"
-            st.rerun()
 
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("<div style='text-align: center; font-size: 13px; opacity: 0.7;'>Secured System Application & Database Management<br><b>Created By Okta Pradika © 2026</b></div>", unsafe_allow_html=True)
@@ -1297,88 +1221,7 @@ def fetch_data_from_gsheets():
     return all_data
 if 'laporan_db' not in st.session_state: 
     st.session_state['laporan_db'] = fetch_data_from_gsheets()
-# =========================================================================
-# 🛡️ HELPER DATABASE SiDAVID (AUTO-CREATE WORKSHEET GOOGLE SHEETS & EXCEL)
-# =========================================================================
-def sidavid_get_or_create_ws(sheet_name, default_headers):
-    try:
-        creds_dict = json.loads(st.secrets["gcp_json"])
-        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        sh = gspread.authorize(creds).open_by_key(SHEET_ID)
-        try:
-            ws = sh.worksheet(sheet_name)
-        except Exception:
-            ws = sh.add_worksheet(title=sheet_name, rows=1000, cols=max(len(default_headers) + 4, 20))
-            ws.update(range_name="A1", values=[default_headers])
-            return ws
-        head = ws.row_values(1)
-        if not head or not any(str(c).strip() for c in head):
-            ws.update(range_name="A1", values=[default_headers])
-        return ws
-    except Exception:
-        return None
 
-@st.cache_data(ttl=30, show_spinner=False)
-def sidavid_read_df(sheet_name, default_headers):
-    ws = sidavid_get_or_create_ws(sheet_name, default_headers)
-    if ws is None:
-        return pd.DataFrame(columns=default_headers), False
-    vals = ws.get_all_values()
-    if not vals or len(vals) < 1:
-        return pd.DataFrame(columns=default_headers), True
-    head = vals[0]
-    if not any(str(c).strip() for c in head):
-        return pd.DataFrame(columns=default_headers), True
-    rows = [r + [""] * (len(head) - len(r)) for r in vals[1:]]
-    df = pd.DataFrame(rows, columns=head)
-    for col in default_headers:
-        if col not in df.columns:
-            df[col] = ""
-    return df, True
-
-def sidavid_overwrite_ws(sheet_name, df):
-    df_clean = df.fillna("").astype(str)
-    headers = [str(c) for c in df_clean.columns.tolist()]
-    ws = sidavid_get_or_create_ws(sheet_name, headers)
-    if ws is None:
-        return False
-    ws.clear()
-    payload = [headers] + df_clean.values.tolist()
-    if len(payload) > ws.row_count:
-        ws.resize(rows=len(payload) + 100, cols=max(len(headers) + 2, ws.col_count))
-    ws.update(range_name="A1", values=payload, value_input_option="RAW")
-    sidavid_read_df.clear()
-    return True
-
-def sidavid_append_row(sheet_name, default_headers, row_dict):
-    ws = sidavid_get_or_create_ws(sheet_name, default_headers)
-    if ws is None:
-        return False
-    head = ws.row_values(1)
-    if not head:
-        head = default_headers
-        ws.update(range_name="A1", values=[head])
-    row_vals = [str(row_dict.get(c, "")) for c in head]
-    ws.append_row(row_vals, value_input_option="RAW")
-    sidavid_read_df.clear()
-    return True
-
-def sidavid_eval_expired(punya_status, exp_str):
-    if str(punya_status).strip().lower() != "punya":
-        return "❌ Belum Punya"
-    try:
-        exp_dt = pd.to_datetime(exp_str, errors="coerce")
-        if pd.isna(exp_dt):
-            return "⚠️ Tgl Expired Kosong"
-        sisa_hari = (exp_dt.date() - datetime.date.today()).days
-        if sisa_hari < 0:
-            return f"🔴 Expired ({abs(sisa_hari)} hari lalu)"
-        elif sisa_hari <= 60:
-            return f"🟡 Segera Expired ({sisa_hari} hari lagi)"
-        return f"🟢 Aktif ({sisa_hari} hari)"
-    except Exception:
-        return "⚠️ Cek Tanggal"
 # -------------------------------------------------------------------------
 # WA GENERATOR PANGKALAN BUN (Otomatis Teks)
 # -------------------------------------------------------------------------
@@ -1461,7 +1304,241 @@ def generate_wa_pbu(r):
         if line.strip(): text += f"{line}\n"
         
     text += f"\n\n🔗 Foto & Dokumentasi lengkap tersimpan di Dashboard SPS Portal."
-    return text# =============================================================================
+    return text
+
+
+# =========================================================================
+# 🛡️ HELPER UNIVERSAL GOOGLE SHEETS (SiHD, PROGRAM NOP & SiDAVID)
+# =========================================================================
+def gsheet_get_or_create_ws(sheet_name, default_headers):
+    try:
+        creds_dict = json.loads(st.secrets["gcp_json"])
+        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        sh = gspread.authorize(creds).open_by_key(SHEET_ID)
+        try:
+            ws = sh.worksheet(sheet_name)
+        except Exception:
+            ws = sh.add_worksheet(title=sheet_name, rows=1000, cols=max(len(default_headers) + 4, 20))
+            ws.update(range_name="A1", values=[default_headers])
+            return ws
+        head = ws.row_values(1)
+        if not head or not any(str(c).strip() for c in head):
+            ws.update(range_name="A1", values=[default_headers])
+        return ws
+    except Exception:
+        return None
+
+@st.cache_data(ttl=30, show_spinner=False)
+def gsheet_read_df(sheet_name, default_headers):
+    ws = gsheet_get_or_create_ws(sheet_name, default_headers)
+    if ws is None:
+        return pd.DataFrame(columns=default_headers), False
+    vals = ws.get_all_values()
+    if not vals or len(vals) < 1:
+        return pd.DataFrame(columns=default_headers), True
+    head = vals[0]
+    if not any(str(c).strip() for c in head):
+        return pd.DataFrame(columns=default_headers), True
+    # Deduplicate empty/duplicate header names safely
+    clean_head = []
+    seen_h = {}
+    for idx_h, h_val in enumerate(head):
+        h_s = str(h_val).strip() or f"Kolom_{idx_h+1}"
+        if h_s in seen_h:
+            seen_h[h_s] += 1
+            h_s = f"{h_s}_{seen_h[h_s]}"
+        else:
+            seen_h[h_s] = 0
+        clean_head.append(h_s)
+    rows = [r[:len(clean_head)] + [""] * max(0, len(clean_head) - len(r)) for r in vals[1:]]
+    df = pd.DataFrame(rows, columns=clean_head)
+    for col in default_headers:
+        if col not in df.columns:
+            df[col] = ""
+    return df, True
+
+def gsheet_overwrite_ws(sheet_name, df):
+    df_clean = df.fillna("").astype(str)
+    headers = [str(c) for c in df_clean.columns.tolist()]
+    ws = gsheet_get_or_create_ws(sheet_name, headers)
+    if ws is None:
+        return False
+    ws.clear()
+    payload = [headers] + df_clean.values.tolist()
+    if len(payload) > ws.row_count or len(headers) > ws.col_count:
+        ws.resize(rows=max(len(payload) + 100, ws.row_count), cols=max(len(headers) + 4, ws.col_count))
+    ws.update(range_name="A1", values=payload, value_input_option="RAW")
+    gsheet_read_df.clear()
+    return True
+
+def gsheet_append_row(sheet_name, default_headers, row_dict):
+    ws = gsheet_get_or_create_ws(sheet_name, default_headers)
+    if ws is None:
+        return False
+    head = ws.row_values(1)
+    if not head or not any(str(c).strip() for c in head):
+        head = default_headers
+        ws.update(range_name="A1", values=[head])
+    row_vals = [str(row_dict.get(c, "")) for c in head]
+    ws.append_row(row_vals, value_input_option="RAW")
+    gsheet_read_df.clear()
+    return True
+
+def sidavid_eval_expired(punya_status, exp_str):
+    if str(punya_status).strip().lower() != "punya":
+        return "❌ Belum Punya"
+    try:
+        exp_dt = pd.to_datetime(exp_str, errors="coerce")
+        if pd.isna(exp_dt):
+            return "⚠️ Tgl Expired Kosong"
+        sisa_hari = (exp_dt.date() - datetime.date.today()).days
+        if sisa_hari < 0:
+            return f"🔴 Expired ({abs(sisa_hari)} hari lalu)"
+        elif sisa_hari <= 60:
+            return f"🟡 Segera Expired ({sisa_hari} hari lagi)"
+        return f"🟢 Aktif ({sisa_hari} hari)"
+    except Exception:
+        return "⚠️ Cek Tanggal"
+
+def _norm_site_id(raw_val):
+    s = str(raw_val or "").strip().upper()
+    if not s or s in ("NAN", "NONE", "-"):
+        return ""
+    if len(s) >= 6 and s[:3].isalpha() and s[3:6].isdigit():
+        return s[:6]
+    return s.split()[0].split("-")[0]
+
+def build_onsite_history_index(db_list):
+    """Membangun index riwayat onsite & power dari seluruh laporan SIDATA per Site ID."""
+    idx_map = {}
+    for r in (db_list or []):
+        kat = r.get("kategori", "")
+        if kat in ("Project", "SiHD"):
+            continue
+        raw_sn = r.get("pb_site_id") or r.get("site_name") or ""
+        sid = _norm_site_id(raw_sn)
+        if not sid:
+            continue
+        ts = str(r.get("timestamp", ""))
+        prob = str(r.get("problem_alarm") or r.get("action") or "-")
+        rem = str(r.get("remark") or r.get("cond_data", {}).get("note_action") or "-")
+        tek = str(r.get("teknisi") or r.get("pb_te") or "-")
+        stat = str(r.get("status") or "-")
+
+        v_ac, v_dc, load_dc = None, None, None
+        if kat == "Site Reguler":
+            cd = r.get("cond_data", {})
+            v_vals = [pd.to_numeric(cd.get(k), errors="coerce") for k in ("v_rn", "v_sn", "v_tn")]
+            v_ok = [v for v in v_vals if pd.notna(v)]
+            v_ac = round(float(sum(v_ok) / len(v_ok)), 1) if v_ok else None
+            ld = pd.to_numeric(cd.get("load_dc"), errors="coerce")
+            load_dc = float(ld) if pd.notna(ld) else None
+        elif kat == "SPS":
+            vd = pd.to_numeric(r.get("rect_out_v"), errors="coerce")
+            ld = pd.to_numeric(r.get("total_load"), errors="coerce")
+            v_dc = float(vd) if pd.notna(vd) else None
+            load_dc = float(ld) if pd.notna(ld) else None
+        elif kat == "Pangkalan Bun":
+            kel = r.get("pb_kelistrikan", {})
+            va_raw = str(kel.get("v_rst_n", "")).replace(",", ".")
+            va_nums = re.findall(r"\d+\.?\d*", va_raw)
+            if va_nums:
+                v_ac = round(float(va_nums[0]), 1)
+            rects = r.get("pb_rectifiers", [])
+            if rects:
+                vd = pd.to_numeric(rects[0].get("dc_v"), errors="coerce")
+                ld = pd.to_numeric(rects[0].get("load"), errors="coerce")
+                v_dc = float(vd) if pd.notna(vd) else None
+                load_dc = float(ld) if pd.notna(ld) else None
+
+        entry = {
+            "Timestamp": ts,
+            "Tanggal": ts[:10],
+            "Kategori": kat,
+            "Teknisi": tek,
+            "Status": stat,
+            "Problem": prob,
+            "Remark": rem,
+            "V_AC": v_ac,
+            "V_DC": v_dc,
+            "Load_DC": load_dc
+        }
+        idx_map.setdefault(sid, []).append(entry)
+
+    for sid in idx_map:
+        idx_map[sid].sort(key=lambda x: x["Timestamp"])
+    return idx_map
+
+def _sanitize_xlsx_bytes(file_or_path):
+    """Menghapus tag XML autoFilter yang memicu bug openpyxl pada beberapa file Excel."""
+    if isinstance(file_or_path, str):
+        with open(file_or_path, "rb") as _f:
+            raw = _f.read()
+    elif isinstance(file_or_path, bytes):
+        raw = file_or_path
+    else:
+        if hasattr(file_or_path, "seek"):
+            file_or_path.seek(0)
+        raw = file_or_path.read()
+        if hasattr(file_or_path, "seek"):
+            file_or_path.seek(0)
+    out_buf = BytesIO()
+    with zipfile.ZipFile(BytesIO(raw), "r") as zin, zipfile.ZipFile(out_buf, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename.startswith("xl/worksheets/") and item.filename.endswith(".xml"):
+                data = re.sub(rb"<autoFilter\b[^>]*>.*?</autoFilter>", b"", data, flags=re.DOTALL)
+                data = re.sub(rb"<autoFilter\b[^>]*/>", b"", data)
+            zout.writestr(item, data)
+    out_buf.seek(0)
+    return out_buf
+
+def get_excel_sheet_names_safe(file_or_path):
+    try:
+        if hasattr(file_or_path, "seek"):
+            file_or_path.seek(0)
+        return pd.ExcelFile(file_or_path).sheet_names
+    except Exception:
+        return pd.ExcelFile(_sanitize_xlsx_bytes(file_or_path)).sheet_names
+
+def read_excel_safe_raw(file_or_path, sheet_name=0, header=0):
+    try:
+        if hasattr(file_or_path, "seek"):
+            file_or_path.seek(0)
+        return pd.read_excel(file_or_path, sheet_name=sheet_name, header=header)
+    except Exception:
+        return pd.read_excel(_sanitize_xlsx_bytes(file_or_path), sheet_name=sheet_name, header=header)
+
+def parse_excel_smart_header(file_or_path, sheet_name, target_keywords=("site id", "site_id", "siteid")):
+    """Membaca Excel secara aman (anti-crash AutoFilter openpyxl) dan mendeteksi baris header otomatis."""
+    df_raw = read_excel_safe_raw(file_or_path, sheet_name=sheet_name, header=None)
+    if df_raw is None or df_raw.empty:
+        return pd.DataFrame()
+    hdr_row = 0
+    for r_idx in range(min(15, len(df_raw))):
+        row_vals = [str(v).strip().lower() for v in df_raw.iloc[r_idx].tolist()]
+        if any(any(kw in cell for kw in target_keywords) for cell in row_vals):
+            hdr_row = r_idx
+            break
+    cols = []
+    seen = {}
+    for c_i, val in enumerate(df_raw.iloc[hdr_row].tolist()):
+        cname = str(val).strip() if pd.notna(val) and str(val).strip() else f"Kolom_{c_i+1}"
+        if cname in seen:
+            seen[cname] += 1
+            cname = f"{cname}_{seen[cname]}"
+        else:
+            seen[cname] = 0
+        cols.append(cname)
+    df_out = df_raw.iloc[hdr_row + 1:].copy()
+    df_out.columns = cols
+    site_col = next((c for c in cols if any(kw in c.lower() for kw in target_keywords)), cols[0])
+    df_out = df_out.dropna(subset=[site_col])
+    df_out = df_out[~df_out[site_col].astype(str).str.strip().str.lower().isin(["", "nan", "none", "total", "site id"])]
+    return df_out.reset_index(drop=True)
+
+# =============================================================================
 # 💠 INTERNAL FUNGSI SiSAVA — Sistem Service Variable Activity
 # =============================================================================
 import hashlib as _hl
@@ -2576,7 +2653,9 @@ def sisava_page():
         
     user = ss.get("sv_user")
     if not user:
-        _sv_login_view(store)
+        st.warning("⚠️ Sesi SiSAVA telah berakhir. Silakan login kembali.")
+        st.session_state['sv_user'] = None
+        st.rerun()
         return
         
     c1, c2 = st.columns([4, 1])
@@ -2674,52 +2753,60 @@ if st.session_state['active_menu'] is None:
     _ux_stats, _ux_split = ux_stats_from_db(st.session_state.get("laporan_db", []))
     ux_hero(role_badge, "Sistem Operasional Terpadu SIDATA", "Pilih modul untuk melanjutkan. Data laporan tersinkron langsung dari server.", stats=_ux_stats, split=_ux_split)
 
-    # === PANEL KHUSUS ADMIN UTAMA: MANAJEMEN AKUN SiSAVA ===
+    # === PANEL KHUSUS ADMIN UTAMA: MANAJEMEN AKUN SiSAVA & PINTU PORTAL OFFICE ===
     if st.session_state['role'] == 'Admin':
-        st.markdown("### 🛠️ Manajemen Akun Pengguna (SiSAVA)")
-        st.info("Sebagai Admin Utama, Anda dapat mendaftarkan akun untuk Manager, SPV, Engineering, dan Tim Operasional agar mereka dapat mengakses Portal SiSAVA.")
-        
-        store = sv_store()
-        users = store.list_users()
-        
-        with st.expander("➕ Buat Akun SiSAVA Baru / Reset Sandi", expanded=True):
-            tb_buat, tb_reset = st.tabs(["📝 Buat Akun Baru", "🔑 Reset Sandi"])
-            
-            with tb_buat:
-                a1, a2 = st.columns(2)
-                nu_adm = a1.text_input("Username Baru (Tanpa Spasi)", key="svw_nu_adm_main")
-                nn_adm = a2.text_input("Nama Lengkap", key="svw_nn_adm_main")
-                a3, a4 = st.columns(2)
-                nj_adm = a3.text_input("Jabatan Tertulis", placeholder="mis: Koordinator / Engineering", key="svw_nj_adm_main")
-                nr_adm = a4.selectbox("Hak Akses (Role)", list(SV_ROLES), format_func=lambda x: SV_ROLES[x], key="svw_nr_adm_main")
-                pw_adm = st.text_input("Sandi (min. 8 karakter)", type="password", key="svw_pw_adm_main")
-                
-                if st.button("💾 Simpan & Daftarkan Akun", type="primary", key="btn_save_akun_main"):
-                    msg = sv_validate_new_user({"username": nu_adm.strip(), "nama": nn_adm, "role": nr_adm}, pw_adm)
-                    if not msg and sv_user_find(store, nu_adm): msg = "Username tersebut sudah dipakai."
-                    if msg: 
-                        st.error(msg)
+        c_adm_p1, c_adm_p2 = st.columns([2.2, 1.3])
+        with c_adm_p1:
+            st.markdown("### 🛠️ Manajemen Akun Pengguna (SiSAVA)")
+            store = sv_store()
+            users = store.list_users()
+            with st.expander("➕ Buat Akun SiSAVA Baru (Manager / SPV / Engineering / Staff) & Reset Sandi", expanded=(not users)):
+                tb_buat, tb_reset = st.tabs(["📝 Buat Akun Baru", "🔑 Reset Sandi"])
+                with tb_buat:
+                    a1, a2 = st.columns(2)
+                    nu_adm = a1.text_input("Username Baru (Tanpa Spasi)", key="svw_nu_adm_main")
+                    nn_adm = a2.text_input("Nama Lengkap", key="svw_nn_adm_main")
+                    a3, a4 = st.columns(2)
+                    nj_adm = a3.text_input("Jabatan Tertulis", placeholder="mis: Engineering Project Control / Koordinator", key="svw_nj_adm_main")
+                    nr_adm = a4.selectbox("Hak Akses (Role)", list(SV_ROLES), format_func=lambda x: SV_ROLES[x], key="svw_nr_adm_main")
+                    pw_adm = st.text_input("Sandi (min. 8 karakter)", type="password", key="svw_pw_adm_main")
+                    if st.button("💾 Simpan & Daftarkan Akun", type="primary", key="btn_save_akun_main"):
+                        msg = sv_validate_new_user({"username": nu_adm.strip(), "nama": nn_adm, "role": nr_adm}, pw_adm)
+                        if not msg and sv_user_find(store, nu_adm): msg = "Username tersebut sudah dipakai."
+                        if msg:
+                            st.error(msg)
+                        else:
+                            store.upsert_user({"username": nu_adm.strip(), "nama": nn_adm.strip(), "jabatan": nj_adm.strip(), "role": nr_adm, "pw_hash": sv_hash_pw(pw_adm), "aktif": "1", "dibuat": sv_now()})
+                            st.success(f"✅ Akun untuk {nu_adm.strip()} ({SV_ROLES[nr_adm]}) berhasil didaftarkan!")
+                            st.rerun()
+                with tb_reset:
+                    if not users:
+                        st.warning("Belum ada akun terdaftar.")
                     else:
-                        store.upsert_user({"username": nu_adm.strip(), "nama": nn_adm.strip(), "jabatan": nj_adm.strip(), "role": nr_adm, "pw_hash": sv_hash_pw(pw_adm), "aktif": "1", "dibuat": sv_now()})
-                        st.success(f"✅ Akun untuk {nu_adm.strip()} ({SV_ROLES[nr_adm]}) berhasil didaftarkan! Mereka kini bisa masuk melalui Portal SiSAVA.")
-                        st.rerun()
+                        ru_adm = st.selectbox("Pilih Akun yang akan Direset", [x["username"] for x in users], key="svw_ru_adm_main")
+                        rpw_adm = st.text_input("Sandi Baru (min. 8 karakter)", type="password", key="svw_rpw_adm_main")
+                        if st.button("🔄 Reset Sandi Akun", key="btn_reset_akun_main"):
+                            if len(rpw_adm) < 8:
+                                st.error("Sandi minimal 8 karakter.")
+                            else:
+                                store.upsert_user({"username": ru_adm, "pw_hash": sv_hash_pw(rpw_adm)})
+                                st.success(f"✅ Sandi untuk akun {ru_adm} berhasil direset.")
+        with c_adm_p2:
+            st.markdown("### 🏢 Akses Cepat Office")
+            st.markdown("""
+                <div class='area-card' style='border-top-color: #10B981; padding: 18px 16px;'>
+                    <div style='font-size: 36px; margin-bottom: 6px;'>🏢</div>
+                    <div class='login-title' style='font-size: 18px;'>Portal Office</div>
+                    <div class='login-desc' style='font-size: 12.5px; margin-bottom: 8px;'>Logistik, SiHD, SiSAVA, Executive Project, Program NOP & SiDAVID.</div>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("🏢 BUKA PORTAL OFFICE", type="primary", use_container_width=True, key="m_adm_to_office"):
+                st.session_state['active_menu'] = "🏢 Portal Office"
+                st.rerun()
 
-            with tb_reset:
-                if not users:
-                    st.warning("Belum ada akun terdaftar.")
-                else:
-                    ru_adm = st.selectbox("Pilih Akun yang akan Direset", [x["username"] for x in users], key="svw_ru_adm_main")
-                    rpw_adm = st.text_input("Sandi Baru (min. 8 karakter)", type="password", key="svw_rpw_adm_main")
-                    if st.button("🔄 Reset Sandi Akun", key="btn_reset_akun_main"):
-                        if len(rpw_adm) < 8: 
-                            st.error("Sandi minimal 8 karakter.")
-                        else: 
-                            store.upsert_user({"username": ru_adm, "pw_hash": sv_hash_pw(rpw_adm)})
-                            st.success(f"✅ Sandi untuk akun {ru_adm} berhasil direset.")
-        
-        st.markdown("<hr style='margin: 30px 0;'>", unsafe_allow_html=True)
+        st.markdown("<hr style='margin: 22px 0;'>", unsafe_allow_html=True)
 
-    # === KOTAK MENU NAVIGASI UTAMA ===
+    # === KOTAK MENU UTAMA (BERSIH & FOKUS OPERASIONAL LAPANGAN / ADMIN) ===
     col_m1, col_m2 = st.columns(2)
     with col_m1:
         if st.session_state['role'] == 'Admin':
@@ -2727,7 +2814,7 @@ if st.session_state['active_menu'] is None:
                 <div class='area-card' style='border-top-color: #007BFF;'>
                     <div style='font-size: 46px; margin-bottom: 8px;'>📝</div>
                     <div class='login-title'>Form Preventive Check</div>
-                    <div class='login-desc'>Input laporan Preventive Maintenance Site SPS, Site Reguler Palangkaraya, dan Site Visit Pangkalan Bun.</div>
+                    <div class='login-desc'>Input laporan Preventive Maintenance Site SPS, Site Reguler & Audit Tower Palangkaraya, serta Site Visit Pangkalan Bun.</div>
                 </div>
             """, unsafe_allow_html=True)
             if st.button("📝 BUKA FORM PREVENTIVE CHECK", type="primary", use_container_width=True, key="m_form_adm"):
@@ -2738,7 +2825,7 @@ if st.session_state['active_menu'] is None:
                 <div class='area-card' style='border-top-color: #007BFF;'>
                     <div style='font-size: 46px; margin-bottom: 8px;'>📸</div>
                     <div class='login-title'>Form Pelaporan (Lapangan)</div>
-                    <div class='login-desc'>Input data pengerjaan lapangan, pengukuran parameter kelistrikan AC/DC, dan upload foto eviden wajib.</div>
+                    <div class='login-desc'>Input data pengerjaan lapangan, pengukuran parameter kelistrikan AC/DC, audit fisik tower & upload foto eviden wajib.</div>
                 </div>
             """, unsafe_allow_html=True)
             if st.button("📸 BUKA FORM PELAPORAN LAPANGAN", type="primary", use_container_width=True, key="m_form_lap"):
@@ -2762,7 +2849,7 @@ if st.session_state['active_menu'] is None:
             <div class='area-card' style='border-top-color: #FF3333;'>
                 <div style='font-size: 46px; margin-bottom: 8px;'>📊</div>
                 <div class='login-title'>Hasil Laporan & Dashboard</div>
-                <div class='login-desc'>Lihat rekapitulasi laporan NOP Palangkaraya & Pangkalan Bun, unduh Excel/PPTX/PDF, dan bagikan ke WhatsApp.</div>
+                <div class='login-desc'>Lihat rekapitulasi laporan NOP Palangkaraya & Pangkalan Bun, analisa grafik power, unduh Excel/PPTX/PDF & bagikan WA.</div>
             </div>
         """, unsafe_allow_html=True)
         if st.button("📊 BUKA HASIL LAPORAN & DASHBOARD", type="primary", use_container_width=True, key="m_dash"):
@@ -2774,108 +2861,83 @@ if st.session_state['active_menu'] is None:
             <div class='area-card' style='border-top-color: #FFC107;'>
                 <div style='font-size: 46px; margin-bottom: 8px;'>⚡</div>
                 <div class='login-title'>Dapot Power Hasil PMS</div>
-                <div class='login-desc'>Executive Dashboard untuk compare bulanan tegangan & beban AC/DC pada site kunjungan rutin maupun 1x kunjungan.</div>
+                <div class='login-desc'>Executive Dashboard compare bulanan AC/DC, AI Analisa Repeated Issue (PLK) & Komparasi Dapot vs Aktual (PBU).</div>
             </div>
         """, unsafe_allow_html=True)
         if st.button("⚡ BUKA DAPOT POWER HASIL PMS", type="secondary", use_container_width=True, key="m_dapot"):
             st.session_state['active_menu'] = "⚡ Dapot Power Hasil PMS"
             st.rerun()
 
-    st.markdown("<hr style='margin: 30px 0;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin: 26px 0;'>", unsafe_allow_html=True)
     c_out1, c_out2, c_out3 = st.columns(3)
     with c_out1:
         st.markdown("""
             <div class='area-card' style='border-top-color: #9C27B0;'>
                 <div style='font-size: 42px; margin-bottom: 8px;'>📅</div>
-                <div class='login-title' style='font-size: 20px;'>Daily Tracker PLK</div>
+                <div class='login-title' style='font-size: 19px;'>Daily Tracker PLK</div>
                 <div class='login-desc' style='font-size: 13px;'>To Do List harian tim Onsite, update status pengerjaan, dan pencatatan FME.</div>
             </div>
         """, unsafe_allow_html=True)
         if st.button("📅 BUKA DAILY TRACKER", type="primary", use_container_width=True, key="m_tracker"):
             st.session_state['active_menu'] = "📅 Daily Tracker Palangkaraya"
             st.rerun()
-            
+
     with c_out2:
         st.markdown("""
-            <div class='area-card' style='border-top-color: #EF4444;'>
-                <div style='font-size: 42px; margin-bottom: 8px;'>🚨</div>
-                <div class='login-title' style='font-size: 20px;'>SiHD (Sistem Helpdesk)</div>
-                <div class='login-desc' style='font-size: 13px;'>Buku mutasi elektronik pergerakan tim, rincian pekerjaan, dan WA serah terima shift.</div>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("🚨 BUKA SiHD (MUTASI TIM)", type="primary", use_container_width=True, key="m_sihd"):
-            st.session_state['active_menu'] = "🚨 SiHD (Pergerakan Tim)"
-            st.rerun()
-
-    with c_out3:
-        st.markdown("""
-            <div class='area-card' style='border-top-color: #10B981;'>
-                <div style='font-size: 42px; margin-bottom: 8px;'>💠</div>
-                <div class='login-title' style='font-size: 20px;'>Portal SiSAVA</div>
-                <div class='login-desc' style='font-size: 13px;'>Sistem Service Variable Activity: Pengajuan RAB, Approval SPV, dan Nilai SVA.</div>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("💠 BUKA PORTAL SiSAVA", type="primary", use_container_width=True, key="m_sisava"):
-            st.session_state['active_menu'] = "💠 SiSAVA"
-            st.rerun()
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    c_tool1, c_tool2, c_tool3 = st.columns(3)
-    with c_tool1:
-        st.markdown("""
-            <div class='area-card' style='border-top-color: #FFD700; background: linear-gradient(145deg, #0f172a, #1e293b);'>
-                <div style='font-size: 42px; margin-bottom: 8px;'>💎</div>
-                <div class='login-title' style='font-size: 20px; color: #FFD700 !important;'>Executive Project</div>
-                <div class='login-desc' style='font-size: 13px; color: #cbd5e1 !important;'>Dashboard Khusus PO & SVA: Interactive Timeline, Margin & Live Update.</div>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("💎 BUKA EXECUTIVE PROJECT", type="primary", use_container_width=True, key="m_proj_dash"):
-            st.session_state['active_menu'] = "💎 Executive Project Dashboard"
-            st.rerun()
-
-    with c_tool2:
-        if st.session_state['role'] in ['Admin', 'Logistik']:
-            st.markdown("""
-                <div class='area-card' style='border-top-color: #FF9800;'>
-                    <div style='font-size: 42px; margin-bottom: 8px;'>📦</div>
-                    <div class='login-title' style='font-size: 20px;'>Logistik & SPMS</div>
-                    <div class='login-desc' style='font-size: 13px;'>Manajemen Inbound/Outbound stok material, oli, filter genset, dan gudang.</div>
-                </div>
-            """, unsafe_allow_html=True)
-            if st.button("📦 BUKA LOGISTIK", type="secondary", use_container_width=True, key="m_log"):
-                st.session_state['active_menu'] = "📦 Logistik & SPMS"
-                st.rerun()
-                
-    with c_tool3:
-        st.markdown("""
             <div class='area-card' style='border-top-color: #06B6D4;'>
-                <div style='font-size: 44px; margin-bottom: 6px;'>🗺️</div>
+                <div style='font-size: 42px; margin-bottom: 8px;'>🗺️</div>
                 <div class='login-title' style='font-size: 19px;'>Sysinfomap (Peta Site)</div>
-                <div class='login-desc' style='font-size: 13px;'>Peta interaktif 910+ Site, populasi per Kabupaten, dan komparasi Master vs KML.</div>
+                <div class='login-desc' style='font-size: 13px;'>Peta radar interaktif 910+ Site, populasi Kabupaten & komparasi Master vs KML.</div>
             </div>
         """, unsafe_allow_html=True)
         if st.button("🗺️ BUKA SYSINFOMAP", type="primary", use_container_width=True, key="m_sysinfomap"):
             st.session_state['active_menu'] = "🗺️ Sysinfomap (Peta & Populasi Site)"
             st.rerun()
-            
-    st.markdown("<br><hr style='margin: 10px 0;'>", unsafe_allow_html=True)
-    if st.button("🚪 KELUAR AKUN", type="secondary", use_container_width=True, key="btn_logout_main"):
-        st.session_state['role'] = None
-        st.session_state['dashboard_area'] = None
-        st.session_state['active_menu'] = None
-        st.session_state['proj_dash_unlocked'] = False
-        st.session_state['proj_unlocked'] = False
-        st.session_state.pop('sv_user', None)
-        st.rerun()
+
+    with c_out3:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #64748B;'>
+                <div style='font-size: 42px; margin-bottom: 8px;'>🚪</div>
+                <div class='login-title' style='font-size: 19px;'>Keluar Akun</div>
+                <div class='login-desc' style='font-size: 13px;'>Kembali ke layar utama 3 Portal (Lapangan, Office, Admin) dengan aman.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("🚪 KELUAR AKUN", type="secondary", use_container_width=True, key="btn_logout_main"):
+            st.session_state['role'] = None
+            st.session_state['dashboard_area'] = None
+            st.session_state['active_menu'] = None
+            st.session_state['proj_dash_unlocked'] = False
+            st.session_state['proj_unlocked'] = False
+            st.session_state.pop('sv_user', None)
+            st.rerun()
     st.stop()
 else:
     menu = st.session_state['active_menu']
-    c_top1, c_top2, c_top3 = st.columns([2.2, 5.6, 2.2])
+    _is_office_sub = menu in [
+        "📦 Logistik & SPMS",
+        "🚨 SiHD (Pergerakan Tim)",
+        "💠 SiSAVA",
+        "💎 Executive Project Dashboard",
+        "📋 Program NOP & Task Force",
+        "🛡️ SiDAVID (Verifikasi Internal)"
+    ]
+    c_top1, c_top2, c_top3 = st.columns([2.3, 5.4, 2.3])
     with c_top1:
-        if st.button("⬅️ KEMBALI KE MENU UTAMA", type="secondary", use_container_width=True, key="btn_back_main"):
-            st.session_state['active_menu'] = None
-            st.session_state['dashboard_area'] = None
-            st.rerun()
+        if _is_office_sub and st.session_state.get('role') is None:
+            if st.button("⬅️ KEMBALI KE PORTAL OFFICE", type="secondary", use_container_width=True, key="btn_back_main"):
+                st.session_state['active_menu'] = "🏢 Portal Office"
+                st.session_state['dashboard_area'] = None
+                st.rerun()
+        elif menu == "🏢 Portal Office" and st.session_state.get('role') is None:
+            if st.button("⬅️ KEMBALI KE LAYAR DEPAN", type="secondary", use_container_width=True, key="btn_back_main"):
+                st.session_state['active_menu'] = None
+                st.session_state['dashboard_area'] = None
+                st.rerun()
+        else:
+            if st.button("⬅️ KEMBALI KE MENU UTAMA", type="secondary", use_container_width=True, key="btn_back_main"):
+                st.session_state['active_menu'] = None
+                st.session_state['dashboard_area'] = None
+                st.rerun()
     with c_top2:
         st.markdown(
             f"<div style='text-align: center; padding: 10px 16px; border-radius: 10px; background-color: var(--secondary-background-color); border: 1px solid var(--primary-color); font-weight: 800; font-size: 16px;'>📍 Menu Aktif: {menu}</div>",
@@ -2886,6 +2948,9 @@ else:
             st.session_state['role'] = None
             st.session_state['dashboard_area'] = None
             st.session_state['active_menu'] = None
+            st.session_state['proj_dash_unlocked'] = False
+            st.session_state['proj_unlocked'] = False
+            st.session_state.pop('sv_user', None)
             st.rerun()
     st.markdown("<hr style='margin: 15px 0 25px 0;'>", unsafe_allow_html=True)
 
@@ -5768,7 +5833,154 @@ elif menu == "💎 Executive Project Dashboard":
                     csv_p = df_exp_proj.to_csv(index=False).encode('utf-8')
                     st.download_button("💎 Download Executive Project Report (.csv)", data=csv_p, file_name=f"Executive_Project_Report_{datetime.date.today()}.csv", mime="text/csv", type="primary", use_container_width=True)
             else:
-                st.info("Belum ada rincian tabel rute PO untuk diekspor.")# -------------------------------------------------------------------------
+                st.info("Belum ada rincian tabel rute PO untuk diekspor.")
+
+# =========================================================================
+# MENU 8: SiHD (SISTEM HELPDESK — MUTASI PERGERAKAN TIM & SERAH TERIMA SHIFT)
+# =========================================================================
+elif menu == "🚨 SiHD (Pergerakan Tim)":
+    st.markdown("<h1 style='text-align: center;'>🚨 SiHD — Sistem Helpdesk & Mutasi Pergerakan Tim</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.85;'>Buku Mutasi Elektronik Pergerakan Tim Lapangan (Palangkaraya & Pangkalan Bun) serta Auto-WA Serah Terima Shift</p>", unsafe_allow_html=True)
+
+    fme_plk_list, fme_pbu_list, site_plk_list, site_pbu_list = load_master_lists()
+    db_sihd = [r for r in st.session_state.get('laporan_db', []) if r.get('_sheet') == 'SiHD' or r.get('kategori') == 'SiHD']
+
+    tot_sihd = len(db_sihd)
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    today_sihd = sum(1 for r in db_sihd if str(r.get('timestamp', '')).startswith(today_str))
+    open_sihd = sum(1 for r in db_sihd if str(r.get('status', '')).lower() in ['on progress', 'open', 'pending', 'otw / berangkat'])
+
+    ux_hero(
+        "HELPDESK COMMAND CENTER",
+        "SiHD — Mutasi & Serah Terima Shift",
+        "Rekam pergerakan FME secara real-time ke Google Sheets tab 'SiHD' dan kirim ringkasan serah terima shift ke WhatsApp dalam 1 klik.",
+        stats=[
+            (f"{tot_sihd} Log", "Total Catatan Mutasi"),
+            (f"{today_sihd} Log", "Pergerakan Hari Ini"),
+            (f"{open_sihd} Aktif", "Masih Open / On Progress")
+        ]
+    )
+
+    tab_hd_in, tab_hd_log = st.tabs(["📝 Input Mutasi & Pergerakan Tim", "📋 Buku Mutasi & WA Serah Terima Shift"])
+
+    with tab_hd_in:
+        st.markdown("### 📝 Form Pencatatan Pergerakan Tim")
+        with st.container(border=True):
+            ch1, ch2, ch3 = st.columns(3)
+            with ch1:
+                hd_nop = st.selectbox("Area NOP:", ["Palangkaraya", "Pangkalan Bun"], key="hd_nop")
+                hd_shift = st.selectbox("Shift Jaga:", ["Pagi (08:00 - 16:00)", "Siang (16:00 - 00:00)", "Malam (00:00 - 08:00)"], key="hd_shift")
+                hd_pic = st.text_input("Nama Helpdesk / Dispatcher *:", placeholder="Ketik nama HD jaga...", key="hd_pic")
+            with ch2:
+                opsi_fme_hd = fme_plk_list if hd_nop == "Palangkaraya" else fme_pbu_list
+                if opsi_fme_hd:
+                    hd_tim = st.multiselect("Pilih Tim / FME Bergerak *:", opsi_fme_hd, key="hd_tim_sel")
+                else:
+                    t_hd_m = st.text_input("Nama Tim / FME *:", key="hd_tim_txt")
+                    hd_tim = [t_hd_m] if t_hd_m.strip() else []
+                opsi_site_hd = site_plk_list if hd_nop == "Palangkaraya" else site_pbu_list
+                if opsi_site_hd:
+                    hd_sites = st.multiselect("Site Target / Rute Kunjungan:", opsi_site_hd, key="hd_sites_sel")
+                else:
+                    hd_sites = []
+                hd_site_manual = st.text_input("Atau Ketik Site/Rute Manual:", placeholder="Cth: PLK001 -> PLK025", key="hd_site_man")
+            with ch3:
+                hd_kat = st.selectbox("Kategori Kegiatan:", ["Troubleshoot Down / Alarm", "Preventive Maintenance (PM)", "Refuel / BBM Genset", "Audit Tower / Combat", "Project / Relokasi", "Pengambilan Material / Logistik", "Standby / Patroli"], key="hd_kat")
+                hd_tiket = st.text_input("No. Tiket / Incident (Opsional):", placeholder="Cth: INC-2026-xxxx", key="hd_tiket")
+                hd_status = st.selectbox("Status Pergerakan:", ["OTW / Berangkat", "On Site / Pengerjaan", "Done / Clear", "Pending / Butuh Follow-Up"], key="hd_status")
+
+            hd_ket = st.text_area("📝 Rincian Pekerjaan / Kendala / Info Handover *:", placeholder="Jelaskan kronologi, tindakan tim, atau hal yang wajib dipantau shift berikutnya...", key="hd_ket")
+
+            if st.button("🚀 SIMPAN MUTASI SiHD & SIAPKAN WA", type="primary", use_container_width=True, key="btn_save_sihd"):
+                site_gabung = ", ".join(hd_sites + ([hd_site_manual.strip()] if hd_site_manual.strip() else []))
+                if not hd_pic.strip() or not hd_tim or not hd_ket.strip():
+                    st.error("⚠️ Nama Helpdesk, Tim/FME, dan Rincian Pekerjaan wajib diisi!")
+                else:
+                    with st.spinner("Menyimpan mutasi ke Google Sheets tab 'SiHD'..."):
+                        rec_hd = {
+                            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "site_name": site_gabung or "-",
+                            "kategori": "SiHD",
+                            "nop": hd_nop,
+                            "teknisi": ", ".join(hd_tim),
+                            "status": hd_status,
+                            "action": hd_ket.strip(),
+                            "hd_shift": hd_shift,
+                            "hd_pic": hd_pic.strip(),
+                            "hd_kat_giat": hd_kat,
+                            "hd_tiket": hd_tiket.strip() or "-",
+                            "_sheet": "SiHD"
+                        }
+                        ws_hd = gsheet_get_or_create_ws("SiHD", ["Timestamp", "Site Name", "NOP", "Teknisi", "Status", "Data JSON"])
+                        if ws_hd:
+                            row_hd = [rec_hd["timestamp"], rec_hd["site_name"], rec_hd["nop"], rec_hd["teknisi"], rec_hd["status"], json.dumps(rec_hd, ensure_ascii=False)]
+                            ws_hd.insert_row(row_hd, index=2)
+                            st.cache_data.clear()
+                            st.session_state['laporan_db'] = fetch_data_from_gsheets()
+                            st.success("✅ Catatan mutasi SiHD berhasil disimpan ke Cloud!")
+                        else:
+                            st.session_state['laporan_db'].insert(0, rec_hd)
+                            st.warning("⚠️ Tersimpan di sesi lokal (koneksi Google Sheets sedang offline).")
+
+                        wa_hd = (
+                            f"*🚨 MUTASI PERGERAKAN TIM (SiHD)*\n"
+                            f"📍 *NOP:* {hd_nop} | *Shift:* {hd_shift}\n"
+                            f"🗓️ *Waktu:* {rec_hd['timestamp']}\n"
+                            f"🎧 *Helpdesk:* {rec_hd['hd_pic']}\n"
+                            f"👷 *Tim FME:* {rec_hd['teknisi']}\n"
+                            f"🗼 *Site / Rute:* {rec_hd['site_name']}\n"
+                            f"🏷️ *Kegiatan:* {hd_kat} (Tiket: {rec_hd['hd_tiket']})\n"
+                            f"📊 *Status:* *{hd_status}*\n\n"
+                            f"📝 *Keterangan / Handover:*\n{rec_hd['action']}"
+                        )
+                        st.link_button("📱 KIRIM LAPORAN MUTASI INI KE WHATSAPP", f"https://wa.me/?text={urllib.parse.quote(wa_hd)}", type="primary", use_container_width=True)
+
+    with tab_hd_log:
+        st.markdown("### 📋 Rekap Buku Mutasi & Generator WA Serah Terima Shift")
+        if not db_sihd:
+            st.info("Belum ada catatan mutasi tim pada tab 'SiHD'. Silakan input melalui tab pertama.")
+        else:
+            rows_hd = []
+            for r in db_sihd:
+                rows_hd.append({
+                    "Waktu": r.get("timestamp", "-"),
+                    "Tanggal": str(r.get("timestamp", ""))[:10],
+                    "NOP": r.get("nop", "-"),
+                    "Shift": r.get("hd_shift", "-"),
+                    "Helpdesk": r.get("hd_pic", "-"),
+                    "Tim FME": r.get("teknisi", "-"),
+                    "Site / Rute": r.get("site_name", "-"),
+                    "Kegiatan": r.get("hd_kat_giat", "-"),
+                    "Tiket": r.get("hd_tiket", "-"),
+                    "Status": r.get("status", "-"),
+                    "Keterangan": r.get("action", "-")
+                })
+            df_hd = pd.DataFrame(rows_hd).sort_values("Waktu", ascending=False)
+
+            cfh1, cfh2, cfh3 = st.columns(3)
+            flt_hd_tgl = cfh1.selectbox("Filter Tanggal:", ["Semua Tanggal"] + sorted(df_hd["Tanggal"].unique().tolist(), reverse=True), key="flt_hd_tgl")
+            flt_hd_nop = cfh2.selectbox("Filter NOP:", ["Semua NOP", "Palangkaraya", "Pangkalan Bun"], key="flt_hd_nop")
+            flt_hd_shf = cfh3.selectbox("Filter Shift:", ["Semua Shift"] + sorted(df_hd["Shift"].unique().tolist()), key="flt_hd_shf")
+
+            df_hd_v = df_hd.copy()
+            if flt_hd_tgl != "Semua Tanggal": df_hd_v = df_hd_v[df_hd_v["Tanggal"] == flt_hd_tgl]
+            if flt_hd_nop != "Semua NOP": df_hd_v = df_hd_v[df_hd_v["NOP"] == flt_hd_nop]
+            if flt_hd_shf != "Semua Shift": df_hd_v = df_hd_v[df_hd_v["Shift"] == flt_hd_shf]
+
+            st.dataframe(df_hd_v.drop(columns=["Tanggal"]), use_container_width=True, hide_index=True)
+
+            # Generate WA Serah Terima Shift Gabungan
+            wa_handover = f"*📋 SERAH TERIMA SHIFT HELPDESK (SiHD)*\n📍 Area: {flt_hd_nop} | Tanggal: {flt_hd_tgl} | Shift: {flt_hd_shf}\nTotal Pergerakan: {len(df_hd_v)} Aktivitas\n\n"
+            for idx_h, (_, rh) in enumerate(df_hd_v.head(20).iterrows(), 1):
+                wa_handover += f"{idx_h}. *[{rh['Status']}]* {rh['Site / Rute']} | Tim: {rh['Tim FME']}\n   ↳ {rh['Kegiatan']}: {rh['Keterangan']}\n"
+            wa_handover += "\n_Generated via SIDATA SiHD_"
+
+            c_hw1, c_hw2 = st.columns(2)
+            with c_hw1:
+                st.link_button("📱 KIRIM WA SERAH TERIMA SHIFT (GABUNGAN)", f"https://wa.me/?text={urllib.parse.quote(wa_handover)}", type="primary", use_container_width=True)
+            with c_hw2:
+                st.download_button("📥 Download Buku Mutasi SiHD (.csv)", data=df_hd_v.to_csv(index=False).encode("utf-8"), file_name=f"Buku_Mutasi_SiHD_{datetime.date.today()}.csv", mime="text/csv", use_container_width=True)
+
 # =========================================================================
 # MENU 9: SYSINFOMAP (PETA GEOSPASIAL, POPULASI KABUPATEN & KOMPARASI SITE)
 # =========================================================================
@@ -6406,52 +6618,885 @@ elif menu == "💠 SiSAVA":
     else:
         sisava_page()
 # =========================================================================
-# MENU 11: PORTAL OFFICE (SUB-MENU LOGISTIK, SiHD, SiSAVA)
+
+# =========================================================================
+# MENU 11: PORTAL OFFICE (6 SUB-MODUL TERORGANISIR: LOGISTIK, SiHD, SiSAVA, PROJECT, PROGRAM NOP, SiDAVID)
 # =========================================================================
 elif menu == "🏢 Portal Office":
     st.markdown("<h1 style='text-align: center;'>🏢 Portal Office SIDATA</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; opacity: 0.8;'>Pilih sub-modul operasional Office yang ingin Anda akses hari ini.</p>", unsafe_allow_html=True)
-    st.markdown("<hr style='margin: 15px 0 30px 0;'>", unsafe_allow_html=True)
-    
+    st.markdown("<p style='text-align: center; opacity: 0.85;'>Pusat Kendali Back-Office: Logistik, Mutasi Helpdesk (SiHD), Keuangan RAB (SiSAVA), Executive Project, Program NOP & SiDAVID.</p>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin: 15px 0 28px 0;'>", unsafe_allow_html=True)
+
     c_off1, c_off2, c_off3 = st.columns(3)
     with c_off1:
         st.markdown("""
             <div class='area-card' style='border-top-color: #FF9800;'>
-                <div style='font-size: 45px; margin-bottom: 10px;'>📦</div>
-                <div class='login-title' style='font-size: 20px;'>Gudang / Logistik</div>
-                <div class='login-desc' style='font-size: 13px;'>Akses eksklusif pengelolaan stok material, in/out, & sparepart.</div>
+                <div style='font-size: 44px; margin-bottom: 10px;'>📦</div>
+                <div class='login-title' style='font-size: 19px;'>Gudang & Logistik</div>
+                <div class='login-desc' style='font-size: 13px;'>Pengelolaan Inbound/Outbound stok material, oli, filter genset, dan SPMS.</div>
             </div>
         """, unsafe_allow_html=True)
-        if st.button("📦 BUKA LOGISTIK", type="primary", use_container_width=True):
-            st.session_state['role'] = 'Logistik'
-            st.session_state['area_lapangan'] = 'Logistik'
-            st.session_state['active_menu'] = None
+        if st.button("📦 BUKA LOGISTIK", type="primary", use_container_width=True, key="off_btn_log"):
+            st.session_state['active_menu'] = "📦 Logistik & SPMS"
             st.rerun()
-            
+
     with c_off2:
         st.markdown("""
             <div class='area-card' style='border-top-color: #EF4444;'>
-                <div style='font-size: 45px; margin-bottom: 10px;'>🚨</div>
-                <div class='login-title' style='font-size: 20px;'>SiHD (Sistem Helpdesk)</div>
-                <div class='login-desc' style='font-size: 13px;'>Buku mutasi elektronik tim, rincian site, & Auto-WA Serah Terima Shift.</div>
+                <div style='font-size: 44px; margin-bottom: 10px;'>🚨</div>
+                <div class='login-title' style='font-size: 19px;'>SiHD (Sistem Helpdesk)</div>
+                <div class='login-desc' style='font-size: 13px;'>Buku mutasi elektronik tim, rute harian & Auto-WA Serah Terima Shift.</div>
             </div>
         """, unsafe_allow_html=True)
-        if st.button("🚨 BUKA SiHD", type="primary", use_container_width=True):
+        if st.button("🚨 BUKA SiHD", type="primary", use_container_width=True, key="off_btn_sihd"):
             st.session_state['active_menu'] = "🚨 SiHD (Pergerakan Tim)"
             st.rerun()
-            
+
     with c_off3:
         st.markdown("""
             <div class='area-card' style='border-top-color: #10B981;'>
-                <div style='font-size: 45px; margin-bottom: 10px;'>💠</div>
-                <div class='login-title' style='font-size: 20px;'>Portal SiSAVA</div>
-                <div class='login-desc' style='font-size: 13px;'>Pengajuan RAB, Margin, dan Nilai SVA (Akun Pengguna diatur oleh Admin).</div>
+                <div style='font-size: 44px; margin-bottom: 10px;'>💠</div>
+                <div class='login-title' style='font-size: 19px;'>Portal SiSAVA</div>
+                <div class='login-desc' style='font-size: 13px;'>Pengajuan RAB (3E ➔ KUT ➔ HPP), Approval berjenjang, Nilai SVA & Bukti Kerja.</div>
             </div>
         """, unsafe_allow_html=True)
-        if st.button("💠 BUKA SiSAVA", type="primary", use_container_width=True):
+        if st.button("💠 BUKA SiSAVA", type="primary", use_container_width=True, key="off_btn_sisava"):
             st.session_state['active_menu'] = "💠 SiSAVA"
             st.rerun()
-        
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    c_off4, c_off5, c_off6 = st.columns(3)
+    with c_off4:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #FFD700; background: linear-gradient(145deg, #0f172a, #1e293b);'>
+                <div style='font-size: 44px; margin-bottom: 10px;'>💎</div>
+                <div class='login-title' style='font-size: 19px; color: #FFD700 !important;'>Executive Project</div>
+                <div class='login-desc' style='font-size: 13px; color: #cbd5e1 !important;'>Dashboard Khusus PO & SVA: Budget vs Support, Timeline & Analisa Mandek.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("💎 BUKA EXECUTIVE PROJECT", type="primary", use_container_width=True, key="off_btn_proj"):
+            st.session_state['active_menu'] = "💎 Executive Project Dashboard"
+            st.rerun()
+
+    with c_off5:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #38BDF8;'>
+                <div style='font-size: 44px; margin-bottom: 10px;'>📋</div>
+                <div class='login-title' style='font-size: 19px;'>Program NOP & Task Force</div>
+                <div class='login-desc' style='font-size: 13px;'>Upload & simpan program NOP PLK/PBU, checklist target, availability & history power.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("📋 BUKA PROGRAM NOP", type="primary", use_container_width=True, key="off_btn_prognop"):
+            st.session_state['active_menu'] = "📋 Program NOP & Task Force"
+            st.rerun()
+
+    with c_off6:
+        st.markdown("""
+            <div class='area-card' style='border-top-color: #8B5CF6;'>
+                <div style='font-size: 44px; margin-bottom: 10px;'>🛡️</div>
+                <div class='login-title' style='font-size: 19px;'>SiDAVID (Verifikasi Internal)</div>
+                <div class='login-desc' style='font-size: 13px;'>Verifikasi Mateline, Sertifikat WAH/BA/BE, Join/Keluar Tim & Validasi Standby.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("🛡️ BUKA SiDAVID", type="primary", use_container_width=True, key="off_btn_sidavid"):
+            st.session_state['active_menu'] = "🛡️ SiDAVID (Verifikasi Internal)"
+            st.rerun()
+
+
+# =========================================================================
+# MENU 12: PROGRAM NOP & TASK FORCE (UPLOAD, SAVE CLOUD, CHECKLIST, AVAIL & HISTORY ONSITE)
+# =========================================================================
+elif menu == "📋 Program NOP & Task Force":
+    st.markdown("<h1 style='text-align: center;'>📋 Program NOP & Task Force Analytics</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.85;'>Upload & Simpan List Program per NOP (Palangkaraya & Pangkalan Bun), Auto Cross-Check History Onsite/Power SIDATA, Checklist Target & Pencapaian Availability</p>", unsafe_allow_html=True)
+
+    db_live_prog = st.session_state.get('laporan_db', [])
+    onsite_idx = build_onsite_history_index(db_live_prog)
+
+    COLS_PROG_PLK = ["Site ID", "Site Name", "Kabupaten", "Site Class", "RTS Name", "Leader Name", "RC Category", "RC Tier", "Remark", "RC Detail", "Action Cat", "Action Detail", "Support Needed", "Target Week (plan)", "Plan Visit Date", "Status", "Potensi kenaikan NOP Okt (poin)"]
+    COLS_PROG_PBU = ["SITE ID", "SITE NAME", "SITE CLASS", "RCA", "Action Detail", "Plan Date", "Target Closed", "Status Activity", "Biaya (Diisi Koordinator)", "Remark (Target & Plan)", "Remark Hasil Pekerjaan"]
+
+    df_plk_cloud, ok_plk_c = gsheet_read_df("Program_NOP_PLK", COLS_PROG_PLK)
+    df_pbu_cloud, ok_pbu_c = gsheet_read_df("Program_NOP_PBU", COLS_PROG_PBU)
+
+    # Fallback otomatis baca dari file Excel lokal jika Google Sheets masih kosong
+    local_plk_file = "Plan_Task_Force_EOY26_Palangkaraya_rapi (1).xlsx"
+    local_pbu_file = "Timeplan_Target_Closed_Biaya_Nov2026 pangkalanbun.xlsx"
+
+    if df_plk_cloud.empty and os.path.exists(local_plk_file):
+        try:
+            df_plk_cloud = parse_excel_smart_header(local_plk_file, "Take_In")
+        except Exception:
+            pass
+    if df_pbu_cloud.empty and os.path.exists(local_pbu_file):
+        try:
+            df_pbu_cloud = parse_excel_smart_header(local_pbu_file, "Timeplan & Tracking")
+        except Exception:
+            pass
+
+    def _enrich_with_sidata(df_in, site_col_name):
+        df_e = df_in.copy()
+        cnts, ldates, lstats, lprobs, lvacs, lvdcs, lloads = [], [], [], [], [], [], []
+        for _, rw in df_e.iterrows():
+            sid_n = _norm_site_id(rw.get(site_col_name, ""))
+            hist = onsite_idx.get(sid_n, [])
+            if hist:
+                last_h = hist[-1]
+                cnts.append(len(hist))
+                ldates.append(last_h["Tanggal"])
+                lstats.append(last_h["Status"])
+                lprobs.append(str(last_h["Problem"])[:80])
+                lvacs.append(f"{last_h['V_AC']} V" if last_h["V_AC"] is not None else "-")
+                lvdcs.append(f"{last_h['V_DC']} V" if last_h["V_DC"] is not None else "-")
+                lloads.append(f"{last_h['Load_DC']} A" if last_h["Load_DC"] is not None else "-")
+            else:
+                cnts.append(0); ldates.append("-"); lstats.append("Belum Onsite"); lprobs.append("-"); lvacs.append("-"); lvdcs.append("-"); lloads.append("-")
+        df_e["Onsite_SIDATA (x)"] = cnts
+        df_e["Tgl_Onsite_Terakhir"] = ldates
+        df_e["Status_Onsite_SIDATA"] = lstats
+        df_e["Problem_Onsite_Terakhir"] = lprobs
+        df_e["Last_VAC"] = lvacs
+        df_e["Last_VDC"] = lvdcs
+        df_e["Last_Load_DC"] = lloads
+        return df_e
+
+    def _render_site_history_inspector(df_prog_base, site_col_name, key_prefix):
+        st.markdown("#### 🔍 Inspector History Onsite & Grafik Power Site Program (Dari Database SIDATA)")
+        sids_all = sorted(df_prog_base[site_col_name].dropna().astype(str).str.strip().str.upper().unique().tolist())
+        if not sids_all:
+            st.info("Belum ada Site ID pada daftar program.")
+            return
+        pick_s = st.selectbox(
+            "📌 Pilih Site ID dari Program untuk melihat riwayat onsite & tren power:",
+            sids_all,
+            format_func=lambda x: f"{x} ({len(onsite_idx.get(_norm_site_id(x), []))}x Record Onsite di SIDATA)",
+            key=f"insp_site_{key_prefix}"
+        )
+        sid_norm = _norm_site_id(pick_s)
+        hist_list = onsite_idx.get(sid_norm, [])
+        if not hist_list:
+            st.warning(f"Site **{pick_s}** belum memiliki record kunjungan onsite di database SIDATA.")
+        else:
+            df_h = pd.DataFrame(hist_list)
+            st.success(f"✅ Ditemukan **{len(df_h)}x kunjungan onsite** untuk site **{pick_s}** di database SIDATA.")
+            ch_p1, ch_p2 = st.columns(2)
+            with ch_p1:
+                with st.container(border=True):
+                    st.markdown("**⚡ Riwayat Tegangan AC / DC (Volt)**")
+                    df_hv = df_h.set_index("Tanggal")[["V_AC", "V_DC"]].dropna(how="all")
+                    if not df_hv.empty:
+                        ui_line_chart(df_hv, color=["#EF4444", "#10B981"])
+                    else:
+                        st.caption("Belum ada angka pengukuran tegangan pada riwayat onsite site ini.")
+            with ch_p2:
+                with st.container(border=True):
+                    st.markdown("**🔋 Riwayat Beban DC (Ampere)**")
+                    df_hl = df_h.set_index("Tanggal")[["Load_DC"]].dropna(how="all")
+                    if not df_hl.empty:
+                        ui_bar_chart(df_hl, color="#F59E0B")
+                    else:
+                        st.caption("Belum ada angka pengukuran beban DC pada riwayat onsite site ini.")
+            st.dataframe(df_h[["Timestamp", "Kategori", "Teknisi", "Status", "Problem", "Remark", "V_AC", "V_DC", "Load_DC"]], use_container_width=True, hide_index=True)
+
+    tab_prog_plk, tab_prog_pbu = st.tabs(["🔵 NOP Palangkaraya (Task Force & Availability)", "🔴 NOP Pangkalan Bun (Timeplan, Target & Biaya)"])
+
+    # ---------------------------------------------------------------------
+    # TAB 1: PROGRAM NOP PALANGKARAYA
+    # ---------------------------------------------------------------------
+    with tab_prog_plk:
+        with st.expander("📤 Upload & Simpan Excel Program NOP Palangkaraya ke Cloud (`Program_NOP_PLK`)", expanded=df_plk_cloud.empty):
+            up_plk = st.file_uploader("Unggah File Excel Program Palangkaraya (.xlsx / .csv):", type=["xlsx", "xls", "csv"], key="up_prog_plk")
+            mode_plk = st.radio("Mode Simpan:", ["Replace (Ganti List Program)", "Append (Tambah ke List Lama)"], horizontal=True, key="mode_prog_plk")
+            if up_plk is not None:
+                try:
+                    if up_plk.name.lower().endswith(".csv"):
+                        df_new_plk = pd.read_csv(up_plk)
+                    else:
+                        sheets_plk = get_excel_sheet_names_safe(up_plk)
+                        def_sh = sheets_plk.index("Take_In") if "Take_In" in sheets_plk else 0
+                        sh_plk = st.selectbox("Pilih Sheet sumber:", sheets_plk, index=def_sh, key="sh_prog_plk")
+                        df_new_plk = parse_excel_smart_header(up_plk, sh_plk)
+                    st.write(f"Preview ({len(df_new_plk)} site):")
+                    st.dataframe(df_new_plk.head(10), use_container_width=True, hide_index=True)
+                    if st.button("💾 SIMPAN PROGRAM NOP PALANGKARAYA KE CLOUD", type="primary", use_container_width=True, key="btn_save_prog_plk"):
+                        df_save = pd.concat([df_plk_cloud, df_new_plk], ignore_index=True) if ("Append" in mode_plk and not df_plk_cloud.empty) else df_new_plk
+                        if gsheet_overwrite_ws("Program_NOP_PLK", df_save):
+                            st.success(f"✅ {len(df_save)} site Program NOP Palangkaraya tersimpan ke tab `Program_NOP_PLK`!")
+                            st.rerun()
+                        else:
+                            st.error("⚠️ Gagal menyimpan ke Google Sheets.")
+                except Exception as e:
+                    st.error(f"Gagal membaca Excel Palangkaraya: {e}")
+
+        if df_plk_cloud.empty:
+            st.warning("Belum ada data Program NOP Palangkaraya. Silakan upload Excel di atas.")
+        else:
+            scol_plk = next((c for c in df_plk_cloud.columns if "site id" in c.lower() or c.lower() == "site_id"), df_plk_cloud.columns[0])
+            stcol_plk = next((c for c in df_plk_cloud.columns if c.lower() == "status" or "status" in c.lower()), None)
+            rccol_plk = next((c for c in df_plk_cloud.columns if "rc category" in c.lower() or "rc tier" in c.lower() or "rca" in c.lower()), None)
+            avcol_plk = next((c for c in df_plk_cloud.columns if "potensi" in c.lower() or "avail" in c.lower() or "poin" in c.lower()), None)
+            tgcol_plk = next((c for c in df_plk_cloud.columns if "plan visit" in c.lower() or "target" in c.lower()), None)
+
+            df_plk_enr = _enrich_with_sidata(df_plk_cloud, scol_plk)
+
+            tot_plk = len(df_plk_enr)
+            closed_mask = df_plk_enr[stcol_plk].astype(str).str.lower().str.contains("close|done|selesai") if stcol_plk else pd.Series([False]*tot_plk)
+            cnt_closed_plk = int(closed_mask.sum())
+            cnt_open_plk = tot_plk - cnt_closed_plk
+            pct_plk = (cnt_closed_plk / tot_plk * 100) if tot_plk else 0.0
+            cnt_onsite_plk = int((df_plk_enr["Onsite_SIDATA (x)"] > 0).sum())
+
+            pot_avail_tot, pot_avail_done = 0.0, 0.0
+            if avcol_plk:
+                av_nums = pd.to_numeric(df_plk_enr[avcol_plk], errors="coerce").fillna(0.0)
+                pot_avail_tot = float(av_nums.sum())
+                pot_avail_done = float(av_nums[closed_mask].sum())
+
+            base_avail_plk = st.number_input("Baseline Availability NOP Palangkaraya Saat Ini (%):", min_value=0.0, max_value=100.0, value=95.63, step=0.01, format="%.2f", key="base_av_plk")
+
+            kpl1, kpl2, kpl3, kpl4, kpl5 = st.columns(5)
+            kpl1.metric("Total Site Program", f"{tot_plk} Site")
+            kpl2.metric("✅ Closed / Selesai", f"{cnt_closed_plk} ({pct_plk:.1f}%)")
+            kpl3.metric("⏳ Open / Berjalan", f"{cnt_open_plk} Site")
+            kpl4.metric("📡 Sudah Onsite SIDATA", f"{cnt_onsite_plk} Site")
+            kpl5.metric("📈 Proyeksi Availability", f"{base_avail_plk + pot_avail_done:.2f}%", delta=f"+{pot_avail_done:.2f} / {pot_avail_tot:.2f} poin")
+
+            cp_g1, cp_g2 = st.columns(2)
+            with cp_g1:
+                with st.container(border=True):
+                    st.markdown("**🛑 Breakdown Problem Program Palangkaraya**")
+                    if rccol_plk:
+                        df_rc_p = df_plk_enr[rccol_plk].replace("", "Lainnya").value_counts().head(10).to_frame("Jumlah Site")
+                        ui_bar_chart(df_rc_p, color="#F59E0B", horizontal=True)
+                    else:
+                        st.caption("Kolom RC Category tidak ditemukan.")
+            with cp_g2:
+                with st.container(border=True):
+                    st.markdown("**📊 Status Pencapaian Target & Kunjungan Onsite**")
+                    df_cmp_p = pd.DataFrame({
+                        "Jumlah Site": [cnt_closed_plk, cnt_open_plk, cnt_onsite_plk, tot_plk - cnt_onsite_plk]
+                    }, index=["Program Closed", "Program Open", "Sudah Record SIDATA", "Belum Record SIDATA"])
+                    ui_bar_chart(df_cmp_p, color="#2563EB")
+
+            st.markdown("#### ✅ Checklist Target Selesai, Status & Sinkronisasi History SIDATA (Palangkaraya)")
+            flt_p1, flt_p2 = st.columns([1.5, 1.5])
+            q_plk_p = flt_p1.text_input("🔍 Cari Site ID / Nama / RTS / Problem:", key="q_prog_plk")
+            st_plk_f = flt_p2.selectbox("Filter Status:", ["Semua", "Open", "Closed", "Sudah Onsite SIDATA", "Belum Onsite SIDATA"], key="st_flt_plk")
+
+            df_plk_show = df_plk_enr.copy()
+            if st_plk_f == "Open" and stcol_plk:
+                df_plk_show = df_plk_show[~df_plk_show[stcol_plk].astype(str).str.lower().str.contains("close|done|selesai")]
+            elif st_plk_f == "Closed" and stcol_plk:
+                df_plk_show = df_plk_show[df_plk_show[stcol_plk].astype(str).str.lower().str.contains("close|done|selesai")]
+            elif st_plk_f == "Sudah Onsite SIDATA":
+                df_plk_show = df_plk_show[df_plk_show["Onsite_SIDATA (x)"] > 0]
+            elif st_plk_f == "Belum Onsite SIDATA":
+                df_plk_show = df_plk_show[df_plk_show["Onsite_SIDATA (x)"] == 0]
+            if q_plk_p.strip():
+                qq = q_plk_p.strip().lower()
+                df_plk_show = df_plk_show[df_plk_show.apply(lambda r: qq in " ".join(r.astype(str)).lower(), axis=1)]
+
+            cfg_plk = {}
+            if stcol_plk:
+                cfg_plk[stcol_plk] = st.column_config.SelectboxColumn("Status", options=["Open", "On Progress", "Closed", "Pending"])
+            ed_plk = st.data_editor(df_plk_show, use_container_width=True, num_rows="dynamic", column_config=cfg_plk, key="ed_prog_plk")
+
+            cb_p1, cb_p2 = st.columns(2)
+            with cb_p1:
+                if st.button("💾 Simpan Checklist & Perubahan Program PLK ke Cloud", type="primary", use_container_width=True, key="btn_upd_plk_prog"):
+                    if q_plk_p.strip() or st_plk_f != "Semua":
+                        st.warning("⚠️ Set filter ke 'Semua' & kosongkan kotak cari terlebih dahulu sebelum menyimpan agar seluruh site tersimpan utuh.")
+                    else:
+                        cols_save_plk = [c for c in ed_plk.columns if c not in ["Onsite_SIDATA (x)", "Tgl_Onsite_Terakhir", "Status_Onsite_SIDATA", "Problem_Onsite_Terakhir", "Last_VAC", "Last_VDC", "Last_Load_DC"]]
+                        if gsheet_overwrite_ws("Program_NOP_PLK", ed_plk[cols_save_plk]):
+                            st.success("✅ Checklist Program NOP Palangkaraya berhasil disimpan ke Cloud!")
+                            st.rerun()
+            with cb_p2:
+                buf_plk_x = BytesIO()
+                with pd.ExcelWriter(buf_plk_x, engine="openpyxl") as xw:
+                    df_plk_show.to_excel(xw, sheet_name="Program_NOP_PLK", index=False)
+                st.download_button("📥 Download Program PLK + History SIDATA (.xlsx)", data=buf_plk_x.getvalue(), file_name=f"Program_NOP_PLK_{datetime.date.today()}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True, key="dl_prog_plk")
+
+            st.markdown("---")
+            _render_site_history_inspector(df_plk_cloud, scol_plk, "plk")
+
+    # ---------------------------------------------------------------------
+    # TAB 2: PROGRAM NOP PANGKALAN BUN
+    # ---------------------------------------------------------------------
+    with tab_prog_pbu:
+        with st.expander("📤 Upload & Simpan Excel Program NOP Pangkalan Bun ke Cloud (`Program_NOP_PBU`)", expanded=df_pbu_cloud.empty):
+            up_pbu = st.file_uploader("Unggah File Excel Program Pangkalan Bun (.xlsx / .csv):", type=["xlsx", "xls", "csv"], key="up_prog_pbu")
+            mode_pbu = st.radio("Mode Simpan:", ["Replace (Ganti List Program)", "Append (Tambah ke List Lama)"], horizontal=True, key="mode_prog_pbu")
+            if up_pbu is not None:
+                try:
+                    if up_pbu.name.lower().endswith(".csv"):
+                        df_new_pbu = pd.read_csv(up_pbu)
+                    else:
+                        sheets_pbu = get_excel_sheet_names_safe(up_pbu)
+                        def_sh_b = sheets_pbu.index("Timeplan & Tracking") if "Timeplan & Tracking" in sheets_pbu else 0
+                        sh_pbu = st.selectbox("Pilih Sheet sumber:", sheets_pbu, index=def_sh_b, key="sh_prog_pbu")
+                        df_new_pbu = parse_excel_smart_header(up_pbu, sh_pbu)
+                    st.write(f"Preview ({len(df_new_pbu)} site):")
+                    st.dataframe(df_new_pbu.head(10), use_container_width=True, hide_index=True)
+                    if st.button("💾 SIMPAN PROGRAM NOP PANGKALAN BUN KE CLOUD", type="primary", use_container_width=True, key="btn_save_prog_pbu"):
+                        df_save_b = pd.concat([df_pbu_cloud, df_new_pbu], ignore_index=True) if ("Append" in mode_pbu and not df_pbu_cloud.empty) else df_new_pbu
+                        if gsheet_overwrite_ws("Program_NOP_PBU", df_save_b):
+                            st.success(f"✅ {len(df_save_b)} site Program NOP Pangkalan Bun tersimpan ke tab `Program_NOP_PBU`!")
+                            st.rerun()
+                        else:
+                            st.error("⚠️ Gagal menyimpan ke Google Sheets.")
+                except Exception as e:
+                    st.error(f"Gagal membaca Excel Pangkalan Bun: {e}")
+
+        if df_pbu_cloud.empty:
+            st.warning("Belum ada data Program NOP Pangkalan Bun. Silakan upload Excel di atas.")
+        else:
+            scol_pbu = next((c for c in df_pbu_cloud.columns if "site id" in c.lower() or c.lower() == "site_id"), df_pbu_cloud.columns[0])
+            stcol_pbu = next((c for c in df_pbu_cloud.columns if "status" in c.lower()), None)
+            rcacol_pbu = next((c for c in df_pbu_cloud.columns if "rca" in c.lower() or "problem" in c.lower()), None)
+            bycol_pbu = next((c for c in df_pbu_cloud.columns if "biaya" in c.lower()), None)
+            tgcol_pbu = next((c for c in df_pbu_cloud.columns if "target" in c.lower()), None)
+
+            df_pbu_enr = _enrich_with_sidata(df_pbu_cloud, scol_pbu)
+
+            tot_pbu = len(df_pbu_enr)
+            closed_mask_b = df_pbu_enr[stcol_pbu].astype(str).str.lower().str.contains("close|done|selesai") if stcol_pbu else pd.Series([False]*tot_pbu)
+            cnt_closed_pbu = int(closed_mask_b.sum())
+            cnt_open_pbu = tot_pbu - cnt_closed_pbu
+            pct_pbu = (cnt_closed_pbu / tot_pbu * 100) if tot_pbu else 0.0
+            cnt_onsite_pbu = int((df_pbu_enr["Onsite_SIDATA (x)"] > 0).sum())
+            tot_biaya_pbu = float(pd.to_numeric(df_pbu_enr[bycol_pbu], errors="coerce").fillna(0).sum()) if bycol_pbu else 0.0
+
+            kpb1, kpb2, kpb3, kpb4, kpb5 = st.columns(5)
+            kpb1.metric("Total Site Program", f"{tot_pbu} Site")
+            kpb2.metric("✅ Closed / Selesai", f"{cnt_closed_pbu} ({pct_pbu:.1f}%)")
+            kpb3.metric("⏳ Open / Berjalan", f"{cnt_open_pbu} Site")
+            kpb4.metric("📡 Sudah Onsite SIDATA", f"{cnt_onsite_pbu} Site")
+            kpb5.metric("💰 Total Biaya Program", f"Rp {tot_biaya_pbu:,.0f}")
+
+            cb_g1, cb_g2 = st.columns(2)
+            with cb_g1:
+                with st.container(border=True):
+                    st.markdown("**🛑 Breakdown RCA / Problem Pangkalan Bun**")
+                    if rcacol_pbu:
+                        df_rc_b = df_pbu_enr[rcacol_pbu].replace("", "Lainnya").value_counts().head(10).to_frame("Jumlah Site")
+                        ui_bar_chart(df_rc_b, color="#EF4444", horizontal=True)
+                    else:
+                        st.caption("Kolom RCA tidak ditemukan.")
+            with cb_g2:
+                with st.container(border=True):
+                    st.markdown("**📊 Status Pencapaian Target & Kunjungan Onsite**")
+                    df_cmp_b = pd.DataFrame({
+                        "Jumlah Site": [cnt_closed_pbu, cnt_open_pbu, cnt_onsite_pbu, tot_pbu - cnt_onsite_pbu]
+                    }, index=["Program Closed", "Program Open", "Sudah Record SIDATA", "Belum Record SIDATA"])
+                    ui_bar_chart(df_cmp_b, color="#10B981")
+
+            st.markdown("#### ✅ Checklist Target Closed, Biaya & History SIDATA (Pangkalan Bun)")
+            flt_b1, flt_b2 = st.columns([1.5, 1.5])
+            q_pbu_p = flt_b1.text_input("🔍 Cari Site ID / Nama / RCA:", key="q_prog_pbu")
+            st_pbu_f = flt_b2.selectbox("Filter Status:", ["Semua", "Open", "Closed", "Sudah Onsite SIDATA", "Belum Onsite SIDATA"], key="st_flt_pbu")
+
+            df_pbu_show = df_pbu_enr.copy()
+            if st_pbu_f == "Open" and stcol_pbu:
+                df_pbu_show = df_pbu_show[~df_pbu_show[stcol_pbu].astype(str).str.lower().str.contains("close|done|selesai")]
+            elif st_pbu_f == "Closed" and stcol_pbu:
+                df_pbu_show = df_pbu_show[df_pbu_show[stcol_pbu].astype(str).str.lower().str.contains("close|done|selesai")]
+            elif st_pbu_f == "Sudah Onsite SIDATA":
+                df_pbu_show = df_pbu_show[df_pbu_show["Onsite_SIDATA (x)"] > 0]
+            elif st_pbu_f == "Belum Onsite SIDATA":
+                df_pbu_show = df_pbu_show[df_pbu_show["Onsite_SIDATA (x)"] == 0]
+            if q_pbu_p.strip():
+                qqb = q_pbu_p.strip().lower()
+                df_pbu_show = df_pbu_show[df_pbu_show.apply(lambda r: qqb in " ".join(r.astype(str)).lower(), axis=1)]
+
+            cfg_pbu = {}
+            if stcol_pbu:
+                cfg_pbu[stcol_pbu] = st.column_config.SelectboxColumn("Status Activity", options=["Open", "On Progress", "Closed", "Pending"])
+            ed_pbu = st.data_editor(df_pbu_show, use_container_width=True, num_rows="dynamic", column_config=cfg_pbu, key="ed_prog_pbu")
+
+            cb_b1, cb_b2 = st.columns(2)
+            with cb_b1:
+                if st.button("💾 Simpan Checklist & Biaya Program PBU ke Cloud", type="primary", use_container_width=True, key="btn_upd_pbu_prog"):
+                    if q_pbu_p.strip() or st_pbu_f != "Semua":
+                        st.warning("⚠️ Set filter ke 'Semua' & kosongkan kotak cari terlebih dahulu sebelum menyimpan agar seluruh site tersimpan utuh.")
+                    else:
+                        cols_save_pbu = [c for c in ed_pbu.columns if c not in ["Onsite_SIDATA (x)", "Tgl_Onsite_Terakhir", "Status_Onsite_SIDATA", "Problem_Onsite_Terakhir", "Last_VAC", "Last_VDC", "Last_Load_DC"]]
+                        if gsheet_overwrite_ws("Program_NOP_PBU", ed_pbu[cols_save_pbu]):
+                            st.success("✅ Checklist Program NOP Pangkalan Bun berhasil disimpan ke Cloud!")
+                            st.rerun()
+            with cb_b2:
+                buf_pbu_x = BytesIO()
+                with pd.ExcelWriter(buf_pbu_x, engine="openpyxl") as xw:
+                    df_pbu_show.to_excel(xw, sheet_name="Program_NOP_PBU", index=False)
+                st.download_button("📥 Download Program PBU + History SIDATA (.xlsx)", data=buf_pbu_x.getvalue(), file_name=f"Program_NOP_PBU_{datetime.date.today()}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True, key="dl_prog_pbu")
+
+            st.markdown("---")
+            _render_site_history_inspector(df_pbu_cloud, scol_pbu, "pbu")
+
+
+# =========================================================================
+# MENU 13: SiDAVID (SYSTEM DATA VERIFIKASI INTERNAL)
+# =========================================================================
+elif menu == "🛡️ SiDAVID (Verifikasi Internal)":
+    st.markdown("<h1 style='text-align: center;'>🛡️ SiDAVID — System Data Verifikasi Internal</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.85;'>Verifikasi Data Mateline (Sheet `Mateline`), Sertifikasi Tim (WAH, BA, BE), Mutasi Personel (Join/Keluar) & Validasi Data Internal Lainnya</p>", unsafe_allow_html=True)
+
+    fme_plk_list, fme_pbu_list, _, _ = load_master_lists()
+    semua_tim = sorted(list(set(fme_plk_list + fme_pbu_list)))
+
+    COLS_MATELINE = ["NOP", "Nama_Teknisi", "ID_Mateline", "Status_Verifikasi", "Tanggal_Upload", "Catatan_Verifikasi"]
+    COLS_SERTIF = ["Timestamp", "NOP", "Nama_Tim", "Jenis_Sertifikat", "Keterangan_Punya", "Tanggal_Training", "Tanggal_Release", "Tanggal_Expired", "Status_Masa_Berlaku", "URL_Bukti", "Catatan"]
+    COLS_PERSONEL = ["Timestamp", "NOP", "Nama_Tim", "NIK_ID", "Jabatan_Role", "Status_Kerja", "Tanggal_Join", "Tanggal_Keluar", "Alasan_Keterangan"]
+    COLS_LAINNYA = ["Timestamp", "NOP", "Kategori_Validasi", "Objek_Atau_Nama", "Keterangan_Punya", "Tanggal_Terbit", "Tanggal_Expired", "Status_Validasi", "URL_Bukti", "Catatan"]
+
+    df_mat, ok_mat = gsheet_read_df("Mateline", COLS_MATELINE)
+    df_srt, ok_srt = gsheet_read_df("SiDAVID_Sertifikat", COLS_SERTIF)
+    df_prs, ok_prs = gsheet_read_df("SiDAVID_Personel", COLS_PERSONEL)
+    df_lnn, ok_lnn = gsheet_read_df("SiDAVID_Validasi_Lain", COLS_LAINNYA)
+
+    if not ok_mat:
+        st.warning("⚠️ Koneksi Google Sheets belum aktif (`gcp_json`). Sinkronisasi cloud membutuhkan koneksi Spreadsheet aktif.")
+
+    tot_mat = len(df_mat)
+    tot_srt_punya = int((df_srt["Keterangan_Punya"].astype(str).str.strip().str.lower() == "punya").sum()) if not df_srt.empty else 0
+    tot_prs_aktif = int((df_prs["Status_Kerja"].astype(str).str.strip().str.lower() == "aktif").sum()) if not df_prs.empty else 0
+    tot_lnn = len(df_lnn)
+
+    ux_hero(
+        "INTERNAL COMPLIANCE & VERIFICATION",
+        "SiDAVID Command Center",
+        "Monitoring terpusat Verifikasi Mateline, Kepatuhan Sertifikat WAH/BA/BE, Status Tim Join/Keluar & Validasi Standby.",
+        stats=[
+            (f"{tot_mat} Baris", "Data Sheet Mateline"),
+            (f"{tot_srt_punya} Sertifikat", "Sertifikat WAH/BA/BE"),
+            (f"{tot_prs_aktif} Personel", "Tim Status Aktif"),
+            (f"{tot_lnn} Item", "Validasi Lainnya")
+        ]
+    )
+
+    tab_mat, tab_srt, tab_prs, tab_lnn = st.tabs([
+        "📡 1. Verifikasi Mateline",
+        "🎓 2. Sertifikasi (WAH, BA, BE)",
+        "👥 3. Data Tim (Join & Keluar)",
+        "🧩 4. Validasi Data Lainnya (Standby)"
+    ])
+
+    # =====================================================================
+    # TAB 1: VERIFIKASI MATELINE (TARIK EXCEL ➔ SAVE KE SHEET 'Mateline')
+    # =====================================================================
+    with tab_mat:
+        st.markdown("### 📡 Verifikasi Data Mateline (Import Excel ➔ Save Sheet `Mateline`)")
+        st.info("💡 Unggah file Excel tarikan dari **Mateline** di bawah ini. Data otomatis dibaca, ditambahkan kolom verifikasi, tersimpan ke Google Sheets tab **`Mateline`**, dan dapat diunduh kembali sebagai Excel dengan nama sheet **`Mateline`**.")
+
+        with st.container(border=True):
+            c_m1, c_m2 = st.columns([2, 1])
+            with c_m1:
+                up_mateline = st.file_uploader("📂 Tarik / Upload File Excel Mateline (.xlsx / .xls / .csv):", type=["xlsx", "xls", "csv"], key="sd_up_mateline")
+            with c_m2:
+                mode_save_mat = st.radio("Mode Simpan ke Sheet `Mateline`:", ["Timpa / Replace Semua Data", "Tambahkan (Append) ke Data Lama"], key="sd_mode_mat")
+
+            if up_mateline is not None:
+                try:
+                    if up_mateline.name.lower().endswith(".csv"):
+                        df_up_m = pd.read_csv(up_mateline)
+                    else:
+                        sheets_m = get_excel_sheet_names_safe(up_mateline)
+                        pilih_sh_m = st.selectbox("Pilih Sheet sumber dari file Excel Mateline:", sheets_m, key="sd_sh_mat")
+                        df_up_m = read_excel_safe_raw(up_mateline, sheet_name=pilih_sh_m)
+
+                    df_up_m = df_up_m.dropna(how="all").reset_index(drop=True)
+                    if "Status_Verifikasi" not in df_up_m.columns:
+                        df_up_m["Status_Verifikasi"] = "Belum Diverifikasi"
+                    if "Catatan_Verifikasi" not in df_up_m.columns:
+                        df_up_m["Catatan_Verifikasi"] = ""
+                    df_up_m["Tanggal_Upload"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+
+                    st.markdown(f"**Preview Data Tarikan Mateline ({len(df_up_m)} baris):**")
+                    st.dataframe(df_up_m.head(20), use_container_width=True, hide_index=True)
+
+                    if st.button("💾 SIMPAN DATA TARIKAN KE SHEET 'Mateline'", type="primary", use_container_width=True, key="sd_btn_save_mat"):
+                        with st.spinner("Menyimpan data ke Google Sheets tab 'Mateline'..."):
+                            if "Append" in mode_save_mat and not df_mat.empty:
+                                df_gabung = pd.concat([df_mat, df_up_m], ignore_index=True).fillna("")
+                            else:
+                                df_gabung = df_up_m.fillna("")
+                            if gsheet_overwrite_ws("Mateline", df_gabung):
+                                st.success(f"✅ Berhasil! {len(df_gabung)} baris data tersimpan permanen di sheet **`Mateline`**.")
+                                st.rerun()
+                            else:
+                                st.error("⚠️ Gagal menyimpan ke Google Sheets. Pastikan kredensial `gcp_json` aktif.")
+                except Exception as e:
+                    st.error(f"Gagal membaca file Excel Mateline: {e}")
+
+        st.markdown("---")
+        st.markdown("#### ✏️ Live Verifikasi & Editor Sheet `Mateline`")
+        if df_mat.empty:
+            st.info("Belum ada data di sheet `Mateline`. Silakan unggah file Excel Mateline di atas.")
+        else:
+            c_fm1, c_fm2 = st.columns([2, 1])
+            cari_mat = c_fm1.text_input("🔍 Cari data di Sheet Mateline (Nama / ID / Site):", key="sd_cari_mat")
+            flt_ver_mat = c_fm2.selectbox("Filter Status Verifikasi:", ["Semua"] + sorted(df_mat["Status_Verifikasi"].astype(str).unique().tolist()) if "Status_Verifikasi" in df_mat.columns else ["Semua"], key="sd_flt_mat")
+
+            df_mat_show = df_mat.copy()
+            if flt_ver_mat != "Semua" and "Status_Verifikasi" in df_mat_show.columns:
+                df_mat_show = df_mat_show[df_mat_show["Status_Verifikasi"].astype(str) == flt_ver_mat]
+            if cari_mat.strip():
+                q_m = cari_mat.strip().lower()
+                df_mat_show = df_mat_show[df_mat_show.apply(lambda r: q_m in " ".join(r.astype(str)).lower(), axis=1)]
+
+            col_cfg_mat = {}
+            if "Status_Verifikasi" in df_mat_show.columns:
+                col_cfg_mat["Status_Verifikasi"] = st.column_config.SelectboxColumn(
+                    "Status Verifikasi",
+                    options=["Belum Diverifikasi", "Valid / Sesuai", "Tidak Sesuai / Perlu Revisi", "Pending"]
+                )
+
+            edited_mat = st.data_editor(
+                df_mat_show,
+                use_container_width=True,
+                num_rows="dynamic",
+                column_config=col_cfg_mat,
+                key="sd_ed_mateline"
+            )
+
+            c_bm1, c_bm2 = st.columns(2)
+            with c_bm1:
+                if st.button("💾 Update Hasil Verifikasi ke Sheet `Mateline`", type="primary", use_container_width=True, key="sd_upd_mat"):
+                    if cari_mat.strip() or flt_ver_mat != "Semua":
+                        st.warning("⚠️ Kosongkan pencarian & set filter ke 'Semua' terlebih dahulu sebelum menyimpan agar seluruh baris sheet `Mateline` tersimpan utuh.")
+                    else:
+                        with st.spinner("Menyimpan perubahan ke sheet 'Mateline'..."):
+                            if gsheet_overwrite_ws("Mateline", edited_mat):
+                                st.success("✅ Sheet `Mateline` berhasil diperbarui!")
+                                st.rerun()
+            with c_bm2:
+                buf_mat = BytesIO()
+                with pd.ExcelWriter(buf_mat, engine="openpyxl") as xw:
+                    edited_mat.to_excel(xw, sheet_name="Mateline", index=False)
+                st.download_button(
+                    "📥 Download Excel (Sheet: Mateline)",
+                    data=buf_mat.getvalue(),
+                    file_name=f"Verifikasi_Mateline_{datetime.date.today()}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="sd_dl_mat"
+                )
+
+    # =====================================================================
+    # TAB 2: SERTIFIKASI TIM (WAH, BA, BE)
+    # =====================================================================
+    with tab_srt:
+        st.markdown("### 🎓 Monitoring & Verifikasi Sertifikat Tim (WAH, BA, BE)")
+
+        with st.expander("➕ Input / Update Data Sertifikat Personel (WAH / BA / BE)", expanded=df_srt.empty):
+            cs1, cs2, cs3 = st.columns(3)
+            with cs1:
+                srt_nop = st.selectbox("Area NOP:", ["Palangkaraya", "Pangkalan Bun"], key="sd_srt_nop")
+                pilih_tim_srt = st.selectbox("Pilih Nama Tim (Master):", ["-- Ketik Manual --"] + semua_tim, key="sd_srt_tim_sel")
+                if pilih_tim_srt == "-- Ketik Manual --":
+                    srt_nama = st.text_input("Ketik Nama Tim *:", key="sd_srt_tim_txt").strip()
+                else:
+                    srt_nama = pilih_tim_srt
+            with cs2:
+                srt_jenis = st.selectbox("Jenis Sertifikat *:", ["WAH", "BA", "BE"], key="sd_srt_jenis")
+                srt_punya = st.radio("Keterangan Kepemilikan *:", ["Punya", "Tidak Punya"], horizontal=True, key="sd_srt_punya")
+            with cs3:
+                if srt_punya == "Punya":
+                    srt_tgl_tr = st.date_input("📅 Tanggal Training:", value=datetime.date.today(), key="sd_srt_tr").strftime("%Y-%m-%d")
+                    srt_tgl_rel = st.date_input("📅 Tanggal Release Sertifikat:", value=datetime.date.today(), key="sd_srt_rel").strftime("%Y-%m-%d")
+                    srt_tgl_exp = st.date_input("📅 Tanggal Expired Sertifikat:", value=datetime.date.today() + datetime.timedelta(days=365), key="sd_srt_exp").strftime("%Y-%m-%d")
+                else:
+                    srt_tgl_tr, srt_tgl_rel, srt_tgl_exp = "-", "-", "-"
+                    st.info("Status: **Tidak Punya**. Kolom tanggal otomatis diisi `-`.")
+
+            cs4, cs5 = st.columns([1.5, 1.5])
+            with cs4:
+                srt_cat = st.text_input("📝 Catatan / Nomor Sertifikat / Lembaga:", placeholder="Cth: No. Sertif / Rencana Batch Training...", key="sd_srt_cat")
+            with cs5:
+                srt_file = st.file_uploader("📎 Upload Scan / Foto Sertifikat (Opsional):", type=["png", "jpg", "jpeg", "pdf"], key="sd_srt_file")
+
+            if st.button("💾 SIMPAN DATA SERTIFIKAT KE SiDAVID", type="primary", use_container_width=True, key="sd_btn_save_srt"):
+                if not srt_nama:
+                    st.error("⚠️ Nama Tim wajib diisi!")
+                else:
+                    with st.spinner("Menyimpan data sertifikat..."):
+                        url_bukti_srt = ""
+                        if srt_file is not None:
+                            url_bukti_srt = upload_datalog(srt_file, "sidavid_sertifikat") if srt_file.name.lower().endswith(".pdf") else upload_image(srt_file, "sidavid_sertifikat")
+                        st_berlaku = sidavid_eval_expired(srt_punya, srt_tgl_exp)
+                        rec_srt = {
+                            "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "NOP": srt_nop,
+                            "Nama_Tim": srt_nama,
+                            "Jenis_Sertifikat": srt_jenis,
+                            "Keterangan_Punya": srt_punya,
+                            "Tanggal_Training": srt_tgl_tr,
+                            "Tanggal_Release": srt_tgl_rel,
+                            "Tanggal_Expired": srt_tgl_exp,
+                            "Status_Masa_Berlaku": st_berlaku,
+                            "URL_Bukti": url_bukti_srt or "",
+                            "Catatan": srt_cat
+                        }
+                        if gsheet_append_row("SiDAVID_Sertifikat", COLS_SERTIF, rec_srt):
+                            st.success(f"✅ Data sertifikat **{srt_jenis}** untuk **{srt_nama}** berhasil disimpan!")
+                            st.rerun()
+                        else:
+                            st.error("⚠️ Gagal menyambung ke Google Sheets.")
+
+        if df_srt.empty:
+            st.info("Belum ada data sertifikat WAH / BA / BE yang tercatat.")
+        else:
+            df_srt_v = df_srt.copy()
+            df_srt_v["Status_Masa_Berlaku"] = df_srt_v.apply(
+                lambda r: sidavid_eval_expired(r.get("Keterangan_Punya"), r.get("Tanggal_Expired")), axis=1
+            )
+
+            m_s1, m_s2, m_s3, m_s4 = st.columns(4)
+            cnt_wah = int(((df_srt_v["Jenis_Sertifikat"] == "WAH") & (df_srt_v["Keterangan_Punya"] == "Punya")).sum())
+            cnt_ba = int(((df_srt_v["Jenis_Sertifikat"] == "BA") & (df_srt_v["Keterangan_Punya"] == "Punya")).sum())
+            cnt_be = int(((df_srt_v["Jenis_Sertifikat"] == "BE") & (df_srt_v["Keterangan_Punya"] == "Punya")).sum())
+            cnt_exp = int(df_srt_v["Status_Masa_Berlaku"].str.contains("Expired", na=False).sum())
+
+            m_s1.metric("🧗 Punya WAH", f"{cnt_wah} Orang")
+            m_s2.metric("🛡️ Punya BA", f"{cnt_ba} Orang")
+            m_s3.metric("⚡ Punya BE", f"{cnt_be} Orang")
+            m_s4.metric("🚨 Expired / Segera Exp", f"{cnt_exp} Sertifikat")
+
+            # Matriks Ringkas 1 Baris per Personel (WAH | BA | BE)
+            with st.expander("📊 Lihat Matriks Ringkasan 1 Baris per Personel (WAH | BA | BE)", expanded=True):
+                mat_rows = []
+                for (np_val, nm_val), grp in df_srt_v.groupby(["NOP", "Nama_Tim"]):
+                    row_m = {"NOP": np_val, "Nama_Tim": nm_val, "WAH": "❌ Belum Terdata", "BA": "❌ Belum Terdata", "BE": "❌ Belum Terdata"}
+                    for _, rg in grp.iterrows():
+                        jns = str(rg.get("Jenis_Sertifikat", "")).upper()
+                        if jns in ("WAH", "BA", "BE"):
+                            if str(rg.get("Keterangan_Punya", "")).lower() == "punya":
+                                row_m[jns] = f"{rg['Status_Masa_Berlaku']} (Exp: {rg.get('Tanggal_Expired', '-')})"
+                            else:
+                                row_m[jns] = "❌ Tidak Punya"
+                    mat_rows.append(row_m)
+                if mat_rows:
+                    st.dataframe(pd.DataFrame(mat_rows), use_container_width=True, hide_index=True)
+
+            cf_s1, cf_s2, cf_s3 = st.columns(3)
+            flt_srt_nop = cf_s1.selectbox("Filter NOP:", ["Semua", "Palangkaraya", "Pangkalan Bun"], key="sd_fs_nop")
+            flt_srt_jns = cf_s2.selectbox("Filter Jenis Sertifikat:", ["Semua", "WAH", "BA", "BE"], key="sd_fs_jns")
+            flt_srt_pny = cf_s3.selectbox("Filter Kepemilikan:", ["Semua", "Punya", "Tidak Punya"], key="sd_fs_pny")
+
+            df_srt_f = df_srt_v.copy()
+            if flt_srt_nop != "Semua": df_srt_f = df_srt_f[df_srt_f["NOP"] == flt_srt_nop]
+            if flt_srt_jns != "Semua": df_srt_f = df_srt_f[df_srt_f["Jenis_Sertifikat"] == flt_srt_jns]
+            if flt_srt_pny != "Semua": df_srt_f = df_srt_f[df_srt_f["Keterangan_Punya"] == flt_srt_pny]
+
+            st.markdown("#### 📋 Detail & Live Editor Data Sertifikat")
+            edited_srt = st.data_editor(
+                df_srt_f,
+                use_container_width=True,
+                num_rows="dynamic",
+                column_config={
+                    "Jenis_Sertifikat": st.column_config.SelectboxColumn("Jenis", options=["WAH", "BA", "BE"]),
+                    "Keterangan_Punya": st.column_config.SelectboxColumn("Keterangan", options=["Punya", "Tidak Punya"]),
+                    "URL_Bukti": st.column_config.LinkColumn("Bukti Sertifikat")
+                },
+                key="sd_ed_srt"
+            )
+
+            c_bs1, c_bs2 = st.columns(2)
+            with c_bs1:
+                if st.button("💾 Simpan Revisi Tabel Sertifikat", type="primary", use_container_width=True, key="sd_upd_srt"):
+                    if flt_srt_nop != "Semua" or flt_srt_jns != "Semua" or flt_srt_pny != "Semua":
+                        st.warning("⚠️ Set semua filter ke 'Semua' terlebih dahulu sebelum menyimpan revisi tabel.")
+                    else:
+                        if gsheet_overwrite_ws("SiDAVID_Sertifikat", edited_srt):
+                            st.success("✅ Data Sertifikat berhasil diperbarui!")
+                            st.rerun()
+            with c_bs2:
+                buf_s = BytesIO()
+                with pd.ExcelWriter(buf_s, engine="openpyxl") as xw:
+                    df_srt_f.to_excel(xw, sheet_name="Sertifikat_WAH_BA_BE", index=False)
+                st.download_button(
+                    "📥 Download Rekap Sertifikat (.xlsx)",
+                    data=buf_s.getvalue(),
+                    file_name=f"SiDAVID_Sertifikat_{datetime.date.today()}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="sd_dl_srt"
+                )
+
+    # =====================================================================
+    # TAB 3: DATA TIM BARU JOIN & KELUAR (MUTASI PERSONEL)
+    # =====================================================================
+    with tab_prs:
+        st.markdown("### 👥 Data Personel Tim (Tanggal Join & Tanggal Keluar)")
+
+        with st.expander("➕ Input Tim Baru Join / Catat Tim Keluar", expanded=df_prs.empty):
+            cp1, cp2, cp3 = st.columns(3)
+            with cp1:
+                prs_nop = st.selectbox("Area NOP:", ["Palangkaraya", "Pangkalan Bun"], key="sd_prs_nop")
+                prs_nama = st.text_input("Nama Lengkap Personel *:", key="sd_prs_nama").strip()
+                prs_nik = st.text_input("NIK / ID Karyawan:", key="sd_prs_nik").strip()
+            with cp2:
+                prs_role = st.selectbox("Jabatan / Role:", ["FME - TE", "FME - MBP", "FME - CME", "Leader", "Koordinator", "Admin Operational", "Admin NOP", "Helpdesk", "Logistik", "Lainnya"], key="sd_prs_role")
+                prs_stat = st.radio("Status Kerja Saat Ini *:", ["Aktif", "Keluar / Resign", "Mutasi"], horizontal=True, key="sd_prs_stat")
+            with cp3:
+                prs_join = st.date_input("📅 Tanggal Join (Masuk):", value=datetime.date.today(), key="sd_prs_join").strftime("%Y-%m-%d")
+                if prs_stat != "Aktif":
+                    prs_out = st.date_input("📅 Tanggal Keluar / Mutasi:", value=datetime.date.today(), key="sd_prs_out").strftime("%Y-%m-%d")
+                else:
+                    prs_out = "-"
+                    st.info("Status **Aktif** — Tanggal keluar otomatis `-`.")
+
+            prs_ket = st.text_input("📝 Keterangan / Alasan Keluar / Cluster Penempatan:", key="sd_prs_ket")
+
+            if st.button("💾 SIMPAN DATA PERSONEL", type="primary", use_container_width=True, key="sd_btn_save_prs"):
+                if not prs_nama:
+                    st.error("⚠️ Nama Personel wajib diisi!")
+                else:
+                    rec_prs = {
+                        "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "NOP": prs_nop,
+                        "Nama_Tim": prs_nama,
+                        "NIK_ID": prs_nik,
+                        "Jabatan_Role": prs_role,
+                        "Status_Kerja": prs_stat,
+                        "Tanggal_Join": prs_join,
+                        "Tanggal_Keluar": prs_out,
+                        "Alasan_Keterangan": prs_ket
+                    }
+                    if gsheet_append_row("SiDAVID_Personel", COLS_PERSONEL, rec_prs):
+                        st.success(f"✅ Data personel **{prs_nama}** ({prs_stat}) berhasil dicatat!")
+                        st.rerun()
+                    else:
+                        st.error("⚠️ Gagal menyambung ke Google Sheets.")
+
+        if df_prs.empty:
+            st.info("Belum ada data histori Join / Keluar personel tim.")
+        else:
+            cnt_act = int((df_prs["Status_Kerja"] == "Aktif").sum())
+            cnt_out = int((df_prs["Status_Kerja"] != "Aktif").sum())
+            mp1, mp2, mp3 = st.columns(3)
+            mp1.metric("👥 Total Data Tercatat", f"{len(df_prs)} Orang")
+            mp2.metric("🟢 Personel Aktif", f"{cnt_act} Orang")
+            mp3.metric("🔴 Personel Keluar / Mutasi", f"{cnt_out} Orang")
+
+            st.markdown("#### 📋 Database Join & Keluar Tim (Klik 2x untuk Update Tanggal Keluar)")
+            edited_prs = st.data_editor(
+                df_prs,
+                use_container_width=True,
+                num_rows="dynamic",
+                column_config={
+                    "NOP": st.column_config.SelectboxColumn("NOP", options=["Palangkaraya", "Pangkalan Bun"]),
+                    "Status_Kerja": st.column_config.SelectboxColumn("Status Kerja", options=["Aktif", "Keluar / Resign", "Mutasi"])
+                },
+                key="sd_ed_prs"
+            )
+            c_bp1, c_bp2 = st.columns(2)
+            with c_bp1:
+                if st.button("💾 Simpan Perubahan Data Personel", type="primary", use_container_width=True, key="sd_upd_prs"):
+                    if gsheet_overwrite_ws("SiDAVID_Personel", edited_prs):
+                        st.success("✅ Data Join/Keluar personel berhasil diperbarui!")
+                        st.rerun()
+            with c_bp2:
+                buf_pr = BytesIO()
+                with pd.ExcelWriter(buf_pr, engine="openpyxl") as xw:
+                    edited_prs.to_excel(xw, sheet_name="Data_Tim_Join_Keluar", index=False)
+                st.download_button(
+                    "📥 Download Data Personel (.xlsx)",
+                    data=buf_pr.getvalue(),
+                    file_name=f"SiDAVID_Personel_{datetime.date.today()}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="sd_dl_prs"
+                )
+
+    # =====================================================================
+    # TAB 4: VALIDASI DATA LAINNYA (MODUL STANDBY FLEKSIBEL)
+    # =====================================================================
+    with tab_lnn:
+        st.markdown("### 🧩 Validasi Data Internal Lainnya (Modul Standby)")
+        st.info("💡 Ruang validasi fleksibel yang siap pakai untuk kebutuhan audit internal lainnya (misal: **APD & Full Body Harness, SIM A/C, BPJS/KTP, MCU Kesehatan, Kalibrasi Alat Ukur, STNK Kendaraan Ops, SIK**, atau kategori baru sesuai kebutuhan NOP).")
+
+        with st.expander("➕ Tambah Item Validasi Data Lainnya", expanded=df_lnn.empty):
+            cl1, cl2, cl3 = st.columns(3)
+            with cl1:
+                lnn_nop = st.selectbox("Area NOP:", ["Palangkaraya", "Pangkalan Bun"], key="sd_lnn_nop")
+                kat_opsi_std = ["APD & Full Body Harness", "SIM A / SIM C", "BPJS & KTP", "MCU / Kesehatan", "Kalibrasi Alat Ukur", "STNK / Kendaraan Ops", "Surat Izin Kerja / SIK", "+ Kategori Baru (Ketik Manual)"]
+                lnn_kat_sel = st.selectbox("Kategori Validasi:", kat_opsi_std, key="sd_lnn_kat_sel")
+                if lnn_kat_sel == "+ Kategori Baru (Ketik Manual)":
+                    lnn_kat = st.text_input("Ketik Nama Kategori Validasi Baru *:", key="sd_lnn_kat_txt").strip()
+                else:
+                    lnn_kat = lnn_kat_sel
+            with cl2:
+                lnn_obj = st.text_input("Nama Personel / Aset / Objek *:", placeholder="Cth: Nama Teknisi atau No. Plat Mobil", key="sd_lnn_obj").strip()
+                lnn_punya = st.selectbox("Keterangan Kepemilikan / Ada:", ["Punya / Ada", "Tidak Punya / Belum Ada"], key="sd_lnn_punya")
+                lnn_stat = st.selectbox("Status Validasi:", ["Valid / Lengkap", "Pending / Proses", "Tidak Valid / Expired"], key="sd_lnn_stat")
+            with cl3:
+                lnn_terbit = st.date_input("📅 Tanggal Terbit / Cek:", value=datetime.date.today(), key="sd_lnn_terbit").strftime("%Y-%m-%d")
+                pakai_exp = st.checkbox("Memiliki Tanggal Expired?", value=True, key="sd_lnn_chk_exp")
+                lnn_exp = st.date_input("📅 Tanggal Expired:", value=datetime.date.today() + datetime.timedelta(days=365), key="sd_lnn_exp").strftime("%Y-%m-%d") if pakai_exp else "-"
+
+            cl4, cl5 = st.columns(2)
+            lnn_cat = cl4.text_input("📝 Catatan / Remark Validasi:", key="sd_lnn_cat")
+            lnn_file = cl5.file_uploader("📎 Upload Bukti Dokumen / Foto (Opsional):", type=["png", "jpg", "jpeg", "pdf"], key="sd_lnn_file")
+
+            if st.button("💾 SIMPAN VALIDASI DATA LAINNYA", type="primary", use_container_width=True, key="sd_btn_save_lnn"):
+                if not lnn_kat or not lnn_obj:
+                    st.error("⚠️ Kategori Validasi dan Nama Objek/Personel wajib diisi!")
+                else:
+                    with st.spinner("Menyimpan validasi internal..."):
+                        url_lnn = ""
+                        if lnn_file is not None:
+                            url_lnn = upload_datalog(lnn_file, "sidavid_lainnya") if lnn_file.name.lower().endswith(".pdf") else upload_image(lnn_file, "sidavid_lainnya")
+                        rec_lnn = {
+                            "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "NOP": lnn_nop,
+                            "Kategori_Validasi": lnn_kat,
+                            "Objek_Atau_Nama": lnn_obj,
+                            "Keterangan_Punya": lnn_punya,
+                            "Tanggal_Terbit": lnn_terbit,
+                            "Tanggal_Expired": lnn_exp,
+                            "Status_Validasi": lnn_stat,
+                            "URL_Bukti": url_lnn or "",
+                            "Catatan": lnn_cat
+                        }
+                        if gsheet_append_row("SiDAVID_Validasi_Lain", COLS_LAINNYA, rec_lnn):
+                            st.success(f"✅ Data validasi **{lnn_kat}** ({lnn_obj}) berhasil disimpan!")
+                            st.rerun()
+                        else:
+                            st.error("⚠️ Gagal menyambung ke Google Sheets.")
+
+        if df_lnn.empty:
+            st.info("Modul Standby Validasi Lainnya siap digunakan. Tambahkan item pertama melalui form di atas.")
+        else:
+            edited_lnn = st.data_editor(
+                df_lnn,
+                use_container_width=True,
+                num_rows="dynamic",
+                column_config={
+                    "Status_Validasi": st.column_config.SelectboxColumn("Status Validasi", options=["Valid / Lengkap", "Pending / Proses", "Tidak Valid / Expired"]),
+                    "URL_Bukti": st.column_config.LinkColumn("Bukti")
+                },
+                key="sd_ed_lnn"
+            )
+            c_bl1, c_bl2 = st.columns(2)
+            with c_bl1:
+                if st.button("💾 Simpan Perubahan Validasi Lainnya", type="primary", use_container_width=True, key="sd_upd_lnn"):
+                    if gsheet_overwrite_ws("SiDAVID_Validasi_Lain", edited_lnn):
+                        st.success("✅ Perubahan Validasi Lainnya berhasil disimpan!")
+                        st.rerun()
+            with c_bl2:
+                buf_ln = BytesIO()
+                with pd.ExcelWriter(buf_ln, engine="openpyxl") as xw:
+                    edited_lnn.to_excel(xw, sheet_name="Validasi_Data_Lainnya", index=False)
+                st.download_button(
+                    "📥 Download Rekap Validasi Lainnya (.xlsx)",
+                    data=buf_ln.getvalue(),
+                    file_name=f"SiDAVID_Validasi_Lainnya_{datetime.date.today()}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="sd_dl_lnn"
+                )
+
 # FOOTER HAK CIPTA OKTA PRADIKA
 # -------------------------------------------------------------------------
 st.markdown("""
