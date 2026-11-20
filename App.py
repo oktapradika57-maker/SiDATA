@@ -16,6 +16,7 @@ import base64
 import tempfile
 import re
 import zipfile
+import time
 
 # Mengimpor modul PPTX
 try:
@@ -1163,71 +1164,99 @@ def tampilkan_grid_foto(url_data, caption=""):
 # -------------------------------------------------------------------------
 SHEET_ID = "1HvgVicTWwO4RMQI6ZR3Mu3IgGicwjcLZl9mDN1auvJU"
 
+_GS_LAST_OK = {}
+_SV_LAST_OK = {}
+
+def _is_quota_429(err):
+    msg = str(err or "")
+    return ("429" in msg) or ("Quota exceeded" in msg) or ("RATE_LIMIT" in msg) or ("503" in msg)
+
+def _gsheet_retry(fn, *args, **kwargs):
+    """Menjalankan panggilan API Google Sheets dengan backoff otomatis jika terkena limit 429/503."""
+    delays = (1.5, 3.0, 6.0)
+    last_err = None
+    for attempt in range(len(delays) + 1):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            last_err = e
+            if _is_quota_429(e) and attempt < len(delays):
+                time.sleep(delays[attempt])
+                continue
+            raise last_err
+
+@st.cache_resource(ttl=3600, show_spinner=False)
+def get_cached_spreadsheet():
+    """Satu koneksi Spreadsheet terpusat (di-cache 1 jam) agar seluruh modul tidak memanggil open_by_key berulang-ulang."""
+    creds_json = st.secrets["gcp_json"]
+    creds_dict = json.loads(creds_json)
+    scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+    client = gspread.authorize(creds)
+    return _gsheet_retry(client.open_by_key, SHEET_ID)
+
+@st.cache_resource(ttl=3600, show_spinner=False)
+def _get_cached_ws_only(sheet_name):
+    sh = get_cached_spreadsheet()
+    return _gsheet_retry(sh.worksheet, sheet_name)
+
 def connect_gsheets(sheet_name="Report Preventive"):
     try:
-        creds_json = st.secrets["gcp_json"]
-        creds_dict = json.loads(creds_json)
-        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        client = gspread.authorize(creds)
-        return client.open_by_key(SHEET_ID).worksheet(sheet_name)
-    except Exception as e: return None
+        return _get_cached_ws_only(sheet_name)
+    except Exception:
+        return None
 
-@st.cache_data(ttl=600) 
+@st.cache_data(ttl=600, show_spinner=False)
 def fetch_data_from_gsheets():
+    """Membaca 4 sheet operasional utama dalam 1x batch request (hemat 11 read request per siklus)."""
     all_data = []
-    
-    sheet_prev = connect_gsheets("Report Preventive")
-    if sheet_prev:
-        data = sheet_prev.get_all_values()
-        for idx, row in enumerate(data[1:]):
-            if len(row) >= 6: 
-                try: 
-                    item = json.loads(row[5])
-                    if item.get('kategori') == 'SiUPDATE': item['kategori'] = 'SPS'
-                    item['_sheet'] = "Report Preventive"
-                    item['_row'] = idx + 2
-                    all_data.append(item)
-                except: pass
-                
-    sheet_pbu = connect_gsheets("Report PBU")
-    if sheet_pbu:
-        data_pbu = sheet_pbu.get_all_values()
-        for idx, row in enumerate(data_pbu[1:]):
-            if len(row) >= 6: 
-                try: 
-                    item = json.loads(row[5])
-                    item['_sheet'] = "Report PBU"
-                    item['_row'] = idx + 2
-                    all_data.append(item)
-                except: pass
-
-    sheet_proj = connect_gsheets("Project")
-    if sheet_proj:
-        data_proj = sheet_proj.get_all_values()
-        for idx, row in enumerate(data_proj[1:]):
-            if len(row) >= 6: 
-                try: 
-                    item = json.loads(row[5])
-                    item['_sheet'] = "Project"
-                    item['_row'] = idx + 2
-                    all_data.append(item)
-                except: pass
-                
-    # --- TAMBAHAN UNTUK SHEET SiHD ---
-    sheet_sihd = connect_gsheets("SiHD")
-    if sheet_sihd:
-        data_sihd = sheet_sihd.get_all_values()
-        for idx, row in enumerate(data_sihd[1:]):
-            if len(row) >= 6: 
-                try: 
-                    item = json.loads(row[5])
-                    item['_sheet'] = "SiHD"
-                    item['_row'] = idx + 2
-                    all_data.append(item)
-                except: pass
-                
-    return all_data
+    sheet_names = ["Report Preventive", "Report PBU", "Project", "SiHD"]
+    try:
+        sh = get_cached_spreadsheet()
+        ranges = [f"'{sn}'!A:F" for sn in sheet_names]
+        batch_res = _gsheet_retry(sh.values_batch_get, ranges)
+        v_ranges = batch_res.get("valueRanges", [])
+        for sn, vr in zip(sheet_names, v_ranges):
+            rows = vr.get("values", [])
+            for idx, row in enumerate(rows[1:]):
+                if len(row) >= 6:
+                    try:
+                        item = json.loads(row[5])
+                        if sn == "Report Preventive" and item.get('kategori') == 'SiUPDATE':
+                            item['kategori'] = 'SPS'
+                        item['_sheet'] = sn
+                        item['_row'] = idx + 2
+                        all_data.append(item)
+                    except Exception:
+                        pass
+        _GS_LAST_OK["__laporan_db__"] = all_data
+        return all_data
+    except Exception as e_batch:
+        # Fallback aman jika salah satu sheet (misal 'SiHD') belum dibuat di Spreadsheet
+        if _is_quota_429(e_batch) and "__laporan_db__" in _GS_LAST_OK:
+            return _GS_LAST_OK["__laporan_db__"]
+        for sn in sheet_names:
+            ws_s = connect_gsheets(sn)
+            if not ws_s:
+                continue
+            try:
+                data_s = _gsheet_retry(ws_s.get_all_values)
+                for idx, row in enumerate(data_s[1:]):
+                    if len(row) >= 6:
+                        try:
+                            item = json.loads(row[5])
+                            if sn == "Report Preventive" and item.get('kategori') == 'SiUPDATE':
+                                item['kategori'] = 'SPS'
+                            item['_sheet'] = sn
+                            item['_row'] = idx + 2
+                            all_data.append(item)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+        if all_data:
+            _GS_LAST_OK["__laporan_db__"] = all_data
+        return all_data or _GS_LAST_OK.get("__laporan_db__", [])
 if 'laporan_db' not in st.session_state: 
     st.session_state['laporan_db'] = fetch_data_from_gsheets()
 
@@ -1319,37 +1348,49 @@ def generate_wa_pbu(r):
 # =========================================================================
 # 🛡️ HELPER UNIVERSAL GOOGLE SHEETS (SiHD, PROGRAM NOP & SiDAVID)
 # =========================================================================
+@st.cache_resource(ttl=3600, show_spinner=False)
+def _gs_cached_ws_and_head(sheet_name, default_headers_tuple):
+    sh = get_cached_spreadsheet()
+    default_headers = list(default_headers_tuple)
+    try:
+        ws = _gsheet_retry(sh.worksheet, sheet_name)
+    except Exception as e_ws:
+        if _is_quota_429(e_ws):
+            raise
+        ws = _gsheet_retry(sh.add_worksheet, title=sheet_name, rows=1000, cols=max(len(default_headers) + 4, 20))
+        _gsheet_retry(ws.update, range_name="A1", values=[default_headers])
+        return ws, default_headers
+    head = _gsheet_retry(ws.row_values, 1)
+    if not head or not any(str(c).strip() for c in head):
+        _gsheet_retry(ws.update, range_name="A1", values=[default_headers])
+        head = default_headers
+    return ws, head
+
 def gsheet_get_or_create_ws(sheet_name, default_headers):
     try:
-        creds_dict = json.loads(st.secrets["gcp_json"])
-        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        sh = gspread.authorize(creds).open_by_key(SHEET_ID)
-        try:
-            ws = sh.worksheet(sheet_name)
-        except Exception:
-            ws = sh.add_worksheet(title=sheet_name, rows=1000, cols=max(len(default_headers) + 4, 20))
-            ws.update(range_name="A1", values=[default_headers])
-            return ws
-        head = ws.row_values(1)
-        if not head or not any(str(c).strip() for c in head):
-            ws.update(range_name="A1", values=[default_headers])
+        ws, _ = _gs_cached_ws_and_head(sheet_name, tuple(default_headers))
         return ws
     except Exception:
         return None
 
-@st.cache_data(ttl=30, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def gsheet_read_df(sheet_name, default_headers):
-    ws = gsheet_get_or_create_ws(sheet_name, default_headers)
-    if ws is None:
+    try:
+        ws, _ = _gs_cached_ws_and_head(sheet_name, tuple(default_headers))
+        vals = _gsheet_retry(ws.get_all_values)
+    except Exception:
+        if sheet_name in _GS_LAST_OK:
+            return _GS_LAST_OK[sheet_name].copy(), True
         return pd.DataFrame(columns=default_headers), False
-    vals = ws.get_all_values()
     if not vals or len(vals) < 1:
-        return pd.DataFrame(columns=default_headers), True
+        df_e = pd.DataFrame(columns=default_headers)
+        _GS_LAST_OK[sheet_name] = df_e
+        return df_e, True
     head = vals[0]
     if not any(str(c).strip() for c in head):
-        return pd.DataFrame(columns=default_headers), True
-    # Deduplicate empty/duplicate header names safely
+        df_e = pd.DataFrame(columns=default_headers)
+        _GS_LAST_OK[sheet_name] = df_e
+        return df_e, True
     clean_head = []
     seen_h = {}
     for idx_h, h_val in enumerate(head):
@@ -1365,6 +1406,7 @@ def gsheet_read_df(sheet_name, default_headers):
     for col in default_headers:
         if col not in df.columns:
             df[col] = ""
+    _GS_LAST_OK[sheet_name] = df
     return df, True
 
 def gsheet_overwrite_ws(sheet_name, df):
@@ -1373,24 +1415,23 @@ def gsheet_overwrite_ws(sheet_name, df):
     ws = gsheet_get_or_create_ws(sheet_name, headers)
     if ws is None:
         return False
-    ws.clear()
+    _gsheet_retry(ws.clear)
     payload = [headers] + df_clean.values.tolist()
     if len(payload) > ws.row_count or len(headers) > ws.col_count:
-        ws.resize(rows=max(len(payload) + 100, ws.row_count), cols=max(len(headers) + 4, ws.col_count))
-    ws.update(range_name="A1", values=payload, value_input_option="RAW")
+        _gsheet_retry(ws.resize, rows=max(len(payload) + 100, ws.row_count), cols=max(len(headers) + 4, ws.col_count))
+    _gsheet_retry(ws.update, range_name="A1", values=payload, value_input_option="RAW")
+    _GS_LAST_OK[sheet_name] = df_clean
+    _gs_cached_ws_and_head.clear()
     gsheet_read_df.clear()
     return True
 
 def gsheet_append_row(sheet_name, default_headers, row_dict):
-    ws = gsheet_get_or_create_ws(sheet_name, default_headers)
-    if ws is None:
+    try:
+        ws, head = _gs_cached_ws_and_head(sheet_name, tuple(default_headers))
+    except Exception:
         return False
-    head = ws.row_values(1)
-    if not head or not any(str(c).strip() for c in head):
-        head = default_headers
-        ws.update(range_name="A1", values=[head])
     row_vals = [str(row_dict.get(c, "")) for c in head]
-    ws.append_row(row_vals, value_input_option="RAW")
+    _gsheet_retry(ws.append_row, row_vals, value_input_option="RAW")
     gsheet_read_df.clear()
     return True
 
@@ -2599,6 +2640,16 @@ class _SvLocalStore:
             if r.get("rab_id") == rab_id:
                 r.update({k: v for k, v in fields.items() if k in SV_RAB_COLS}); self._write(d); return True
         return False
+    def update_rabs_batch(self, updates_map):
+        if not updates_map: return 0
+        d = self._read(); cnt = 0
+        for r in d["rab"]:
+            rid = r.get("rab_id")
+            if rid in updates_map:
+                r.update({k: v for k, v in updates_map[rid].items() if k in SV_RAB_COLS})
+                cnt += 1
+        if cnt: self._write(d)
+        return cnt
     def upsert_user(self, u):
         d = self._read()
         for r in d["users"]:
@@ -2606,29 +2657,48 @@ class _SvLocalStore:
                 r.update(u); self._write(d); return
         d["users"].append({k: u.get(k, "") for k in SV_USER_COLS}); self._write(d)
 
-@st.cache_resource(show_spinner=False, ttl=1800)
 def _sv_spreadsheet():
-    creds = Credentials.from_service_account_info(json.loads(st.secrets["gcp_json"]),
-                                                  scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"])
-    return gspread.authorize(creds).open_by_key(SHEET_ID)
+    return get_cached_spreadsheet()
 
-@st.cache_resource(show_spinner=False, ttl=1800)
-def _sv_worksheet(name, cols_key):
-    sh = _sv_spreadsheet()
+@st.cache_resource(show_spinner=False, ttl=3600)
+def _sv_worksheet_and_head(name, cols_key):
+    sh = get_cached_spreadsheet()
     cols = list(cols_key)
-    try: ws = sh.worksheet(name)
-    except Exception:
-        ws = sh.add_worksheet(title=name, rows=500, cols=max(len(cols), 10) + 2)
-        ws.update(range_name="A1", values=[cols])
-        return ws
-    head = ws.row_values(1)
-    if head != cols[:len(head)] or len(head) < len(cols):     
-        ws.update(range_name="A1", values=[head + [c for c in cols if c not in head]])
+    try:
+        ws = _gsheet_retry(sh.worksheet, name)
+    except Exception as e_w:
+        if _is_quota_429(e_w):
+            raise
+        ws = _gsheet_retry(sh.add_worksheet, title=name, rows=500, cols=max(len(cols), 10) + 2)
+        _gsheet_retry(ws.update, range_name="A1", values=[cols])
+        return ws, cols
+    head = _gsheet_retry(ws.row_values, 1)
+    if not head or not any(str(c).strip() for c in head):
+        _gsheet_retry(ws.update, range_name="A1", values=[cols])
+        return ws, cols
+    missing = [c for c in cols if c not in head]
+    if missing:
+        head = head + missing
+        _gsheet_retry(ws.update, range_name="A1", values=[head])
+    return ws, head
+
+def _sv_worksheet(name, cols_key):
+    ws, _ = _sv_worksheet_and_head(name, cols_key)
     return ws
 
-@st.cache_data(ttl=12, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def _sv_rows(name, cols_key):
-    return _sv_worksheet(name, cols_key).get_all_records()
+    try:
+        ws, _ = _sv_worksheet_and_head(name, cols_key)
+        recs = _gsheet_retry(ws.get_all_records)
+        _SV_LAST_OK[name] = recs
+        st.session_state.pop("sv_quota_warn", None)
+        return recs
+    except Exception as e:
+        if _is_quota_429(e) and name in _SV_LAST_OK:
+            st.session_state["sv_quota_warn"] = "⚠️ Kuota baca Google Sheets sempat padat (429). Menampilkan data cache terakhir — klik 🔄 Refresh 30 detik lagi."
+            return _SV_LAST_OK[name]
+        raise
 
 class _SvSheetsStore:
     kind = "Google Sheets"
@@ -2636,55 +2706,73 @@ class _SvSheetsStore:
     def _rows(self, name): return _sv_rows(name, self._cols(name))
     def list_rabs(self): return self._rows("SISAVA_RAB")
     def list_users(self): return self._rows("SISAVA_USERS")
-    def _row_values(self, ws, rec, cols):
-        head = ws.row_values(1)
-        return head, [str(rec.get(c, "")) if rec.get(c, "") is not None else "" for c in head]
     def add_rab(self, rec):
-        ws = _sv_worksheet("SISAVA_RAB", self._cols("SISAVA_RAB"))
-        head, vals = self._row_values(ws, rec, SV_RAB_COLS)
-        ws.append_row(vals, value_input_option="RAW"); _sv_rows.clear()
+        ws, head = _sv_worksheet_and_head("SISAVA_RAB", self._cols("SISAVA_RAB"))
+        vals = [str(rec.get(c, "")) if rec.get(c, "") is not None else "" for c in head]
+        _gsheet_retry(ws.append_row, vals, value_input_option="RAW")
+        _sv_rows.clear()
     def add_rabs_batch(self, recs):
         if not recs: return 0
-        ws = _sv_worksheet("SISAVA_RAB", self._cols("SISAVA_RAB"))
-        head = ws.row_values(1)
-        if not head or not any(str(c).strip() for c in head):
-            head = list(SV_RAB_COLS)
-            ws.update(range_name="A1", values=[head])
+        ws, head = _sv_worksheet_and_head("SISAVA_RAB", self._cols("SISAVA_RAB"))
         rows_payload = [[str(rec.get(c, "")) if rec.get(c, "") is not None else "" for c in head] for rec in recs]
-        ws.append_rows(rows_payload, value_input_option="RAW")
+        _gsheet_retry(ws.append_rows, rows_payload, value_input_option="RAW")
         _sv_rows.clear()
         return len(rows_payload)
+    def update_rabs_batch(self, updates_map):
+        """Memperbarui banyak RAB sekaligus hanya dengan 1x read + 1x batch_update (anti-429!)."""
+        if not updates_map: return 0
+        ws, head = _sv_worksheet_and_head("SISAVA_RAB", self._cols("SISAVA_RAB"))
+        all_vals = _gsheet_retry(ws.get_all_values)
+        if not all_vals: return 0
+        head_live = all_vals[0] if any(str(c).strip() for c in all_vals[0]) else head
+        batch_data = []
+        updated_cnt = 0
+        for row_idx, row_vals in enumerate(all_vals[1:], start=2):
+            rid = str(row_vals[0]).strip() if row_vals else ""
+            if rid in updates_map:
+                cur = list(row_vals) + [""] * max(0, len(head_live) - len(row_vals))
+                for k, v in updates_map[rid].items():
+                    if k in head_live:
+                        cur[head_live.index(k)] = "" if v is None else str(v)
+                batch_data.append({"range": f"A{row_idx}", "values": [cur]})
+                updated_cnt += 1
+        if batch_data:
+            _gsheet_retry(ws.batch_update, batch_data, value_input_option="RAW")
+            _sv_rows.clear()
+        return updated_cnt
     def update_rab(self, rab_id, fields):
-        ws = _sv_worksheet("SISAVA_RAB", self._cols("SISAVA_RAB"))
-        try: cell = ws.find(rab_id, in_column=1)
-        except Exception: cell = None
-        if not cell: return False
-        head = ws.row_values(1); cur = ws.row_values(cell.row)
-        cur += [""] * (len(head) - len(cur))
-        for k, v in fields.items():
-            if k in head:
-                cur[head.index(k)] = "" if v is None else str(v)
-        ws.update(range_name="A%d" % cell.row, values=[cur], value_input_option="RAW"); _sv_rows.clear()
-        return True
+        return self.update_rabs_batch({rab_id: fields}) > 0
     def upsert_user(self, u):
-        ws = _sv_worksheet("SISAVA_USERS", self._cols("SISAVA_USERS"))
-        try: cell = ws.find(u["username"], in_column=1)
-        except Exception: cell = None
-        head = ws.row_values(1)
-        if cell:                                  
-            cur = ws.row_values(cell.row); cur += [""] * (len(head) - len(cur))
-            row = dict(zip(head, cur)); row.update({k: v for k, v in u.items() if k in head})
-            ws.update(range_name="A%d" % cell.row, values=[[str(row.get(c, "")) for c in head]], value_input_option="RAW")
+        ws, head = _sv_worksheet_and_head("SISAVA_USERS", self._cols("SISAVA_USERS"))
+        all_vals = _gsheet_retry(ws.get_all_values)
+        head_live = all_vals[0] if (all_vals and any(str(c).strip() for c in all_vals[0])) else head
+        target_row = None
+        target_vals = None
+        uname_l = str(u["username"]).strip().lower()
+        for row_idx, row_vals in enumerate(all_vals[1:], start=2):
+            if row_vals and str(row_vals[0]).strip().lower() == uname_l:
+                target_row = row_idx
+                target_vals = row_vals
+                break
+        if target_row is not None:
+            cur = list(target_vals) + [""] * max(0, len(head_live) - len(target_vals))
+            row = dict(zip(head_live, cur))
+            row.update({k: v for k, v in u.items() if k in head_live})
+            _gsheet_retry(ws.update, range_name=f"A{target_row}", values=[[str(row.get(c, "")) for c in head_live]], value_input_option="RAW")
         else:
-            ws.append_row([str(u.get(c, "")) for c in head], value_input_option="RAW")
+            _gsheet_retry(ws.append_row, [str(u.get(c, "")) for c in head_live], value_input_option="RAW")
         _sv_rows.clear()
 
 def sv_store():
     try:
-        _sv_spreadsheet()
+        if "gcp_json" not in st.secrets:
+            return _SvLocalStore()
+        get_cached_spreadsheet()
         return _SvSheetsStore()
-    except Exception:
-        _sv_spreadsheet.clear()
+    except Exception as e:
+        if _is_quota_429(e):
+            # Jangan hapus cache resource saat 429; tetap pakai _SvSheetsStore agar fallback cache SiSAVA jalan
+            return _SvSheetsStore()
         return _SvLocalStore()
 
 def sv_hash_pw(pw, salt=None):
@@ -3809,6 +3897,7 @@ def sv_commit_entries_to_store(store, user, entries, dup_mode="skip", source_lab
     next_seq = (max(nums) if nums else 0) + 1
 
     to_insert = []
+    to_update_map = {}
     updated_cnt = 0
     skipped_cnt = 0
 
@@ -3847,8 +3936,7 @@ def sv_commit_entries_to_store(store, user, entries, dup_mode="skip", source_lab
             }
             if sva_obj:
                 upd_fields.update(sva=_sv_json(sva_obj), sva_oleh=user["username"], sva_at=sv_now())
-            store.update_rab(rid, upd_fields)
-            updated_cnt += 1
+            to_update_map[rid] = upd_fields
             continue
 
         rab_id = "RAB-%d-%04d" % (year, next_seq)
@@ -3867,6 +3955,8 @@ def sv_commit_entries_to_store(store, user, entries, dup_mode="skip", source_lab
         if t_key:
             by_ticket[t_key] = rec
 
+    if to_update_map:
+        updated_cnt = store.update_rabs_batch(to_update_map)
     inserted_cnt = 0
     if to_insert:
         inserted_cnt = store.add_rabs_batch(to_insert)
@@ -4134,22 +4224,24 @@ def sv_page_import_all(store, user):
                     if not sv_can(user, "view_all"):
                         st.warning("⚠️ Hanya Admin Utama / Manager / SPV yang dapat melakukan bulk update status database.")
                     else:
+                        updates_batch_map = {}
+                        for i_row in range(len(ed_db)):
+                            orig_r = df_db_ed.iloc[i_row]
+                            new_r = ed_db.iloc[i_row]
+                            diff_fields = {}
+                            for col_chk in ("ticket_no", "nop", "nama_pembuat", "status", "tot_tsel", "tot_rev", "tot_hpp", "margin"):
+                                if str(orig_r[col_chk]) != str(new_r[col_chk]):
+                                    diff_fields[col_chk] = new_r[col_chk]
+                            if diff_fields:
+                                rev_n = _sv_num(new_r["tot_rev"])
+                                mar_n = _sv_num(new_r["margin"])
+                                diff_fields["gpm"] = round((mar_n / rev_n) if rev_n else 0.0, 6)
+                                diff_fields["updated_at"] = sv_now()
+                                updates_batch_map[str(new_r["rab_id"])] = diff_fields
                         changed_cnt = 0
-                        with st.spinner("Menyinkronkan perubahan ke Google Sheets..."):
-                            for i_row in range(len(ed_db)):
-                                orig_r = df_db_ed.iloc[i_row]
-                                new_r = ed_db.iloc[i_row]
-                                diff_fields = {}
-                                for col_chk in ("ticket_no", "nop", "nama_pembuat", "status", "tot_tsel", "tot_rev", "tot_hpp", "margin"):
-                                    if str(orig_r[col_chk]) != str(new_r[col_chk]):
-                                        diff_fields[col_chk] = new_r[col_chk]
-                                if diff_fields:
-                                    rev_n = _sv_num(new_r["tot_rev"])
-                                    mar_n = _sv_num(new_r["margin"])
-                                    diff_fields["gpm"] = round((mar_n / rev_n) if rev_n else 0.0, 6)
-                                    diff_fields["updated_at"] = sv_now()
-                                    store.update_rab(str(new_r["rab_id"]), diff_fields)
-                                    changed_cnt += 1
+                        if updates_batch_map:
+                            with st.spinner(f"Menyinkronkan {len(updates_batch_map)} perubahan sekaligus ke Google Sheets..."):
+                                changed_cnt = store.update_rabs_batch(updates_batch_map)
                         if changed_cnt > 0:
                             st.session_state["sv_flash"] = f"✅ {changed_cnt} baris RAB berhasil diperbarui di Google Sheets!"
                             st.rerun()
@@ -4180,9 +4272,14 @@ def sisava_page():
         st.rerun()
         return
         
-    c1, c2 = st.columns([4, 1])
+    c1, c_rf, c2 = st.columns([3.5, 1, 1])
     c1.markdown("<div style='padding:8px 2px'>👤 <b>%s</b> · %s%s</div>" % (_esc(user["nama"]), _esc(SV_ROLES.get(user["role"], "")), (" · " + _esc(user["jabatan"])) if user.get("jabatan") else ""), unsafe_allow_html=True)
+    if c_rf.button("🔄 Refresh", key="svw_refresh_btn", use_container_width=True):
+        _sv_rows.clear()
+        st.rerun()
     c2.button("Keluar Portal", key="svw_logout", on_click=lambda: st.session_state.pop("sv_user", None), use_container_width=True)
+    if st.session_state.get("sv_quota_warn"):
+        st.warning(st.session_state["sv_quota_warn"])
     
     # --- PENGATURAN MENU BERDASARKAN ROLE / HAK AKSES ---
     nav = ["🏠 Dashboard"]
@@ -4212,7 +4309,10 @@ def sisava_page():
     try:
         recs = sv_visible(store.list_rabs(), user)
     except Exception as e:
-        st.error("Gagal membaca database SiSAVA: %s" % e)
+        if _is_quota_429(e):
+            st.warning("⏳ Server Google Sheets sedang padat (Limit 60 baca/menit tercapai). Tunggu ±30–60 detik lalu klik tombol **🔄 Refresh** di kanan atas.")
+        else:
+            st.error("Gagal membaca database SiSAVA: %s" % e)
         return
         
     if page == "🏠 Dashboard":
@@ -4720,7 +4820,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                     report_dict.get('status', ''), json.dumps(report_dict)
                                 ]
                                 sheet.insert_row(row_data, index=2)
-                                st.cache_data.clear()
+                                fetch_data_from_gsheets.clear()
                                 st.session_state['laporan_db'].append(report_dict)
                                 st.success("✅ BERHASIL! Data SPS telah diamankan ke Baris Teratas Spreadsheet.")
                             else:
@@ -4959,7 +5059,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                     report_dict.get('status', ''), json.dumps(report_dict)
                                 ]
                                 sheet.insert_row(row_data, index=2)
-                                st.cache_data.clear()
+                                fetch_data_from_gsheets.clear()
                                 st.session_state['laporan_db'].append(report_dict)
                                 st.success("✅ BERHASIL! Data Laporan Site Reguler (beserta Audit Tower) telah diamankan ke Spreadsheet.")
                             else:
@@ -5204,7 +5304,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                         sheet.insert_row(["Timestamp", "Site Name", "NOP", "Teknisi", "Status", "Data JSON"], index=1)
                                         sheet.insert_row(row_data, index=2)
                                         
-                                    st.cache_data.clear()
+                                    fetch_data_from_gsheets.clear()
                                     st.session_state['laporan_db'] = fetch_data_from_gsheets()
                                     st.success("✅ BERHASIL! Data Project telah tersimpan dan siap dipantau di menu 💎 Executive Project.")
                                 else:
@@ -5391,7 +5491,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                                 report_dict['teknisi'], report_dict['status'], json.dumps(report_dict)
                             ]
                             sheet_pbu.insert_row(row_data, index=2)
-                            st.cache_data.clear()
+                            fetch_data_from_gsheets.clear()
                             st.session_state['laporan_db'] = fetch_data_from_gsheets()
                             
                             wa_text = generate_wa_pbu(report_dict)
@@ -5995,7 +6095,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                                 sheet.update_cell(r.get('_row', i + 2), 2, new_sreg)
                                                 sheet.update_cell(r.get('_row', i + 2), 4, new_freg)
                                                 sheet.update_cell(r.get('_row', i + 2), 6, json.dumps(r))
-                                                st.cache_data.clear() 
+                                                fetch_data_from_gsheets.clear() 
                                         st.success("✅ REVISI BERHASIL!")
                                         st.rerun()
 # =========================================================================
@@ -6681,27 +6781,12 @@ elif menu == "📦 Logistik & SPMS":
     st.markdown("<h1 style='text-align: center;'>📦 Manajemen Logistik & SPMS</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; opacity: 0.8;'>Sistem Pencatatan Barang Masuk (Inbound), Barang Keluar (Outbound), dan Auto-Kalkulasi Stok.</p>", unsafe_allow_html=True)
     
-    sheet_logistik = connect_gsheets("Data Logistik")
-    if sheet_logistik is None:
-        st.error("⚠️ **PENTING:** Silakan buat Sheet baru bernama **'Data Logistik'** (tanpa tanda kutip) di dalam file Google Spreadsheet Database Utama Anda.")
-        st.stop()
-        
-    data_log = sheet_logistik.get_all_values()
     headers_standar = ["Tanggal", "Tipe Transaksi", "Kategori", "Merek / Nama Barang", "Untuk Genset/Mesin", "Jumlah", "PIC / Pengambil", "Site ID", "Keterangan"]
-    
-    # AUTO-FIX: Cek jika sheet kosong atau baris 1 berisi sel kosong/spasi gaib
-    if not data_log or len(data_log) == 0 or not any(str(c).strip() for c in data_log[0]):
-        sheet_logistik.clear() # Bersihkan sisa format/spasi di Sheet
-        sheet_logistik.insert_row(headers_standar, index=1)
-        data_log = [headers_standar]
-        
-    header_db = data_log[0]
-    data_rows = data_log[1:]
-    
-    # Ratakan panjang baris dengan panjang header agar tidak Error di Pandas
-    data_rows_padded = [row + [''] * (len(header_db) - len(row)) for row in data_rows]
-    
-    df_log = pd.DataFrame(data_rows_padded, columns=header_db)
+    df_log, ok_log = gsheet_read_df("Data Logistik", headers_standar)
+    sheet_logistik = gsheet_get_or_create_ws("Data Logistik", headers_standar)
+    if not ok_log or sheet_logistik is None:
+        st.error("⚠️ **PENTING:** Gagal menyambung ke sheet **'Data Logistik'** di Spreadsheet Utama Anda.")
+        st.stop()
     
     # Proteksi Darurat jika nama kolom masih belum terbaca sempurna
     if 'Tipe Transaksi' not in df_log.columns: df_log['Tipe Transaksi'] = ''
@@ -6732,7 +6817,7 @@ elif menu == "📦 Logistik & SPMS":
                 else:
                     with st.spinner("Menyimpan stok ke Database..."):
                         row_in = [tgl_in.strftime("%Y-%m-%d"), "INBOUND", kat_in, nama_in, genset_in, qty_in, pic_in, "-", ket_in]
-                        sheet_logistik.insert_row(row_in, index=2)
+                        _gsheet_retry(sheet_logistik.insert_row, row_in, index=2); gsheet_read_df.clear()
                     st.success(f"✅ Berhasil! {qty_in} qty '{nama_in}' telah ditambahkan ke dalam stok gudang.")
                     st.rerun()
                     
@@ -6767,7 +6852,7 @@ elif menu == "📦 Logistik & SPMS":
                 else:
                     with st.spinner("Memotong stok dan merekam data..."):
                         row_out = [tgl_out.strftime("%Y-%m-%d"), "OUTBOUND", kat_out, nama_out, "-", qty_out, pic_out, site_out, ket_out]
-                        sheet_logistik.insert_row(row_out, index=2)
+                        _gsheet_retry(sheet_logistik.insert_row, row_out, index=2); gsheet_read_df.clear()
                     st.success(f"✅ Pengambilan tercatat! {qty_out} qty '{nama_out}' telah dikeluarkan untuk Site {site_out}.")
                     st.rerun()
                     
@@ -6894,7 +6979,7 @@ elif menu == "💎 Executive Project Dashboard":
             st.session_state['proj_dash_unlocked'] = False
             st.rerun()
         if st.button("🔄 Sync Cloud", type="primary", use_container_width=True):
-            st.cache_data.clear()
+            fetch_data_from_gsheets.clear()
             st.session_state['laporan_db'] = fetch_data_from_gsheets()
             st.rerun()
 
@@ -7320,7 +7405,7 @@ elif menu == "💎 Executive Project Dashboard":
                             if sheet:
                                 sheet.update_cell(r.get('_row', sel_proj_idx + 2), 5, new_status_proj)
                                 sheet.update_cell(r.get('_row', sel_proj_idx + 2), 6, json.dumps(r, default=str))
-                                st.cache_data.clear()
+                                fetch_data_from_gsheets.clear()
                         st.success("✅ BERHASIL! Data Rute, Dana Tersupport, Timeline, Margin & Foto PO telah diperbarui.")
                         st.rerun()
 
@@ -7432,7 +7517,7 @@ elif menu == "🚨 SiHD (Pergerakan Tim)":
                         if ws_hd:
                             row_hd = [rec_hd["timestamp"], rec_hd["site_name"], rec_hd["nop"], rec_hd["teknisi"], rec_hd["status"], json.dumps(rec_hd, ensure_ascii=False)]
                             ws_hd.insert_row(row_hd, index=2)
-                            st.cache_data.clear()
+                            fetch_data_from_gsheets.clear()
                             st.session_state['laporan_db'] = fetch_data_from_gsheets()
                             st.success("✅ Catatan mutasi SiHD berhasil disimpan ke Cloud!")
                         else:
