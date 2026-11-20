@@ -1018,7 +1018,6 @@ def get_default_kml_df():
     return pd.DataFrame(), None
 
 @st.cache_data(ttl=3600, show_spinner=False)
-@st.cache_data(ttl=3600, show_spinner=False)
 def load_master_lists():
     import glob as _gm
     fme_plk, fme_pbu, site_plk, site_pbu = [], [], [], []
@@ -2587,6 +2586,13 @@ class _SvLocalStore:
     def list_users(self): return self._read()["users"]
     def add_rab(self, rec):
         d = self._read(); d["rab"].append({k: rec.get(k, "") for k in SV_RAB_COLS}); self._write(d)
+    def add_rabs_batch(self, recs):
+        if not recs: return 0
+        d = self._read()
+        for rec in recs:
+            d["rab"].append({k: rec.get(k, "") for k in SV_RAB_COLS})
+        self._write(d)
+        return len(recs)
     def update_rab(self, rab_id, fields):
         d = self._read()
         for r in d["rab"]:
@@ -2637,6 +2643,17 @@ class _SvSheetsStore:
         ws = _sv_worksheet("SISAVA_RAB", self._cols("SISAVA_RAB"))
         head, vals = self._row_values(ws, rec, SV_RAB_COLS)
         ws.append_row(vals, value_input_option="RAW"); _sv_rows.clear()
+    def add_rabs_batch(self, recs):
+        if not recs: return 0
+        ws = _sv_worksheet("SISAVA_RAB", self._cols("SISAVA_RAB"))
+        head = ws.row_values(1)
+        if not head or not any(str(c).strip() for c in head):
+            head = list(SV_RAB_COLS)
+            ws.update(range_name="A1", values=[head])
+        rows_payload = [[str(rec.get(c, "")) if rec.get(c, "") is not None else "" for c in head] for rec in recs]
+        ws.append_rows(rows_payload, value_input_option="RAW")
+        _sv_rows.clear()
+        return len(rows_payload)
     def update_rab(self, rab_id, fields):
         ws = _sv_worksheet("SISAVA_RAB", self._cols("SISAVA_RAB"))
         try: cell = ws.find(rab_id, in_column=1)
@@ -3325,6 +3342,829 @@ def sv_page_kelola(store, user):
         if recs: st.download_button("📥 Unduh Rekap Seluruh RAB (Excel)", sv_rekap_xlsx(recs), file_name="Rekap_SiSAVA.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True, key="svw_rekap")
 
+
+# =============================================================================
+# 📥 MODUL IMPORT EXCEL & INPUT ALL MASSAL SiSAVA -> GOOGLE SHEETS (SISAVA_RAB)
+# =============================================================================
+SV_ALL_STATUSES = [
+    S_RAB_SPV, S_RAB_MGR, S_RAB_TOLAK, S_RAB_OK, S_SVA,
+    S_KRJ_SPV, S_KRJ_MGR, S_KRJ_TOLAK, S_DONE
+]
+
+def sv_build_template_input_all_xlsx():
+    """Membuat file Template Excel siap pakai untuk Input All / Import Massal SiSAVA."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Input_All_SiSAVA"
+    NAVY, SUB_BG, EX_BG = "1E3A5F", "E2E8F0", "F8FAFC"
+    thin = Side(style="thin", color="CBD5E1")
+    brd = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    headers = [
+        "No. Ticket", "NOP", "Area", "Kota", "Tanggal Pengajuan",
+        "Site ID", "Site Name", "Pekerjaan", "Jenis (Material/Jasa)",
+        "Qty", "UoM", "Harga 3E (Tsel)", "Harga KUT (Opsional)",
+        "HPP Lapangan (Opsional)", "Biaya Lain (Opsional)",
+        "Status SiSAVA", "Nilai SVA (Opsional)", "Keperluan Dana (Opsional)",
+        "Urgensi", "Rencana Tgl Kerja", "Catatan"
+    ]
+    for ci, h_txt in enumerate(headers, 1):
+        c = ws.cell(row=1, column=ci, value=h_txt)
+        c.font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        c.fill = PatternFill("solid", fgColor=NAVY)
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        c.border = brd
+    ws.row_dimensions[1].height = 30
+    ws.freeze_panes = "C2"
+
+    today_iso = _dtm.date.today().isoformat()
+    sample_rows = [
+        [
+            "SVA-2026-000101", "PALANGKA RAYA", "KALIMANTAN", "Palangka Raya", today_iso,
+            "PLK025", "PALANGKA_KOTA", "Penggantian Kabel Power NYY 4x16 + Instalasi", "Material",
+            1, "lot", 15000000, "", "", 0,
+            S_RAB_SPV, "", "", "Urgent", today_iso, "Contoh 1: Harga KUT & HPP kosong -> dihitung otomatis (92% & 85%)"
+        ],
+        [
+            "SVA-2026-000102", "PANGKALAN BUN", "KALIMANTAN", "Pangkalan Bun", today_iso,
+            "PBU067", "MELATA", "Jasa Troubleshoot & Replace Modul Rectifier", "Jasa",
+            1, "ls", 8500000, 7225000, 5800000, 250000,
+            S_SVA, 8500000, 5800000, "Emergency", today_iso, "Contoh 2: Nilai KUT, HPP & SVA diisi manual"
+        ]
+    ]
+    for ri, row_vals in enumerate(sample_rows, 2):
+        for ci, val in enumerate(row_vals, 1):
+            c = ws.cell(row=ri, column=ci, value=val)
+            c.fill = PatternFill("solid", fgColor=EX_BG)
+            c.border = brd
+            if ci in (12, 13, 14, 15, 17, 18) and isinstance(val, (int, float)):
+                c.number_format = "#,##0"
+
+    for ci, h_txt in enumerate(headers, 1):
+        ws.column_dimensions[get_column_letter(ci)].width = 32 if ("Pekerjaan" in h_txt or "Catatan" in h_txt) else (22 if "Status" in h_txt or "Ticket" in h_txt else 17)
+
+    # Sheet Petunjuk
+    ws_p = wb.create_sheet("Petunjuk_Pengisian")
+    guide = [
+        ("PETUNJUK INPUT ALL EXCEL SiSAVA", ""),
+        ("1. Kolom Wajib", "Minimal isi 'No. Ticket' (atau 'Site ID'), 'Pekerjaan', dan 'Harga 3E (Tsel)'."),
+        ("2. Perhitungan Otomatis", "Jika 'Harga KUT' dikosongkan -> otomatis Harga 3E x 0.92 (Material) atau x 0.85 (Jasa). Jika 'HPP Lapangan' dikosongkan -> otomatis 85% dari Harga KUT. Margin, GPM, Cost of Money & PPh dihitung otomatis oleh sistem."),
+        ("3. Multi-Item / Multi-Site", "Boleh mengisi banyak baris dengan 'No. Ticket' yang sama jika ingin digabungkan menjadi 1 dokumen RAB (pilih mode 'Gabung per No. Ticket' saat upload)."),
+        ("4. Pilihan Status SiSAVA", " | ".join(SV_ALL_STATUSES)),
+        ("5. Pilihan NOP", "PALANGKA RAYA | PANGKALAN BUN"),
+        ("6. Format Excel RAB Resmi", "Anda juga dapat langsung mengunggah file Excel RAB hasil export SiSAVA ('RENCANA ANGGARAN BIAYA') tanpa perlu mengubah format!")
+    ]
+    for ri, (k_g, v_g) in enumerate(guide, 1):
+        ws_p.cell(row=ri, column=1, value=k_g).font = Font(bold=True, color=NAVY if ri == 1 else "000000", size=13 if ri == 1 else 11)
+        ws_p.cell(row=ri, column=2, value=v_g)
+    ws_p.column_dimensions["A"].width = 28
+    ws_p.column_dimensions["B"].width = 95
+
+    buf = _io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+def _sv_parse_num_flex(v):
+    if v is None or (isinstance(v, float) and v != v):
+        return None
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return float(v)
+    s = str(v).strip()
+    if not s or s.lower() in ("nan", "none", "-", ""):
+        return None
+    s_clean = re.sub(r"(?i)rp\.?\s*", "", s).replace(" ", "")
+    # Tangani format pemisah ribuan Indonesia (1.500.000) vs desimal (1500000.50)
+    if "," in s_clean and "." in s_clean:
+        if s_clean.rfind(",") > s_clean.rfind("."):
+            s_clean = s_clean.replace(".", "").replace(",", ".")
+        else:
+            s_clean = s_clean.replace(",", "")
+    elif s_clean.count(".") > 1:
+        s_clean = s_clean.replace(".", "")
+    elif s_clean.count(",") > 1:
+        s_clean = s_clean.replace(",", "")
+    elif "," in s_clean:
+        parts = s_clean.split(",")
+        s_clean = s_clean.replace(",", "") if len(parts[-1]) == 3 else s_clean.replace(",", ".")
+    try:
+        return float(s_clean)
+    except Exception:
+        return None
+
+def _sv_detect_official_rab_sheet(df_raw):
+    """Deteksi apakah sheet Excel adalah format RAB resmi SiSAVA (RENCANA ANGGARAN BIAYA)."""
+    if df_raw is None or df_raw.empty or df_raw.shape[1] < 13:
+        return False
+    top_text = " ".join(str(x).upper() for x in df_raw.iloc[:8, :15].values.flatten() if pd.notna(x))
+    return ("RENCANA ANGGARAN BIAYA" in top_text) and ("HARGA 3E" in top_text or "TOTAL REVENUE" in top_text or "NILAI HPP" in top_text)
+
+def sv_parse_official_rab_excel(df_raw, default_nop="PALANGKA RAYA", default_area="KALIMANTAN", default_kota="Palangka Raya"):
+    """Parser khusus untuk Excel RAB resmi SiSAVA (format 21 kolom A..U)."""
+    nop, ticket, kota = default_nop, "", default_kota
+    for r_i in range(min(8, len(df_raw))):
+        a_val = str(df_raw.iat[r_i, 0]).strip().upper() if pd.notna(df_raw.iat[r_i, 0]) else ""
+        c_val = str(df_raw.iat[r_i, 2]).strip() if df_raw.shape[1] > 2 and pd.notna(df_raw.iat[r_i, 2]) else ""
+        c_clean = c_val.lstrip(":").strip()
+        if a_val == "NOP" and c_clean:
+            nop = c_clean.upper()
+        elif "TICKET" in a_val and c_clean:
+            ticket = c_clean
+
+    # Cari baris header tabel (baris dengan 'SITE ID')
+    hdr_row = 4
+    for r_i in range(min(12, len(df_raw))):
+        row_u = [str(x).strip().upper() for x in df_raw.iloc[r_i].tolist() if pd.notna(x)]
+        if "SITE ID" in row_u and ("QTY" in row_u or "SL" in row_u):
+            hdr_row = r_i
+            break
+
+    sites = []
+    cur_site = None
+    cur_sec = "A"
+    biaya_lain = 0.0
+
+    for r_i in range(hdr_row + 1, len(df_raw)):
+        def _g(ci):
+            if ci >= df_raw.shape[1]: return None
+            v = df_raw.iat[r_i, ci]
+            return None if (v is None or (isinstance(v, float) and v != v)) else v
+
+        col_a, col_b, col_c, col_d = _g(0), _g(1), _g(2), _g(3)
+        col_e, col_f, col_g = _g(4), _g(5), _g(6)
+        col_h, col_i, col_n, col_t, col_u = _g(7), _g(8), _g(13), _g(19), _g(20)
+
+        t_str = str(col_t or "").strip().lower()
+        l_str = str(_g(11) or "").strip().upper()
+        if "biaya lain" in t_str:
+            bl = _sv_parse_num_flex(col_u)
+            if bl is not None:
+                biaya_lain = bl
+            continue
+        if l_str == "TOTAL" or str(col_n or "").strip().upper() == "TOTAL":
+            break
+
+        if col_b is not None and str(col_b).strip() and str(col_b).strip().upper() not in ("SITE ID", "NONE"):
+            cur_site = {
+                "site_id": str(col_b).strip().upper(),
+                "site_name": str(col_c or col_b).strip().upper(),
+                "pekerjaan": str(col_d or "Pekerjaan SVA").strip(),
+                "items": []
+            }
+            sites.append(cur_site)
+
+        e_u = str(col_e or "").strip().upper()
+        if e_u in ("A", "B"):
+            cur_sec = e_u
+            continue
+
+        desc = str(col_g or "").strip()
+        qty_v = _sv_parse_num_flex(col_i)
+        ht_v = _sv_parse_num_flex(col_h)
+        if desc and qty_v and qty_v > 0 and ht_v is not None and ht_v > 0:
+            if cur_site is None:
+                cur_site = {"site_id": "SITE-1", "site_name": "SITE-1", "pekerjaan": "Pekerjaan SVA", "items": []}
+                sites.append(cur_site)
+            f_low = str(col_f or "").strip().lower()
+            jenis = "Jasa" if "jasa" in f_low else ("Material" if "material" in f_low else sv_guess_jenis(desc))
+            hk_v = _sv_parse_num_flex(col_n)
+            hp_v = _sv_parse_num_flex(col_t)
+            cur_site["items"].append({
+                "sec": cur_sec,
+                "jenis": jenis,
+                "desc": desc,
+                "uom": "unit",
+                "qty": float(qty_v),
+                "harga_tsel": float(ht_v),
+                "harga_kut": float(hk_v) if (hk_v is not None and hk_v > 0) else None,
+                "hpp": float(hp_v) if (hp_v is not None and hp_v > 0) else None
+            })
+
+    sites = [s for s in sites if s["items"]]
+    if not sites:
+        return []
+
+    params = dict(SV_PARAMS_DEFAULT)
+    params["biaya_lain"] = biaya_lain
+    rab = {
+        "nop": nop,
+        "ticket": ticket or f"SVA-IMP-{_dtm.date.today().strftime('%Y%m%d')}",
+        "area": default_area,
+        "kota": kota,
+        "tanggal": _dtm.date.today().isoformat(),
+        "params": params,
+        "sites": sites
+    }
+    return [{"rab": rab, "status": S_RAB_SPV, "sva": None, "tgl_pengajuan": sv_now(), "catatan": "Import dari Excel RAB Resmi"}]
+
+def sv_parse_bulk_table_to_entries(df_in, default_nop="PALANGKA RAYA", default_area="KALIMANTAN", default_kota="Palangka Raya", default_status=S_RAB_SPV, group_by_ticket=False):
+    """Mengonversi DataFrame tabel Input All menjadi daftar objek siap simpan ke SISAVA_RAB."""
+    if df_in is None or df_in.empty:
+        return []
+
+    cols = list(df_in.columns)
+    def _pick_col(keywords, exclude=()):
+        for kw in keywords:
+            for c in cols:
+                cl = str(c).strip().lower()
+                if any(ex in cl for ex in exclude):
+                    continue
+                if kw == cl or kw in cl:
+                    return c
+        return None
+
+    c_rab_id = _pick_col(["rab_id", "no. rab", "no rab"])
+    c_ticket = _pick_col(["no. ticket", "no ticket", "ticket", "tiket"])
+    c_nop = _pick_col(["nop"])
+    c_area = _pick_col(["area"])
+    c_kota = _pick_col(["kota", "city"])
+    c_tgl = _pick_col(["tanggal pengajuan", "tgl pengajuan", "tgl_pengajuan", "tanggal", "tgl"])
+    c_sid = _pick_col(["site id", "site_id", "siteid"])
+    c_sname = _pick_col(["site name", "site_name", "nama site"])
+    c_pek = _pick_col(["pekerjaan", "uraian", "activity", "deskripsi", "keperluan", "item"])
+    c_jns = _pick_col(["jenis"])
+    c_qty = _pick_col(["qty", "jumlah", "vol"])
+    c_uom = _pick_col(["uom", "satuan"])
+    c_tsel = _pick_col(["harga 3e", "total ke telkomsel", "total telkomsel", "tot_tsel", "nilai 3e", "harga tsel", "tsel"], exclude=("kut", "hpp"))
+    c_kut = _pick_col(["harga kut", "revenue kut", "total revenue", "tot_rev", "revenue", "kut"])
+    c_hpp = _pick_col(["hpp lapangan", "total hpp", "nilai hpp", "tot_hpp", "hpp"])
+    c_bl = _pick_col(["biaya lain", "biaya_lain"])
+    c_stat = _pick_col(["status sisava", "status rab", "status"], exclude=("tiket",))
+    c_sva_n = _pick_col(["nilai sva", "sva"], exclude=("status", "ticket", "tiket"))
+    c_dana = _pick_col(["keperluan dana", "dana"])
+    c_urg = _pick_col(["urgensi"])
+    c_st_tk = _pick_col(["status tiket", "status_tiket"])
+    c_rnc = _pick_col(["rencana tgl", "tgl rencana", "tgl_rencana"])
+    c_cat = _pick_col(["catatan", "remark", "keterangan", "note"])
+    c_pem = _pick_col(["pembuat", "nama_pembuat", "pic"])
+
+    def _s(row, col, default=""):
+        if not col: return default
+        v = row.get(col)
+        if v is None or (isinstance(v, float) and v != v): return default
+        st_v = str(v).strip()
+        return default if st_v.lower() in ("nan", "nat", "none", "") else st_v
+
+    def _match_status(raw_st):
+        if not raw_st: return default_status
+        rl = raw_st.strip().lower()
+        for opt in SV_ALL_STATUSES:
+            if opt.lower() == rl:
+                return opt
+        if "sah" in rl or "selesai" in rl or "done" in rl or "close" in rl:
+            return S_DONE
+        if "sva" in rl and ("terisi" in rl or "berjalan" in rl or "ok" in rl):
+            return S_SVA
+        if "disetujui" in rl or "approve" in rl:
+            return S_RAB_OK
+        if "manager" in rl or "mgr" in rl:
+            return S_RAB_MGR
+        if "tolak" in rl or "revisi" in rl:
+            return S_RAB_TOLAK
+        return default_status
+
+    parsed_rows = []
+    for idx_r, row in df_in.iterrows():
+        ticket = _s(row, c_ticket)
+        sid = _s(row, c_sid).upper()
+        sname = _s(row, c_sname).upper() or sid
+        pek = _s(row, c_pek)
+        ht = _sv_parse_num_flex(row.get(c_tsel)) if c_tsel else None
+        hk = _sv_parse_num_flex(row.get(c_kut)) if c_kut else None
+        hp = _sv_parse_num_flex(row.get(c_hpp)) if c_hpp else None
+
+        # Lewati baris kosong total
+        if not ticket and not sid and not pek and ht is None and hk is None:
+            continue
+
+        # Jika Harga 3E kosong tapi Revenue KUT ada, back-calculate Harga 3E
+        if (ht is None or ht <= 0) and (hk is not None and hk > 0):
+            ht = round(hk / SV_PARAMS_DEFAULT["f_mat"], 2)
+        if ht is None:
+            ht = 0.0
+
+        qty = _sv_parse_num_flex(row.get(c_qty)) if c_qty else None
+        qty = qty if (qty is not None and qty > 0) else 1.0
+        jns_raw = _s(row, c_jns)
+        jenis = "Jasa" if "jasa" in jns_raw.lower() else ("Material" if "mat" in jns_raw.lower() else sv_guess_jenis(pek))
+
+        # Jika Excel berupa rekap total (qty=1) dan hk/hp diisi sebagai angka total, unit = nilai langsung
+        hk_unit = (hk / qty) if (hk is not None and hk > 0) else None
+        hp_unit = (hp / qty) if (hp is not None and hp > 0) else None
+
+        bl = _sv_parse_num_flex(row.get(c_bl)) if c_bl else 0.0
+        bl = bl if (bl is not None and bl > 0) else 0.0
+
+        tgl_raw = _s(row, c_tgl, _dtm.date.today().isoformat())
+        tgl_iso = tgl_raw[:10] if len(tgl_raw) >= 10 and tgl_raw[4:5] == "-" else _dtm.date.today().isoformat()
+
+        sva_val = _sv_parse_num_flex(row.get(c_sva_n)) if c_sva_n else None
+        dana_val = _sv_parse_num_flex(row.get(c_dana)) if c_dana else None
+        sva_dict = None
+        if (sva_val is not None and sva_val > 0) or (dana_val is not None and dana_val > 0):
+            sva_dict = {
+                "ticket_no": ticket or sid or f"IMP-{idx_r+1}",
+                "status_tiket": _s(row, c_st_tk, "Open"),
+                "nilai_sva": float(sva_val or ht * qty),
+                "keperluan_dana": float(dana_val or (hp if hp else ht * qty * 0.78)),
+                "urgensi": _s(row, c_urg, "Normal"),
+                "keperluan": pek or "Pekerjaan SVA",
+                "tgl_rencana": _s(row, c_rnc, tgl_iso)[:10]
+            }
+
+        parsed_rows.append({
+            "existing_rab_id": _s(row, c_rab_id),
+            "ticket": ticket or f"SVA-IMP-{_dtm.date.today().strftime('%Y%m%d')}-{idx_r+1:03d}",
+            "nop": _s(row, c_nop, default_nop).upper(),
+            "area": _s(row, c_area, default_area).upper(),
+            "kota": _s(row, c_kota, default_kota),
+            "tanggal": tgl_iso,
+            "site_id": sid or f"SITE-{idx_r+1:03d}",
+            "site_name": sname or sid or f"SITE-{idx_r+1:03d}",
+            "pekerjaan": pek or "Pekerjaan Service Variable Activity",
+            "jenis": jenis,
+            "uom": _s(row, c_uom, "lot"),
+            "qty": float(qty),
+            "harga_tsel": float(ht),
+            "harga_kut": float(hk_unit) if hk_unit is not None else None,
+            "hpp": float(hp_unit) if hp_unit is not None else None,
+            "biaya_lain": float(bl),
+            "status": _match_status(_s(row, c_stat)),
+            "sva": sva_dict,
+            "catatan": _s(row, c_cat, "Import Excel Input All"),
+            "pembuat_nama": _s(row, c_pem)
+        })
+
+    entries = []
+    if group_by_ticket:
+        grouped = {}
+        order_keys = []
+        for pr in parsed_rows:
+            gk = pr["ticket"].upper()
+            if gk not in grouped:
+                grouped[gk] = []
+                order_keys.append(gk)
+            grouped[gk].append(pr)
+
+        for gk in order_keys:
+            grp = grouped[gk]
+            first = grp[0]
+            sites_map = {}
+            site_order = []
+            bl_tot = 0.0
+            for item_r in grp:
+                bl_tot += item_r["biaya_lain"]
+                sk = item_r["site_id"]
+                if sk not in sites_map:
+                    sites_map[sk] = {
+                        "site_id": item_r["site_id"],
+                        "site_name": item_r["site_name"],
+                        "pekerjaan": item_r["pekerjaan"],
+                        "items": []
+                    }
+                    site_order.append(sk)
+                sites_map[sk]["items"].append({
+                    "sec": "A",
+                    "jenis": item_r["jenis"],
+                    "desc": item_r["pekerjaan"],
+                    "uom": item_r["uom"],
+                    "qty": item_r["qty"],
+                    "harga_tsel": item_r["harga_tsel"],
+                    "harga_kut": item_r["harga_kut"],
+                    "hpp": item_r["hpp"]
+                })
+            params = dict(SV_PARAMS_DEFAULT)
+            params["biaya_lain"] = bl_tot
+            rab = {
+                "nop": first["nop"],
+                "ticket": first["ticket"],
+                "area": first["area"],
+                "kota": first["kota"],
+                "tanggal": first["tanggal"],
+                "params": params,
+                "sites": [sites_map[sk] for sk in site_order]
+            }
+            entries.append({
+                "existing_rab_id": first["existing_rab_id"],
+                "rab": rab,
+                "status": first["status"],
+                "sva": first["sva"],
+                "tgl_pengajuan": first["tanggal"] + " 08:00:00",
+                "catatan": first["catatan"],
+                "pembuat_nama": first["pembuat_nama"]
+            })
+    else:
+        for pr in parsed_rows:
+            params = dict(SV_PARAMS_DEFAULT)
+            params["biaya_lain"] = pr["biaya_lain"]
+            rab = {
+                "nop": pr["nop"],
+                "ticket": pr["ticket"],
+                "area": pr["area"],
+                "kota": pr["kota"],
+                "tanggal": pr["tanggal"],
+                "params": params,
+                "sites": [{
+                    "site_id": pr["site_id"],
+                    "site_name": pr["site_name"],
+                    "pekerjaan": pr["pekerjaan"],
+                    "items": [{
+                        "sec": "A",
+                        "jenis": pr["jenis"],
+                        "desc": pr["pekerjaan"],
+                        "uom": pr["uom"],
+                        "qty": pr["qty"],
+                        "harga_tsel": pr["harga_tsel"],
+                        "harga_kut": pr["harga_kut"],
+                        "hpp": pr["hpp"]
+                    }]
+                }]
+            }
+            entries.append({
+                "existing_rab_id": pr["existing_rab_id"],
+                "rab": rab,
+                "status": pr["status"],
+                "sva": pr["sva"],
+                "tgl_pengajuan": pr["tanggal"] + " 08:00:00",
+                "catatan": pr["catatan"],
+                "pembuat_nama": pr["pembuat_nama"]
+            })
+    return entries
+
+def sv_commit_entries_to_store(store, user, entries, dup_mode="skip", source_label="Import Excel"):
+    """Menyimpan sekumpulan RAB hasil Import Excel / Input All secara batch ke Google Sheets (SISAVA_RAB)."""
+    existing_all = store.list_rabs()
+    by_ticket = {str(r.get("ticket_no", "")).strip().upper(): r for r in existing_all if str(r.get("ticket_no", "")).strip()}
+    by_id = {str(r.get("rab_id", "")).strip().upper(): r for r in existing_all if str(r.get("rab_id", "")).strip()}
+
+    year = _dtm.date.today().year
+    nums = []
+    for r in existing_all:
+        parts = str(r.get("rab_id", "")).split("-")
+        if len(parts) == 3 and parts[1] == str(year) and parts[2].isdigit():
+            nums.append(int(parts[2]))
+    next_seq = (max(nums) if nums else 0) + 1
+
+    to_insert = []
+    updated_cnt = 0
+    skipped_cnt = 0
+
+    for ent in entries:
+        rab = ent["rab"]
+        calc = sv_calc(rab)
+        t_key = str(rab.get("ticket", "")).strip().upper()
+        ex_id = str(ent.get("existing_rab_id", "")).strip().upper()
+        matched_rec = by_id.get(ex_id) if ex_id else by_ticket.get(t_key)
+
+        if matched_rec and dup_mode == "skip":
+            skipped_cnt += 1
+            continue
+
+        maker_name = ent.get("pembuat_nama") or user["nama"]
+        status_final = ent.get("status") or S_RAB_SPV
+        sva_obj = ent.get("sva")
+
+        if matched_rec and dup_mode == "update":
+            rid = matched_rec["rab_id"]
+            upd_fields = {
+                "ticket_no": rab.get("ticket", ""),
+                "nop": rab.get("nop", ""),
+                "area": rab.get("area", ""),
+                "kota": rab.get("kota", ""),
+                "status": status_final,
+                "tot_tsel": round(calc["tot_tsel"], 2),
+                "tot_rev": round(calc["tot_rev"], 2),
+                "tot_hpp": round(calc["tot_hpp"], 2),
+                "margin": round(calc["margin"], 2),
+                "gpm": round(calc["gpm"], 6),
+                "net": round(calc["net"], 2),
+                "payload": _sv_json(rab),
+                "updated_at": sv_now(),
+                "log": _sv_json(sv_log_add(matched_rec, user, "import_update", f"{source_label}: {ent.get('catatan', '')}"))
+            }
+            if sva_obj:
+                upd_fields.update(sva=_sv_json(sva_obj), sva_oleh=user["username"], sva_at=sv_now())
+            store.update_rab(rid, upd_fields)
+            updated_cnt += 1
+            continue
+
+        rab_id = "RAB-%d-%04d" % (year, next_seq)
+        next_seq += 1
+        rec = sv_rab_to_record(rab, calc, user, rab_id, [])
+        rec["nama_pembuat"] = maker_name
+        rec["status"] = status_final
+        if ent.get("tgl_pengajuan"):
+            rec["tgl_pengajuan"] = ent["tgl_pengajuan"]
+        if sva_obj:
+            rec["sva"] = _sv_json(sva_obj)
+            rec["sva_oleh"] = user["username"]
+            rec["sva_at"] = sv_now()
+        rec["log"] = _sv_json(sv_log_add({}, user, "import_excel", f"{source_label}: {ent.get('catatan', '')}"))
+        to_insert.append(rec)
+        if t_key:
+            by_ticket[t_key] = rec
+
+    inserted_cnt = 0
+    if to_insert:
+        inserted_cnt = store.add_rabs_batch(to_insert)
+
+    # Catat jejak audit import ke Google Sheets tab 'SISAVA_IMPORT_LOG'
+    try:
+        gsheet_append_row(
+            "SISAVA_IMPORT_LOG",
+            ["Timestamp", "User", "Sumber_File", "Mode_Duplikat", "Baru_Masuk", "Diupdate", "Dilewati"],
+            {
+                "Timestamp": sv_now(),
+                "User": f"{user.get('nama', '')} ({user.get('username', '')})",
+                "Sumber_File": source_label,
+                "Mode_Duplikat": dup_mode,
+                "Baru_Masuk": inserted_cnt,
+                "Diupdate": updated_cnt,
+                "Dilewati": skipped_cnt
+            }
+        )
+    except Exception:
+        pass
+
+    return inserted_cnt, updated_cnt, skipped_cnt
+
+def sv_page_import_all(store, user):
+    st.markdown("### 📥 Import Excel & Input All Massal SiSAVA (Auto-Save Spreadsheet)")
+    st.info("💡 Tim Admin dapat mengunggah **Excel rekap banyak tiket sekaligus**, mengunggah **file Excel RAB resmi SiSAVA**, atau mengetik/paste massal langsung di tabel. Semua data otomatis terhitung (3E ➔ KUT ➔ HPP ➔ Margin) dan tersimpan permanen ke Google Sheets tab **`SISAVA_RAB`**.")
+
+    t_imp_xl, t_imp_grid, t_imp_db = st.tabs([
+        "📂 1. Upload Excel (Input All / RAB Resmi)",
+        "⌨️ 2. Input All Langsung di Tabel (Copy-Paste)",
+        "🗂️ 3. Bulk Edit Database Spreadsheet (`SISAVA_RAB`)"
+    ])
+
+    # ---------------------------------------------------------------------
+    # SUB-TAB 1: UPLOAD EXCEL -> PARSE -> PREVIEW -> SAVE BATCH KE GSHEETS
+    # ---------------------------------------------------------------------
+    with t_imp_xl:
+        c_tpl1, c_tpl2 = st.columns([2, 1])
+        with c_tpl1:
+            st.markdown("**Langkah 1:** Unggah file Excel/CSV milik Tim Admin, atau gunakan Template resmi Input All di sebelah kanan.")
+        with c_tpl2:
+            st.download_button(
+                "📄 Download Template Input All (.xlsx)",
+                data=sv_build_template_input_all_xlsx(),
+                file_name="Template_Input_All_SiSAVA.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                key="svw_dl_tpl_all"
+            )
+
+        up_sv_xl = st.file_uploader(
+            "📂 Pilih File Excel / CSV SiSAVA (.xlsx, .xls, .csv):",
+            type=["xlsx", "xls", "csv"],
+            key="svw_up_excel_all"
+        )
+
+        c_opt1, c_opt2, c_opt3, c_opt4 = st.columns(4)
+        def_nop_imp = c_opt1.selectbox("Default NOP (jika kosong):", SV_NOPS, key="svw_imp_nop")
+        def_area_imp = c_opt2.selectbox("Default Area:", SV_AREAS, key="svw_imp_area")
+        def_stat_imp = c_opt3.selectbox("Default Status RAB:", SV_ALL_STATUSES, index=0, key="svw_imp_stat")
+        dup_opt_lbl = c_opt4.selectbox(
+            "Jika No. Ticket sudah ada:",
+            ["Lewati (Skip Duplikat)", "Update Data Lama", "Tetap Tambah Baru (Append)"],
+            key="svw_imp_dup"
+        )
+        dup_mode = "skip" if "Lewati" in dup_opt_lbl else ("update" if "Update" in dup_opt_lbl else "append")
+
+        if up_sv_xl is not None:
+            try:
+                is_official_rab = False
+                df_raw_xl = None
+                df_flat_xl = None
+
+                if up_sv_xl.name.lower().endswith(".csv"):
+                    df_flat_xl = pd.read_csv(up_sv_xl).dropna(how="all").reset_index(drop=True)
+                else:
+                    sh_names = get_excel_sheet_names_safe(up_sv_xl)
+                    pick_sh = st.selectbox("Pilih Sheet Excel yang akan diimpor:", sh_names, key="svw_imp_sh")
+                    df_raw_xl = read_excel_safe_raw(up_sv_xl, sheet_name=pick_sh, header=None)
+                    is_official_rab = _sv_detect_official_rab_sheet(df_raw_xl)
+
+                    if not is_official_rab:
+                        df_flat_xl = parse_excel_smart_header(
+                            up_sv_xl,
+                            pick_sh,
+                            target_keywords=("ticket", "tiket", "site id", "site_id", "pekerjaan", "harga 3e", "no. rab", "rab_id")
+                        )
+
+                if is_official_rab:
+                    st.success("✅ Terdeteksi otomatis: **Format File Excel RAB Resmi SiSAVA (`RENCANA ANGGARAN BIAYA`)**!")
+                    entries = sv_parse_official_rab_excel(df_raw_xl, default_nop=def_nop_imp, default_area=def_area_imp)
+                    for e_it in entries:
+                        e_it["status"] = def_stat_imp
+                else:
+                    grp_ticket = st.checkbox(
+                        "🔗 Gabungkan baris yang memiliki 'No. Ticket' sama menjadi 1 dokumen RAB (Multi-Site / Multi-Item)",
+                        value=False,
+                        key="svw_imp_grp"
+                    )
+                    st.markdown(f"**Preview & Edit Cepat Data Excel ({len(df_flat_xl)} baris terbaca — bisa diedit langsung sebelum disimpan):**")
+                    df_flat_ed = st.data_editor(df_flat_xl, use_container_width=True, num_rows="dynamic", key="svw_imp_flat_ed")
+                    entries = sv_parse_bulk_table_to_entries(
+                        df_flat_ed,
+                        default_nop=def_nop_imp,
+                        default_area=def_area_imp,
+                        default_status=def_stat_imp,
+                        group_by_ticket=grp_ticket
+                    )
+
+                if not entries:
+                    st.warning("⚠️ Tidak ada baris data RAB yang valid ditemukan di sheet ini. Pastikan kolom minimal berisi No. Ticket / Site ID / Pekerjaan / Harga 3E.")
+                else:
+                    # Ringkasan kalkulasi otomatis sebelum masuk Spreadsheet
+                    prev_rows = []
+                    sum_tsel = sum_rev = sum_hpp = sum_mar = 0.0
+                    for idx_e, ent in enumerate(entries, 1):
+                        rab_e = ent["rab"]
+                        calc_e = sv_calc(rab_e)
+                        sum_tsel += calc_e["tot_tsel"]
+                        sum_rev += calc_e["tot_rev"]
+                        sum_hpp += calc_e["tot_hpp"]
+                        sum_mar += calc_e["margin"]
+                        sids_str = ", ".join(s.get("site_id", "-") for s in rab_e.get("sites", []))
+                        prev_rows.append({
+                            "No": idx_e,
+                            "No. Ticket": rab_e.get("ticket"),
+                            "NOP": rab_e.get("nop"),
+                            "Site ID": sids_str,
+                            "Jml Item": sum(len(s.get("items", [])) for s in rab_e.get("sites", [])),
+                            "Status": ent.get("status"),
+                            "Tagihan 3E→Tsel": sv_rp(calc_e["tot_tsel"]),
+                            "Revenue KUT→3E": sv_rp(calc_e["tot_rev"]),
+                            "Total HPP": sv_rp(calc_e["tot_hpp"]),
+                            "Margin": sv_rp(calc_e["margin"]),
+                            "GPM": "%.1f%%" % (calc_e["gpm"] * 100),
+                            "Nilai SVA": sv_rp((ent.get("sva") or {}).get("nilai_sva", 0)) if ent.get("sva") else "-"
+                        })
+
+                    st.markdown("#### 📊 Ringkasan Otomatis Data yang Akan Disimpan ke Spreadsheet (`SISAVA_RAB`)")
+                    km1, km2, km3, km4, km5 = st.columns(5)
+                    km1.metric("Jumlah Dokumen RAB", f"{len(entries)} RAB")
+                    km2.metric("Total Tagihan Tsel", sv_rp(sum_tsel))
+                    km3.metric("Total Revenue KUT", sv_rp(sum_rev))
+                    km4.metric("Total HPP", sv_rp(sum_hpp))
+                    km5.metric("Total Margin", sv_rp(sum_mar), delta="GPM %.1f%%" % ((sum_mar / sum_rev * 100) if sum_rev else 0))
+
+                    st.dataframe(pd.DataFrame(prev_rows), use_container_width=True, hide_index=True)
+
+                    if st.button(f"🚀 SIMPAN SEMUA ({len(entries)} RAB) KE GOOGLE SHEETS (SISAVA_RAB)", type="primary", use_container_width=True, key="svw_btn_commit_xl"):
+                        with st.spinner("Menyimpan seluruh data ke Google Sheets tab 'SISAVA_RAB'..."):
+                            ins_c, upd_c, skp_c = sv_commit_entries_to_store(store, user, entries, dup_mode=dup_mode, source_label=up_sv_xl.name)
+                        st.session_state["sv_flash"] = f"✅ Import Excel selesai! Baru masuk: {ins_c} RAB | Diperbarui: {upd_c} RAB | Dilewati (duplikat): {skp_c} RAB."
+                        st.rerun()
+            except Exception as e:
+                st.error(f"Gagal membaca atau memproses file Excel: {e}")
+
+    # ---------------------------------------------------------------------
+    # SUB-TAB 2: INPUT ALL LANGSUNG DI TABEL (TANPA UPLOAD FILE)
+    # ---------------------------------------------------------------------
+    with t_imp_grid:
+        st.markdown("#### ⌨️ Input All Cepat (Ketik atau Copy-Paste Banyak Baris Sekaligus)")
+        st.caption("💡 Kosongkan `Harga KUT` dan `HPP Lapangan` jika ingin dihitung otomatis (92% Material / 85% Jasa, HPP 85% KUT). Klik tanda `+` di baris bawah tabel untuk menambah baris baru.")
+
+        if "sv_quick_df" not in st.session_state:
+            st.session_state["sv_quick_df"] = pd.DataFrame([{
+                "No. Ticket": "",
+                "NOP": SV_NOPS[0],
+                "Site ID": "",
+                "Site Name": "",
+                "Pekerjaan": "",
+                "Jenis": "Material",
+                "Qty": 1.0,
+                "Harga 3E (Tsel)": 0.0,
+                "Harga KUT (0=Auto)": 0.0,
+                "HPP Lapangan (0=Auto)": 0.0,
+                "Status SiSAVA": S_RAB_SPV,
+                "Nilai SVA (0=Kosong)": 0.0,
+                "Catatan": ""
+            }])
+
+        ed_quick = st.data_editor(
+            st.session_state["sv_quick_df"],
+            use_container_width=True,
+            num_rows="dynamic",
+            column_config={
+                "NOP": st.column_config.SelectboxColumn("NOP", options=SV_NOPS, default=SV_NOPS[0]),
+                "Jenis": st.column_config.SelectboxColumn("Jenis", options=["Material", "Jasa"], default="Material"),
+                "Qty": st.column_config.NumberColumn("Qty", min_value=0.0, step=1.0, default=1.0),
+                "Harga 3E (Tsel)": st.column_config.NumberColumn("Harga 3E (Tsel)", min_value=0.0, step=10000.0, format="%.0f"),
+                "Harga KUT (0=Auto)": st.column_config.NumberColumn("Harga KUT (0=Auto)", min_value=0.0, step=10000.0, format="%.0f"),
+                "HPP Lapangan (0=Auto)": st.column_config.NumberColumn("HPP Lapangan (0=Auto)", min_value=0.0, step=10000.0, format="%.0f"),
+                "Status SiSAVA": st.column_config.SelectboxColumn("Status SiSAVA", options=SV_ALL_STATUSES, default=S_RAB_SPV),
+                "Nilai SVA (0=Kosong)": st.column_config.NumberColumn("Nilai SVA (0=Kosong)", min_value=0.0, step=10000.0, format="%.0f")
+            },
+            key="svw_quick_input_ed"
+        )
+
+        cq1, cq2 = st.columns([2, 1])
+        grp_q = cq1.checkbox("🔗 Gabungkan baris dengan No. Ticket sama menjadi 1 RAB", value=False, key="svw_q_grp")
+        if cq2.button("🧹 Reset Tabel Input", use_container_width=True, key="svw_q_rst"):
+            st.session_state.pop("sv_quick_df", None)
+            st.rerun()
+
+        if st.button("💾 SIMPAN INPUT ALL TABEL KE GOOGLE SHEETS (SISAVA_RAB)", type="primary", use_container_width=True, key="svw_btn_save_quick"):
+            df_q_norm = ed_quick.rename(columns={
+                "Harga KUT (0=Auto)": "Harga KUT",
+                "HPP Lapangan (0=Auto)": "HPP Lapangan",
+                "Nilai SVA (0=Kosong)": "Nilai SVA"
+            })
+            q_entries = sv_parse_bulk_table_to_entries(df_q_norm, group_by_ticket=grp_q)
+            if not q_entries:
+                st.error("⚠️ Belum ada baris valid untuk disimpan. Isi minimal No. Ticket / Site ID dan Harga 3E.")
+            else:
+                with st.spinner("Menyimpan Input All ke Google Sheets..."):
+                    ins_q, upd_q, skp_q = sv_commit_entries_to_store(store, user, q_entries, dup_mode="append", source_label="Input All Tabel")
+                st.session_state.pop("sv_quick_df", None)
+                st.session_state["sv_flash"] = f"✅ Berhasil menyimpan {ins_q} dokumen RAB dari Input All Tabel ke Google Sheets!"
+                st.rerun()
+
+    # ---------------------------------------------------------------------
+    # SUB-TAB 3: BULK EDIT & SINKRONISASI DATABASE SISAVA_RAB
+    # ---------------------------------------------------------------------
+    with t_imp_db:
+        st.markdown("#### 🗂️ Database Spreadsheet `SISAVA_RAB` — Live Update Status & Export")
+        recs_all_db = store.list_rabs() if sv_can(user, "view_all") else sv_visible(store.list_rabs(), user)
+        if not recs_all_db:
+            st.info("Belum ada data RAB di Spreadsheet `SISAVA_RAB`.")
+        else:
+            rows_db_v = [{
+                "rab_id": r.get("rab_id", ""),
+                "ticket_no": r.get("ticket_no", ""),
+                "nop": r.get("nop", ""),
+                "tgl_pengajuan": str(r.get("tgl_pengajuan", ""))[:16],
+                "nama_pembuat": r.get("nama_pembuat", ""),
+                "status": r.get("status", S_RAB_SPV),
+                "tot_tsel": _sv_num(r.get("tot_tsel")),
+                "tot_rev": _sv_num(r.get("tot_rev")),
+                "tot_hpp": _sv_num(r.get("tot_hpp")),
+                "margin": _sv_num(r.get("margin"))
+            } for r in recs_all_db]
+            df_db_ed = pd.DataFrame(rows_db_v)
+
+            ed_db = st.data_editor(
+                df_db_ed,
+                use_container_width=True,
+                hide_index=True,
+                disabled=["rab_id", "tgl_pengajuan"],
+                column_config={
+                    "rab_id": st.column_config.TextColumn("No. RAB"),
+                    "ticket_no": st.column_config.TextColumn("No. Ticket"),
+                    "nop": st.column_config.SelectboxColumn("NOP", options=SV_NOPS),
+                    "status": st.column_config.SelectboxColumn("Status SiSAVA", options=SV_ALL_STATUSES),
+                    "tot_tsel": st.column_config.NumberColumn("Total Tsel (Rp)", format="%.0f"),
+                    "tot_rev": st.column_config.NumberColumn("Revenue KUT (Rp)", format="%.0f"),
+                    "tot_hpp": st.column_config.NumberColumn("HPP (Rp)", format="%.0f"),
+                    "margin": st.column_config.NumberColumn("Margin (Rp)", format="%.0f")
+                },
+                key="svw_bulk_db_ed"
+            )
+
+            cb_db1, cb_db2 = st.columns(2)
+            with cb_db1:
+                if st.button("💾 Simpan Perubahan Massal ke Google Sheets", type="primary", use_container_width=True, key="svw_btn_bulk_upd"):
+                    if not sv_can(user, "view_all"):
+                        st.warning("⚠️ Hanya Admin Utama / Manager / SPV yang dapat melakukan bulk update status database.")
+                    else:
+                        changed_cnt = 0
+                        with st.spinner("Menyinkronkan perubahan ke Google Sheets..."):
+                            for i_row in range(len(ed_db)):
+                                orig_r = df_db_ed.iloc[i_row]
+                                new_r = ed_db.iloc[i_row]
+                                diff_fields = {}
+                                for col_chk in ("ticket_no", "nop", "nama_pembuat", "status", "tot_tsel", "tot_rev", "tot_hpp", "margin"):
+                                    if str(orig_r[col_chk]) != str(new_r[col_chk]):
+                                        diff_fields[col_chk] = new_r[col_chk]
+                                if diff_fields:
+                                    rev_n = _sv_num(new_r["tot_rev"])
+                                    mar_n = _sv_num(new_r["margin"])
+                                    diff_fields["gpm"] = round((mar_n / rev_n) if rev_n else 0.0, 6)
+                                    diff_fields["updated_at"] = sv_now()
+                                    store.update_rab(str(new_r["rab_id"]), diff_fields)
+                                    changed_cnt += 1
+                        if changed_cnt > 0:
+                            st.session_state["sv_flash"] = f"✅ {changed_cnt} baris RAB berhasil diperbarui di Google Sheets!"
+                            st.rerun()
+                        else:
+                            st.info("Tidak ada sel yang diubah.")
+            with cb_db2:
+                st.download_button(
+                    "📥 Download Rekap Seluruh SiSAVA (.xlsx)",
+                    data=sv_rekap_xlsx(recs_all_db),
+                    file_name=f"Rekap_SiSAVA_{_dtm.date.today()}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="svw_dl_db_all"
+                )
+
 def sisava_page():
     ss = st.session_state
     store = sv_store()
@@ -3347,28 +4187,23 @@ def sisava_page():
     # --- PENGATURAN MENU BERDASARKAN ROLE / HAK AKSES ---
     nav = ["🏠 Dashboard"]
     
-    # Jika dia Admin (bisa membuat RAB) atau Tim Lapangan (Staff / Engineering)
     if sv_can(user, "rab_create"):
         nav.append("➕ Pengajuan RAB")
+        nav.append("📥 Import Excel (Input All)")
         nav.append("📋 Daftar RAB")
         
-    # Jika dia Manager atau SPV (berhak Approve)
     if sv_can(user, "approve_spv") or sv_can(user, "approve_mgr"):
         nav.append("✅ Approval")
         
-    # Khusus untuk input Nilai SVA setelah di-Approve (Manager/Admin)
     if sv_can(user, "sva_fill"):
         nav.append("🧾 Nilai SVA")
         
-    # MENU WAJIB TIM LAPANGAN (UPLOAD HASIL PEKERJAAN)
     if sv_can(user, "kerja_upload"):
         nav.append("📤 Upload Pekerjaan")
         
-    # Menu Kelola Akun & Shopping List (Khusus Manager)
     if sv_can(user, "manage_users"):
         nav.append("🛠️ Kelola")
         
-    # Pilihan Menu Default
     if ss.get("sv_nav") not in nav:
         ss["sv_nav"] = nav[0]
         
@@ -3380,12 +4215,13 @@ def sisava_page():
         st.error("Gagal membaca database SiSAVA: %s" % e)
         return
         
-    # --- ROUTING HALAMAN ---
     if page == "🏠 Dashboard":
         sv_page_dashboard(user, recs)
     elif page == "➕ Pengajuan RAB":
         pl, path = sv_pricelist()
         sv_page_form(store, user, pl, path)
+    elif page == "📥 Import Excel (Input All)":
+        sv_page_import_all(store, user)
     elif page == "📋 Daftar RAB":
         sv_page_list(user, recs)
     elif page == "✅ Approval":
@@ -3393,7 +4229,6 @@ def sisava_page():
     elif page == "🧾 Nilai SVA":
         sv_page_sva(user, recs)
     elif page == "📤 Upload Pekerjaan":
-        # Ini adalah modul yang akan menampilkan pekerjaan yang SIAP dikerjakan oleh Tim Lapangan
         sv_page_kerja(user, recs)
     elif page == "🛠️ Kelola":
         sv_page_kelola(store, user)
@@ -7270,7 +8105,7 @@ elif menu == "💠 SiSAVA":
     
     if st.session_state['sv_user'] is None:
         store = sv_store()
-        ux_hero("AKUN SiSAVA", "Portal SiSAVA", "Sistem Pengajuan RAB, Nilai SVA, Approval Berjenjang, dan Bukti Pekerjaan Lapangan.")
+        ux_hero("AKUN SiSAVA", "Portal SiSAVA", "Sistem Pengajuan RAB, Import Excel Input All, Nilai SVA, Approval Berjenjang, dan Bukti Pekerjaan Lapangan.")
         
         locked = st.session_state.get("sv_lock_until", 0) - _dtm.datetime.now().timestamp()
         
@@ -7297,6 +8132,18 @@ elif menu == "💠 SiSAVA":
                             st.session_state["sv_lock_until"] = _dtm.datetime.now().timestamp() + 60
                             st.session_state["sv_fail"] = 0
                         st.error("Username atau sandi salah, atau akun nonaktif.")
+
+                if st.session_state.get("role") == "Admin":
+                    st.markdown("<hr style='margin: 12px 0;'>", unsafe_allow_html=True)
+                    if st.button("⚡ Masuk Cepat sebagai Admin Utama (Akses Input All & Manager)", type="secondary", use_container_width=True, key="svw_admin_quick"):
+                        st.session_state["sv_user"] = {
+                            "username": "admin_utama",
+                            "nama": "Admin Utama SIDATA",
+                            "jabatan": "Engineering Project Control",
+                            "role": "MANAGER"
+                        }
+                        st.session_state["sv_nav"] = "📥 Import Excel (Input All)"
+                        st.rerun()
     else:
         sisava_page()
 # =========================================================================
