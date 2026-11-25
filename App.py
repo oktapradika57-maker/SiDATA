@@ -846,6 +846,14 @@ if 'role' not in st.session_state: st.session_state['role'] = None
 if 'dashboard_area' not in st.session_state: st.session_state['dashboard_area'] = None
 if 'active_menu' not in st.session_state: st.session_state['active_menu'] = None
 
+RTS_ACCOUNTS = {
+    "doni": "DONI DAMARA",
+    "wind": "WINDA SOKENDA",
+    "winda": "WINDA SOKENDA",
+    "fauzi": "FAUZI",
+    "fahmiang": "FAHMIANG"
+}
+
 OFFICE_ALLOWED_MENUS = [
     "🏢 Portal Office",
     "📦 Logistik & SPMS",
@@ -856,7 +864,7 @@ OFFICE_ALLOWED_MENUS = [
     "🛡️ SiDAVID (Verifikasi Internal)",
     "🗺️ Sysinfomap (Peta & Populasi Site)",
     "🚧 Form & Peta Hard Akses",
-    "📅 Daily Tracker Palangkaraya",
+    "📋 To Do List RTS",
     "👥 Kelola Master Tim (PLK & PBU)"
 ]
 
@@ -867,14 +875,14 @@ if st.session_state['role'] is None and st.session_state.get('active_menu') not 
     st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Sistem Operasional Terpadu (SIDATA)</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 35px; letter-spacing: 1px; opacity: 0.85;'>Pilih Portal Akses Pekerjaan Anda Hari Ini</p>", unsafe_allow_html=True)
 
-    col_v, col_l, col_a = st.columns([3, 3, 3])
+    col_v, col_l, col_t, col_a = st.columns([3, 3, 3, 3])
 
     with col_v:
         st.markdown("""
             <div class='login-box'>
-                <div style='font-size: 45px; margin-bottom: 10px;'>👷‍♂️</div>
-                <div class='login-title' style='font-size: 20px;'>Mode Lapangan</div>
-                <div class='login-desc' style='font-size: 13px;'>Akses Form Pendataan PM (SPS, Reguler & Audit Tower, Pangkalan Bun) untuk Teknisi (FME).</div>
+                <div style='font-size: 42px; margin-bottom: 8px;'>👷‍♂️</div>
+                <div class='login-title' style='font-size: 19px;'>Mode Lapangan</div>
+                <div class='login-desc' style='font-size: 12.5px;'>Form Pendataan PM (SPS, Reguler & Audit Tower, Pangkalan Bun) untuk Teknisi (FME).</div>
             </div>
         """, unsafe_allow_html=True)
         c_v1, c_v2 = st.columns(2)
@@ -892,25 +900,49 @@ if st.session_state['role'] is None and st.session_state.get('active_menu') not 
     with col_l:
         st.markdown("""
             <div class='login-box' style='border-color: #10B981;'>
-                <div style='font-size: 45px; margin-bottom: 10px;'>🏢</div>
-                <div class='login-title' style='font-size: 20px;'>Portal Office</div>
-                <div class='login-desc' style='font-size: 13px;'>Sub-Sistem: Logistik, Mutasi Tim (SiHD), SiSAVA, Executive Project, Program NOP & SiDAVID.</div>
+                <div style='font-size: 42px; margin-bottom: 8px;'>🏢</div>
+                <div class='login-title' style='font-size: 19px;'>Portal Office</div>
+                <div class='login-desc' style='font-size: 12.5px;'>Logistik, Mutasi Tim (SiHD), SiSAVA, Executive Project, Program NOP & SiDAVID.</div>
             </div>
         """, unsafe_allow_html=True)
         st.write("")
-        if st.button("🏢 MASUK PORTAL OFFICE", type="secondary", use_container_width=True, key="btn_login_office"):
+        if st.button("🏢 PORTAL OFFICE", type="secondary", use_container_width=True, key="btn_login_office"):
             st.session_state['active_menu'] = "🏢 Portal Office"
             st.rerun()
+
+    with col_t:
+        st.markdown("""
+            <div class='login-box' style='border-color: #9C27B0;'>
+                <div style='font-size: 42px; margin-bottom: 8px;'>📋</div>
+                <div class='login-title' style='font-size: 19px;'>To Do List RTS</div>
+                <div class='login-desc' style='font-size: 12.5px;'>Plan Harian RTS, Carry-Over Pending otomatis & Auto-Closed sinkron SIDATA.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        rts_pass_home = st.text_input("Password RTS:", type="password", placeholder="Password RTS...", key="pwd_login_rts_home", label_visibility="collapsed")
+        if st.button("🔓 MASUK TO DO LIST", type="secondary", use_container_width=True, key="btn_login_rts_home"):
+            pk = rts_pass_home.strip().lower()
+            if pk in RTS_ACCOUNTS:
+                st.session_state['rts_user'] = {"key": pk, "rts_name": RTS_ACCOUNTS[pk], "is_admin": False}
+                st.session_state['rts_entry_origin'] = "landing"
+                st.session_state['active_menu'] = "📋 To Do List RTS"
+                st.rerun()
+            elif rts_pass_home.strip() == "KUT2027":
+                st.session_state['rts_user'] = {"key": "admin", "rts_name": "SEMUA RTS (ADMIN)", "is_admin": True}
+                st.session_state['rts_entry_origin'] = "landing"
+                st.session_state['active_menu'] = "📋 To Do List RTS"
+                st.rerun()
+            else:
+                st.error("❌ Password RTS salah!")
 
     with col_a:
         st.markdown("""
             <div class='login-box'>
-                <div style='font-size: 45px; margin-bottom: 10px;'>🔐</div>
-                <div class='login-title' style='font-size: 20px;'>Mode Admin Utama</div>
-                <div class='login-desc' style='font-size: 13px;'>Akses Revisi, Dapot Power, Sysinfomap, Manajemen Akun SiSAVA & Seluruh Portal Office.</div>
+                <div style='font-size: 42px; margin-bottom: 8px;'>🔐</div>
+                <div class='login-title' style='font-size: 19px;'>Mode Admin Utama</div>
+                <div class='login-desc' style='font-size: 12.5px;'>Akses Revisi, Dapot Power, Sysinfomap, Akun SiSAVA & Seluruh Portal Office.</div>
             </div>
         """, unsafe_allow_html=True)
-        admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Sandi...", key="pwd_login_main", label_visibility="collapsed")
+        admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Sandi Admin...", key="pwd_login_main", label_visibility="collapsed")
         if st.button("🔓 LOGIN ADMIN", type="primary", use_container_width=True, key="btn_login_admin"):
             if admin_pass == "KUT2027":
                 st.session_state['role'] = 'Admin'
@@ -1851,6 +1883,18 @@ def _match_fme_coord(name_str, fme_coords):
     for k, v in fme_coords.items():
         if nm in k or k in nm:
             return v, k
+    # Fuzzy normalisasi Y<->I (mis: FERY HARIADI <-> FERI HARIADI) & kecocokan token nama
+    nm_norm = nm.replace("Y", "I")
+    for k, v in fme_coords.items():
+        k_norm = k.replace("Y", "I")
+        if nm_norm == k_norm or nm_norm in k_norm or k_norm in nm_norm:
+            return v, k
+    nm_tokens = [t for t in re.split(r"[^A-Z0-9]+", nm_norm) if len(t) >= 4 and t not in ("MUHAMMAD", "MUHAMAD", "ABDUL", "PUTRA")]
+    for t in nm_tokens:
+        for k, v in fme_coords.items():
+            k_tokens = [kt for kt in re.split(r"[^A-Z0-9]+", k.replace("Y", "I")) if len(kt) >= 4]
+            if t in k_tokens:
+                return v, k
     return None, nm
 
 def _clean_cell_str(v):
@@ -2241,19 +2285,8 @@ def render_hard_access_route_map_html(ha_list, map_theme="Dark NOC Command Cente
     """
 
 # =========================================================================
-# 📅 ENGINE DAILY TRACKER PLK (LEADER CLUSTER + AUTO-CLOSED INTEGRASI SIDATA)
+# 📋 ENGINE TO DO LIST RTS (FORMAT EXCEL RESMI + CARRY-OVER + AUTO-CLOSED SIDATA)
 # =========================================================================
-COLS_DAILY_TRACKER_PLK = [
-    "Tracker_ID", "Tanggal", "Cluster", "Leader_Cluster",
-    "Plan_Site_ID", "Program_Kerja", "Plan_Remark",
-    "Tim_Tier_1", "Tim_Tier_2", "Tim_Tier_3",
-    "Tgl_Tracker_Tier_1", "Tracker_Tier_1_Site_ID", "Tracker_Tier_1_Remark",
-    "Tgl_Tracker_Tier_2", "Tracker_Tier_2_Site_ID", "Tracker_Tier_2_Remark",
-    "Tgl_Tracker_Tier_3", "Tracker_Tier_3_Site_ID", "Tracker_Tier_3_Remark",
-    "Updated_At"
-]
-
-DAILY_PROGRAM_KERJA_OPTS = ["PM", "Tshoot", "Task Force", "Backup Power", "Audit Tower", "Project / SVA", "Lainnya"]
 DAILY_CLUSTER_PLK_OPTS = [
     "Palangkaraya Kota", "Kapuas - Pulang Pisau", "Katingan - Kasongan",
     "Gunung Mas - Kuala Kurun", "Barito Utara - Muara Teweh",
@@ -2261,8 +2294,58 @@ DAILY_CLUSTER_PLK_OPTS = [
     "Murung Raya - Puruk Cahu", "Lainnya"
 ]
 
-def build_sidata_date_site_index(db_list):
-    """Membangun index cepat (site_id_norm, tanggal_YYYY_MM_DD) -> list report SIDATA untuk auto-closed Daily Tracker."""
+TODO_RTS_LIST = ["DONI DAMARA", "WINDA SOKENDA", "FAUZI", "FAHMIANG"]
+
+TODO_CATEGORY_PRIORITY = {
+    "Cell down": "P1",
+    "Vswr": "P1",
+    "Site Down": "P1",
+    "Eas Validation": "P2",
+    "PM": "P2",
+    "Support Event": "P2",
+    "Pengawalan Team telkom": "P2",
+    "Pengawalan akses Vendor": "P3",
+    "Pengecekan battrey": "P2",
+    "Pengecekan Suhu Shelter": "P1",
+    "Replace FAN Rectifier": "P1",
+    "Add Sector RRU": "P2",
+    "Repointing MW": "P1",
+    "Pemasangan battrey": "P2",
+    "Pengecekan/Pergantian BFAN BTS": "P2",
+    "Pengecekan Power": "P1",
+    "Penambahan Modul Recti": "P2",
+    "Deinstal Repeater": "P2",
+    "Instalasi Smallcell": "P3",
+    "Perbaikan Exhaust fan": "P3",
+    "Pengecekan BSC": "P1",
+    "Standby On Call": "P3",
+    "On Leave": "P3",
+    "Sick": "P3",
+    "Tshoot Genset": "P1"
+}
+
+TODO_CAT_ACTIVITY_OPTS = [
+    "Corrective / Troubleshoot",
+    "Preventive Maintenance (PM)",
+    "Task Force / Improvement",
+    "Power & Battery",
+    "Transport / Radio",
+    "Support / Escort",
+    "Standby / Leave / Admin"
+]
+
+TODO_STATUS_OPTS = ["Waiting Update", "Pending", "On Progress", "Done"]
+TODO_ROLE_OPTS = ["TE", "MBP", "CME", "FME / TE", "Leader Cluster", "Helper / Driver", "Lainnya"]
+
+COLS_TODO_EXCEL = [
+    "Category Task", "Prioritas", "Site ID", "FME Name", "Role",
+    "RTS Name", "Cluster", "Category Activity", "Detail Activity",
+    "Activity", "Start Date", "End Date", "Status Task", "Remark Kerjaan"
+]
+COLS_TODO_RTS = ["Task_ID"] + COLS_TODO_EXCEL + ["Updated_At"]
+
+def build_sidata_site_reports_index(db_list):
+    """Membangun index super cepat {site_id_norm: [list report SIDATA terurut tanggal]} untuk auto-closing To Do List RTS."""
     idx = {}
     for r in (db_list or []):
         if r.get("kategori") == "SiHD" or r.get("_sheet") == "SiHD":
@@ -2275,96 +2358,180 @@ def build_sidata_date_site_index(db_list):
         sid_n = _norm_site_id(raw_sn)
         if not sid_n:
             continue
-        entry = {
+        idx.setdefault(sid_n, []).append({
+            "tgl": tgl,
             "jam": ts[11:16] if len(ts) >= 16 else "-",
             "teknisi": str(r.get("teknisi") or r.get("pb_te") or "-"),
             "kategori": str(r.get("kategori") or "-"),
             "status": str(r.get("status") or "-")
-        }
-        idx.setdefault((sid_n, tgl), []).append(entry)
+        })
+    for sid_k in idx:
+        idx[sid_k].sort(key=lambda x: (x["tgl"], x["jam"]))
     return idx
 
-def evaluate_daily_tracker_with_sidata(df_dt, db_list):
-    """Mencocokkan Plan Site & Tracker Tier #1/#2/#3 dengan report aktual tim di SIDATA untuk menentukan status CLOSED vs OPEN."""
-    if df_dt is None or df_dt.empty:
+def evaluate_todolist_rts(df_todo, db_list, active_date=None):
+    """Sinkronisasi To Do List RTS dengan report SIDATA (Auto-Closing) + Deteksi Carry-Over Pending otomatis lintas hari."""
+    if active_date is None:
+        active_date = datetime.date.today()
+    if df_todo is None or df_todo.empty:
         return pd.DataFrame()
 
-    sidata_idx = build_sidata_date_site_index(db_list)
-    eval_rows = []
+    sid_idx = build_sidata_site_reports_index(db_list)
+    out_rows = []
+    act_iso = active_date.strftime("%Y-%m-%d")
 
-    for _, rw in df_dt.iterrows():
-        tgl_plan = _fmt_date_short(rw.get("Tanggal"))
-        plan_sid_raw = _clean_cell_str(rw.get("Plan_Site_ID"))
-        plan_sid = _norm_site_id(plan_sid_raw)
+    for i_r, rw in df_todo.iterrows():
+        tid = _clean_cell_str(rw.get("Task_ID")) or f"TD-{i_r+1:04d}"
+        cat_t = _clean_cell_str(rw.get("Category Task"))
+        prio = _clean_cell_str(rw.get("Prioritas")) or TODO_CATEGORY_PRIORITY.get(cat_t, "P2")
+        sid_raw = _clean_cell_str(rw.get("Site ID"))
+        sid_n = _norm_site_id(sid_raw)
+        fme_nm = _clean_cell_str(rw.get("FME Name"))
+        role_v = _clean_cell_str(rw.get("Role")) or "TE"
+        rts_nm = _clean_cell_str(rw.get("RTS Name")).upper() or "DONI DAMARA"
+        cl_v = _clean_cell_str(rw.get("Cluster")) or "Palangkaraya Kota"
+        cat_act = _clean_cell_str(rw.get("Category Activity"))
+        det_act = _clean_cell_str(rw.get("Detail Activity"))
+        act_v = _clean_cell_str(rw.get("Activity"))
+        start_s = _fmt_date_short(rw.get("Start Date"))
+        end_s = _fmt_date_short(rw.get("End Date"))
+        if end_s == "-":
+            end_s = ""
+        st_manual = _clean_cell_str(rw.get("Status Task")) or "Waiting Update"
+        rem_v = _clean_cell_str(rw.get("Remark Kerjaan"))
 
-        tiers_filled = []
-        for k_t in (1, 2, 3):
-            t_sid_raw = _clean_cell_str(rw.get(f"Tracker_Tier_{k_t}_Site_ID"))
-            if t_sid_raw and t_sid_raw != "-":
-                t_tgl = _fmt_date_short(rw.get(f"Tgl_Tracker_Tier_{k_t}"))
-                if t_tgl == "-":
-                    t_tgl = tgl_plan
-                tiers_filled.append({
-                    "tier": k_t,
-                    "tgl": t_tgl,
-                    "site_raw": t_sid_raw,
-                    "site_id": _norm_site_id(t_sid_raw),
-                    "remark": _clean_cell_str(rw.get(f"Tracker_Tier_{k_t}_Remark")) or "-"
-                })
+        start_dt_obj = pd.to_datetime(start_s, errors="coerce")
+        start_d = start_dt_obj.date() if pd.notna(start_dt_obj) else active_date
+        start_iso = start_d.strftime("%Y-%m-%d")
 
-        plan_hits = sidata_idx.get((plan_sid, tgl_plan), []) if (plan_sid and tgl_plan != "-") else []
-        plan_ok = len(plan_hits) > 0
+        # Cek kecocokan report tim di SIDATA (pada Start Date atau hari-hari berikutnya saat carry-over)
+        matched_rep = None
+        if sid_n and sid_n in sid_idx:
+            reps = [rp for rp in sid_idx[sid_n] if rp["tgl"] >= start_iso]
+            if reps:
+                matched_rep = reps[-1]
 
-        tier_results = []
-        for tf in tiers_filled:
-            th = sidata_idx.get((tf["site_id"], tf["tgl"]), []) if (tf["site_id"] and tf["tgl"] != "-") else []
-            tier_results.append((tf, th))
+        is_manual_done = st_manual.strip().lower() in ("done", "closed", "selesai")
+        auto_closed_hit = matched_rep is not None
+        needs_cloud_close = auto_closed_hit and (not is_manual_done)
 
-        bukti_parts = []
-        missing_sites = []
-
-        if plan_sid:
-            if plan_ok:
-                bukti_parts.append(f"✅ Plan {plan_sid} ({plan_hits[-1]['jam']} · {plan_hits[-1]['teknisi']})")
-            elif not tiers_filled:
-                bukti_parts.append(f"❌ Plan {plan_sid} (Belum Input)")
-                missing_sites.append(f"{plan_sid} ({tgl_plan})")
-            else:
-                bukti_parts.append(f"🔀 Plan {plan_sid} (Dialihkan ke Tier)")
-
-        for tf, th in tier_results:
-            if th:
-                bukti_parts.append(f"✅ T#{tf['tier']} {tf['site_id']} ({th[-1]['jam']} · {th[-1]['teknisi']})")
-            else:
-                bukti_parts.append(f"❌ T#{tf['tier']} {tf['site_id']} (Belum Input)")
-                missing_sites.append(f"T#{tf['tier']} {tf['site_id']} ({tf['tgl']})")
-
-        if not tiers_filled:
-            exec_cat = "Sesuai Plan"
-            if plan_ok:
-                auto_status = "✅ CLOSED (Terlapor di SIDATA)"
-            else:
-                auto_status = "🔴 OPEN — Wajib Follow Up Tim"
+        if auto_closed_hit:
+            eff_status = "Done"
+            end_eff = end_s if end_s else matched_rep["tgl"]
+            sync_lbl = "✅ Auto-Closed SIDATA"
+            bukti_lbl = f"✅ {matched_rep['tgl']} {matched_rep['jam']} · {matched_rep['teknisi']} ({matched_rep['kategori']})"
+        elif is_manual_done:
+            eff_status = "Done"
+            end_eff = end_s if end_s else start_iso
+            sync_lbl = "✅ Done (Manual RTS)"
+            bukti_lbl = "Ditutup Manual oleh RTS"
         else:
-            exec_cat = "🔀 Dialihkan Urgent (" + " ➔ ".join(f"T#{t['tier']}:{t['site_id']}" for t in tiers_filled) + ")"
-            tier_ok_cnt = sum(1 for _, th in tier_results if len(th) > 0)
-            if tier_ok_cnt == len(tier_results):
-                auto_status = "✅ CLOSED (Plan & Semua Tier Terlapor)" if plan_ok else "✅ CLOSED (Divert Tier Terlapor di SIDATA)"
-            elif tier_ok_cnt > 0 or plan_ok:
-                auto_status = "🟡 PARTIAL OPEN — Follow Up Tim"
-            else:
-                auto_status = "🔴 OPEN — Wajib Follow Up Tim"
+            eff_status = st_manual
+            end_eff = end_s
+            sync_lbl = f"🔴 {eff_status} (Belum Input SIDATA)"
+            bukti_lbl = "❌ Belum terdeteksi di SIDATA"
 
-        tim_list = [x for x in [_clean_cell_str(rw.get("Tim_Tier_1")), _clean_cell_str(rw.get("Tim_Tier_2")), _clean_cell_str(rw.get("Tim_Tier_3"))] if x and x != "-"]
-        row_out = dict(rw)
-        row_out["Tim_Bertugas"] = ", ".join(tim_list) if tim_list else "-"
-        row_out["Eksekusi_Lapangan"] = exec_cat
-        row_out["Status_Auto_SIDATA"] = auto_status
-        row_out["Bukti_Report_SIDATA"] = " | ".join(bukti_parts) if bukti_parts else "-"
-        row_out["Site_Belum_Input_SIDATA"] = ", ".join(missing_sites) if missing_sites else "Lengkap ✅"
-        eval_rows.append(row_out)
+        is_today = (start_d == active_date)
+        is_carry = (start_d < active_date) and (eff_status != "Done")
+        aging_h = (active_date - start_d).days if is_carry else 0
 
-    return pd.DataFrame(eval_rows)
+        if is_carry:
+            tipe_board = f"🔁 Carry-Over Pending (H+{aging_h})"
+        elif is_today:
+            tipe_board = "📌 Plan Hari Ini"
+        elif start_d > active_date:
+            tipe_board = "🗓️ Plan Mendatang"
+        else:
+            tipe_board = "📁 Arsip Closed"
+
+        row_out = {
+            "Task_ID": tid,
+            "Category Task": cat_t,
+            "Prioritas": prio,
+            "Site ID": sid_raw,
+            "FME Name": fme_nm,
+            "Role": role_v,
+            "RTS Name": rts_nm,
+            "Cluster": cl_v,
+            "Category Activity": cat_act,
+            "Detail Activity": det_act,
+            "Activity": act_v,
+            "Start Date": start_iso,
+            "End Date": end_eff,
+            "Status Task": eff_status,
+            "Status_Manual": st_manual,
+            "Remark Kerjaan": rem_v,
+            "Updated_At": _clean_cell_str(rw.get("Updated_At")),
+            "Tipe_Board": tipe_board,
+            "Status_Sync_SIDATA": sync_lbl,
+            "Bukti_SIDATA": bukti_lbl,
+            "Is_Carry_Over": is_carry,
+            "Is_Active_Board": (is_today or is_carry),
+            "Needs_Cloud_Close": needs_cloud_close,
+            "Aging_Hari": aging_h
+        }
+        out_rows.append(row_out)
+
+    return pd.DataFrame(out_rows)
+
+def build_todolist_rts_excel(df_eval):
+    """Export Excel format resmi identik dengan 'To Do List NOP Palangkaraya (3).xlsx' (Sheet: Isian, Category Task, RTS)."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    NAVY, GREEN_BG, RED_BG, AMBER_BG, ZEBRA = "1E3A5F", "DCFCE7", "FEE2E2", "FEF3C7", "F8FAFC"
+    thin = Side(style="thin", color="CBD5E1")
+    brd = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    # Sheet 1: Isian (14 Kolom Resmi)
+    ws = wb.active
+    ws.title = "Isian"
+    for ci, col_nm in enumerate(COLS_TODO_EXCEL, 1):
+        c = ws.cell(row=1, column=ci, value=col_nm)
+        c.font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        c.fill = PatternFill("solid", fgColor=NAVY)
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        c.border = brd
+    ws.row_dimensions[1].height = 26
+    ws.freeze_panes = "D2"
+
+    if df_eval is not None and not df_eval.empty:
+        for ri, (_, rw) in enumerate(df_eval.iterrows(), 2):
+            st_l = str(rw.get("Status Task", "")).strip().lower()
+            fill_c = GREEN_BG if st_l == "done" else (RED_BG if st_l == "pending" else (AMBER_BG if "wait" in st_l or "prog" in st_l else (ZEBRA if ri % 2 == 0 else None)))
+            for ci, col_nm in enumerate(COLS_TODO_EXCEL, 1):
+                c = ws.cell(row=ri, column=ci, value=str(rw.get(col_nm, "")))
+                c.border = brd
+                c.alignment = Alignment(vertical="top", wrap_text=True)
+                if fill_c:
+                    c.fill = PatternFill("solid", fgColor=fill_c)
+
+    for ci, col_nm in enumerate(COLS_TODO_EXCEL, 1):
+        ws.column_dimensions[get_column_letter(ci)].width = 28 if col_nm in ("Detail Activity", "Activity", "Remark Kerjaan", "Category Task") else 18
+
+    # Sheet 2: Category Task
+    ws2 = wb.create_sheet("Category Task")
+    ws2["A1"] = "Category Task"; ws2["B1"] = "Prioritas"
+    for ref in ("A1", "B1"):
+        ws2[ref].font = Font(bold=True, color="FFFFFF"); ws2[ref].fill = PatternFill("solid", fgColor=NAVY); ws2[ref].border = brd
+    for ri, (ck, pr) in enumerate(TODO_CATEGORY_PRIORITY.items(), 2):
+        ws2.cell(row=ri, column=1, value=ck).border = brd
+        ws2.cell(row=ri, column=2, value=pr).border = brd
+    ws2.column_dimensions["A"].width = 34; ws2.column_dimensions["B"].width = 14
+
+    # Sheet 3: RTS
+    ws3 = wb.create_sheet("RTS")
+    ws3["A1"] = "RTS"
+    ws3["A1"].font = Font(bold=True, color="FFFFFF"); ws3["A1"].fill = PatternFill("solid", fgColor=NAVY); ws3["A1"].border = brd
+    for ri, rn in enumerate(TODO_RTS_LIST, 2):
+        ws3.cell(row=ri, column=1, value=rn).border = brd
+    ws3.column_dimensions["A"].width = 24
+
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
 
 def analyze_pbu_timeplan_routes(df_tp, site_coords, fme_coords, onsite_idx=None, hard_access_by_site=None, road_factor=1.35):
     """Analisa menyeluruh Timeplan Pangkalan Bun: HB Tim -> Site Target, tarikan Tier #1->#2->#3, jarak km, Hard Access & remark."""
@@ -2386,9 +2553,9 @@ def analyze_pbu_timeplan_routes(df_tp, site_coords, fme_coords, onsite_idx=None,
     c_sid = find_col(["site id", "site_id"], exclude=("tracker",))
     c_sname = find_col(["site name", "site_name"])
     c_pic = find_col(["pic task", "pic"])
-    c_t1 = find_col(["tier tim #1", "tier tim 1"])
-    c_t2 = find_col(["tier tim #2", "tier tim 2"])
-    c_t3 = find_col(["tier tim #3", "tier tim 3"])
+    c_t1 = find_col(["tier tim #1", "tier tim 1", "pic #1", "pic 1"])
+    c_t2 = find_col(["tier tim #2", "tier tim 2", "pic #2", "pic 2"])
+    c_t3 = find_col(["tier tim #3", "tier tim 3", "pic #3", "pic 3"])
     c_cls = find_col(["site class", "class"])
     c_rca = find_col(["rca"])
     c_act = find_col(["action detail", "action"])
@@ -2505,33 +2672,69 @@ def analyze_pbu_timeplan_routes(df_tp, site_coords, fme_coords, onsite_idx=None,
 
         st_low = status_act.lower()
         visited_target = target_sid in visited_sids
+        is_closed = any(k in st_low for k in ("close", "done", "selesai"))
         overdue = False
-        try:
-            tcl_dt = pd.to_datetime(target_cl, errors="coerce")
-            if pd.notna(tcl_dt) and tcl_dt.date() < today_dt and "close" not in st_low:
-                overdue = True
-        except Exception:
-            pass
+        overdue_days = 0
+        if not is_closed:
+            try:
+                tcl_dt = pd.to_datetime(target_cl, errors="coerce")
+                pdt_dt = pd.to_datetime(plan_dt, errors="coerce")
+                ref_dt = tcl_dt if pd.notna(tcl_dt) else pdt_dt
+                if pd.notna(ref_dt) and ref_dt.date() < today_dt:
+                    overdue = True
+                    overdue_days = (today_dt - ref_dt.date()).days
+            except Exception:
+                pass
 
-        if "close" in st_low or "done" in st_low or "selesai" in st_low:
+        rem_low = rem_hasil.lower()
+        is_pending_kw = (
+            ("pending" in st_low)
+            or any(k in rem_low for k in ("waiting", "material", "akses", "corporate", "izin", "pending", "swap"))
+            or (ha_recs_tgt and ("blocked" in ha_recs_tgt[-1]["status"].lower() or "tidak tembus" in ha_recs_tgt[-1]["status"].lower()))
+        )
+
+        # Klasifikasi 5 Warna Peta (Mudah Dibaca: Hijau=Closed, Merah=Open, Ungu=Overdue, Kuning=In Progress, Oranye=Pending/Waiting)
+        if is_closed:
+            map_status_code = "CLOSED"
+            map_status_label = "🟢 Closed"
+            map_color = "#10b981"
+        elif overdue:
+            map_status_code = "OVERDUE"
+            map_status_label = f"🟣 Overdue (+{overdue_days}h)"
+            map_color = "#c026d3"
+        elif is_pending_kw:
+            map_status_code = "PENDING"
+            map_status_label = "🟠 Pending / Waiting"
+            map_color = "#f97316"
+        elif "progress" in st_low or visited_target:
+            map_status_code = "IN_PROGRESS"
+            map_status_label = "🟡 In Progress"
+            map_color = "#eab308"
+        else:
+            map_status_code = "OPEN"
+            map_status_label = "🔴 Open"
+            map_color = "#ef4444"
+
+        if is_closed:
             analisa_target = "✅ Tercapai (Closed)"
         elif ha_recs_tgt and ("blocked" in ha_recs_tgt[-1]["status"].lower() or "tidak tembus" in ha_recs_tgt[-1]["status"].lower()):
-            analisa_target = f"🚧 Hard Access Blocked ({ha_recs_tgt[-1]['kategori'][:42]})"
+            analisa_target = f"🚧 Hard Access Blocked ({ha_recs_tgt[-1]['kategori'][:42]})" + (f" · Overdue +{overdue_days}h" if overdue else "")
         elif visited_target:
             alasan_short = rem_hasil if rem_hasil != "-" else (waypoints[-1]["remark"] if waypoints else "On Progress di site target")
-            analisa_target = f"🔄 On Target — Belum Closed ({alasan_short[:55]})"
+            analisa_target = f"🔄 On Target — Belum Closed ({alasan_short[:50]})" + (f" · Overdue +{overdue_days}h" if overdue else "")
         elif visited_sids:
             divert_str = " ➔ ".join(visited_sids)
             extra_note = f" | {notes_non_site[0]}" if notes_non_site else ""
-            analisa_target = f"🔀 Dialihkan ke {divert_str} ({round(total_act_km, 1)} km){extra_note[:45]}"
+            analisa_target = f"🔀 Dialihkan ke {divert_str} ({round(total_act_km, 1)} km){extra_note[:40]}" + (f" · Overdue +{overdue_days}h" if overdue else "")
         elif notes_non_site:
-            analisa_target = f"🚧 Kendala Lapangan ({notes_non_site[0][:55]})"
+            analisa_target = f"🚧 Kendala Lapangan ({notes_non_site[0][:50]})" + (f" · Overdue +{overdue_days}h" if overdue else "")
         elif has_access_kw:
-            analisa_target = f"🚧 Terkendala Akses ({rem_hasil[:48]})"
+            analisa_target = f"🚧 Terkendala Akses ({rem_hasil[:45]})" + (f" · Overdue +{overdue_days}h" if overdue else "")
         elif overdue:
-            analisa_target = "⚠️ Melewati Target — Belum Ada Tracker"
+            extra_r = f" ({rem_hasil[:40]})" if rem_hasil and rem_hasil != "-" else ""
+            analisa_target = f"🟣 Overdue +{overdue_days} hari{extra_r}"
         else:
-            analisa_target = "📅 Terjadwal / Waiting Eksekusi"
+            analisa_target = "🔴 Open — Terjadwal / Waiting Eksekusi"
 
         rute_chain = f"HB ({tim1 or '-'})"
         if waypoints:
@@ -2559,6 +2762,9 @@ def analyze_pbu_timeplan_routes(df_tp, site_coords, fme_coords, onsite_idx=None,
             "SITE NAME": sname,
             "Class": s_class,
             "Status": status_act,
+            "Status Peta": map_status_label,
+            "Status Peta Code": map_status_code,
+            "Overdue (Hari)": overdue_days,
             "Status Hard Access": ha_status_lbl,
             "PIC Task": pic_task,
             "Tier Tim #1": tim1 or "-",
@@ -2601,6 +2807,10 @@ def analyze_pbu_timeplan_routes(df_tp, site_coords, fme_coords, onsite_idx=None,
             "sname": sname,
             "s_class": s_class,
             "status": status_act,
+            "map_status_code": map_status_code,
+            "map_status_label": map_status_label,
+            "map_color": map_color,
+            "overdue_days": overdue_days,
             "hard_access_status": ha_status_lbl,
             "pic": pic_task,
             "tim1": tim1 or "-",
@@ -2726,9 +2936,21 @@ def build_pbu_management_report_xlsx(df_summary, df_site_master, df_hb_master, d
     ws2.freeze_panes = "D2"
 
     for ri, (_, rw) in enumerate(df_summary.iterrows(), 2):
+        st_code = str(rw.get("Status Peta Code", "")).upper()
         st_txt = str(rw.get("Status", "")).lower()
         ha_txt = str(rw.get("Status Hard Access", ""))
-        row_fill = GREEN_BG if "close" in st_txt else (RED_BG if "Blocked" in ha_txt else (AMBER_BG if "progress" in st_txt else (ZEBRA if ri % 2 == 0 else None)))
+        if st_code == "CLOSED" or "close" in st_txt:
+            row_fill = GREEN_BG
+        elif st_code == "OVERDUE":
+            row_fill = "F3E8FF"
+        elif st_code == "PENDING" or "Blocked" in ha_txt:
+            row_fill = "FFEDD5"
+        elif st_code == "IN_PROGRESS" or "progress" in st_txt:
+            row_fill = AMBER_BG
+        elif st_code == "OPEN":
+            row_fill = RED_BG
+        else:
+            row_fill = ZEBRA if ri % 2 == 0 else None
         for ci, cname in enumerate(cols_s2, 1):
             val = rw[cname]
             c = ws2.cell(row=ri, column=ci, value=val)
@@ -2776,8 +2998,8 @@ def build_pbu_management_report_xlsx(df_summary, df_site_master, df_hb_master, d
     wb.save(buf)
     return buf.getvalue()
 
-def render_pbu_route_map_html(routes_list, hard_access_list=None, map_theme="Dark NOC Command Center", show_plan=True, show_actual=True, show_hard_access=True, show_dist_labels=True):
-    """Peta Interaktif Premium Leaflet: Garis Melengkung (Bezier) + Panah Arah + Badge Jarak (km) + Pin Hard Access ber-Foto."""
+def render_pbu_route_map_html(routes_list, hard_access_list=None, map_theme="Dark NOC Command Center", show_plan=True, show_actual=True, show_hard_access=True, show_dist_labels=True, show_hb_pins=True):
+    """Peta Interaktif Premium Leaflet: Pin Site Target Berwarna per Status (Hijau=Closed, Merah=Open, Ungu=Overdue, Kuning=In Progress, Oranye=Pending) + Garis Melengkung + Panah + Legenda Counter Live."""
     hard_access_list = hard_access_list or []
     if "Satelit" in map_theme:
         tile_url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -2801,26 +3023,46 @@ def render_pbu_route_map_html(routes_list, hard_access_list=None, map_theme="Dar
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <style>
             body {{ margin:0; padding:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:transparent; }}
-            #pbumap {{ width:100%; height:600px; border-radius:16px; border:1.5px solid rgba(56,189,248,0.5); box-shadow:0 14px 34px rgba(0,0,0,0.28); overflow:hidden; }}
+            #pbumap {{ width:100%; height:610px; border-radius:16px; border:1.5px solid rgba(56,189,248,0.5); box-shadow:0 14px 34px rgba(0,0,0,0.28); overflow:hidden; }}
             .pin-hb {{
-                width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#2563eb,#1d4ed8);
+                width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#2563eb,#1d4ed8);
                 border:2.5px solid #fff; color:#fff; display:flex; align-items:center; justify-content:center;
-                font-size:15px; box-shadow:0 0 16px rgba(37,99,235,0.9);
+                font-size:14px; box-shadow:0 0 14px rgba(37,99,235,0.9);
             }}
-            .pin-tgt {{
+            .pin-st-closed {{
+                width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#10b981,#047857);
+                border:2.5px solid #ecfdf5; color:#fff; display:flex; align-items:center; justify-content:center;
+                font-size:15px; box-shadow:0 0 14px rgba(16,185,129,0.85);
+            }}
+            .pin-st-open {{
                 width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#ef4444,#b91c1c);
+                border:2.5px solid #fef08a; color:#fff; display:flex; align-items:center; justify-content:center;
+                font-size:15px; box-shadow:0 0 16px rgba(239,68,68,0.92);
+            }}
+            .pin-st-overdue {{
+                width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#e879f9,#9333ea);
                 border:2.5px solid #fde047; color:#fff; display:flex; align-items:center; justify-content:center;
-                font-size:15px; box-shadow:0 0 18px rgba(239,68,68,0.95); animation:pulseTgt 2s infinite;
+                font-size:16px; box-shadow:0 0 18px rgba(192,38,211,0.95); animation:pulseOverdue 1.7s infinite;
+            }}
+            .pin-st-inprog {{
+                width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#facc15,#ca8a04);
+                border:2.5px solid #fff; color:#0f172a; display:flex; align-items:center; justify-content:center;
+                font-size:15px; font-weight:900; box-shadow:0 0 15px rgba(234,179,8,0.9);
+            }}
+            .pin-st-pending {{
+                width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#fb923c,#ea580c);
+                border:2.5px solid #fff; color:#fff; display:flex; align-items:center; justify-content:center;
+                font-size:15px; box-shadow:0 0 15px rgba(249,115,22,0.9);
             }}
             .pin-ha {{
                 width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,#f97316,#dc2626);
                 border:2.5px solid #fef08a; color:#fff; display:flex; align-items:center; justify-content:center;
                 font-size:16px; box-shadow:0 0 18px rgba(249,115,22,0.95); animation:pulseHA 1.8s infinite;
             }}
-            @keyframes pulseTgt {{
-                0% {{ box-shadow:0 0 0 0 rgba(239,68,68,0.75); }}
-                70% {{ box-shadow:0 0 0 14px rgba(239,68,68,0); }}
-                100% {{ box-shadow:0 0 0 0 rgba(239,68,68,0); }}
+            @keyframes pulseOverdue {{
+                0% {{ box-shadow:0 0 0 0 rgba(217,70,239,0.85); }}
+                70% {{ box-shadow:0 0 0 16px rgba(217,70,239,0); }}
+                100% {{ box-shadow:0 0 0 0 rgba(217,70,239,0); }}
             }}
             @keyframes pulseHA {{
                 0% {{ box-shadow:0 0 0 0 rgba(249,115,22,0.8); }}
@@ -2828,15 +3070,15 @@ def render_pbu_route_map_html(routes_list, hard_access_list=None, map_theme="Dar
                 100% {{ box-shadow:0 0 0 0 rgba(249,115,22,0); }}
             }}
             .pin-tr {{
-                width:30px; height:30px; border-radius:50%; border:2.5px solid #fff; color:#fff;
-                font-size:11.5px; font-weight:900; display:flex; align-items:center; justify-content:center;
+                width:28px; height:28px; border-radius:50%; border:2.5px solid #fff; color:#fff;
+                font-size:11px; font-weight:900; display:flex; align-items:center; justify-content:center;
                 box-shadow:0 4px 12px rgba(0,0,0,0.6);
             }}
             .pin-lbl {{
-                position:absolute; top:35px; left:50%; transform:translateX(-50%);
+                position:absolute; top:36px; left:50%; transform:translateX(-50%);
                 background:rgba(15,23,42,0.92); color:#f8fafc; font-size:9.5px; font-weight:800;
-                padding:2px 7px; border-radius:5px; white-space:nowrap; border:1px solid rgba(255,255,255,0.22);
-                pointer-events:none; box-shadow:0 2px 6px rgba(0,0,0,0.4);
+                padding:2px 7px; border-radius:5px; white-space:nowrap; border:1.5px solid rgba(255,255,255,0.28);
+                pointer-events:none; box-shadow:0 2px 6px rgba(0,0,0,0.45);
             }}
             .dist-pill {{
                 background:rgba(15,23,42,0.92); color:#fff; font-size:10px; font-weight:800;
@@ -2857,22 +3099,24 @@ def render_pbu_route_map_html(routes_list, hard_access_list=None, map_theme="Dar
             .leaflet-popup-content-wrapper {{
                 background:linear-gradient(145deg,#0f172a,#1e293b) !important;
                 color:#f8fafc !important; border-radius:14px !important; border:1px solid rgba(56,189,248,0.48);
-                max-width:320px;
+                max-width:330px;
             }}
             .leaflet-popup-tip {{ background:#1e293b !important; }}
-            .pc {{ min-width:245px; font-size:12px; line-height:1.55; }}
-            .pc-h {{ font-size:13.5px; font-weight:800; color:#38bdf8; border-bottom:1px solid rgba(255,255,255,0.14); padding-bottom:5px; margin-bottom:6px; }}
-            .pc-h-ha {{ font-size:13.5px; font-weight:800; color:#fb923c; border-bottom:1px solid rgba(255,255,255,0.14); padding-bottom:5px; margin-bottom:6px; }}
+            .pc {{ min-width:250px; font-size:12px; line-height:1.55; }}
+            .pc-h {{ font-size:13.5px; font-weight:800; border-bottom:1px solid rgba(255,255,255,0.14); padding-bottom:5px; margin-bottom:6px; }}
+            .pc-pill {{ display:inline-block; padding:2px 9px; border-radius:99px; font-size:10.5px; font-weight:800; color:#fff; margin-bottom:5px; }}
             .pc-rmk {{ margin-top:6px; padding:6px 8px; border-radius:8px; background:rgba(255,255,255,0.08); border-left:3px solid #f59e0b; }}
             .pc-photos {{ display:grid; grid-template-columns:repeat(2,1fr); gap:5px; margin-top:7px; }}
             .pc-photos img {{ width:100%; height:68px; object-fit:cover; border-radius:6px; border:1px solid rgba(255,255,255,0.22); }}
             .pc-btn {{ display:block; text-align:center; margin-top:8px; padding:6px; border-radius:7px; background:#2563eb; color:#fff !important; text-decoration:none; font-weight:800; font-size:11px; }}
             .map-leg {{
-                background:rgba(15,23,42,0.92); color:#f8fafc; padding:10px 13px; border-radius:12px;
-                border:1px solid rgba(255,255,255,0.2); font-size:11px; line-height:1.7;
+                background:rgba(15,23,42,0.93); color:#f8fafc; padding:11px 14px; border-radius:13px;
+                border:1px solid rgba(255,255,255,0.22); font-size:11.5px; line-height:1.75;
+                box-shadow:0 8px 24px rgba(0,0,0,0.4);
             }}
-            .line-dash {{ display:inline-block; width:22px; height:0; border-top:3px dashed #f59e0b; vertical-align:middle; margin-right:6px; }}
-            .line-act {{ display:inline-block; width:22px; height:0; border-top:3.5px solid #06b6d4; vertical-align:middle; margin-right:6px; }}
+            .leg-dot {{ display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:6px; vertical-align:middle; border:1.5px solid #fff; }}
+            .line-dash {{ display:inline-block; width:20px; height:0; border-top:3px dashed #f59e0b; vertical-align:middle; margin-right:6px; }}
+            .line-act {{ display:inline-block; width:20px; height:0; border-top:3.5px solid #06b6d4; vertical-align:middle; margin-right:6px; }}
         </style>
     </head>
     <body>
@@ -2884,25 +3128,35 @@ def render_pbu_route_map_html(routes_list, hard_access_list=None, map_theme="Dar
             const showActual = {"true" if show_actual else "false"};
             const showHardAccess = {"true" if show_hard_access else "false"};
             const showDistLabels = {"true" if show_dist_labels else "false"};
+            const showHBPins = {"true" if show_hb_pins else "false"};
             const tierColors = {{ 1: "#06b6d4", 2: "#a855f7", 3: "#10b981" }};
 
+            const statusStyle = {{
+                "CLOSED":      {{ cls: "pin-st-closed",  ico: "✓", col: "#10b981", textCol: "#fff",    badge: "🟢 CLOSED" }},
+                "OPEN":        {{ cls: "pin-st-open",    ico: "●", col: "#ef4444", textCol: "#fff",    badge: "🔴 OPEN" }},
+                "OVERDUE":     {{ cls: "pin-st-overdue", ico: "!", col: "#c026d3", textCol: "#fff",    badge: "🟣 OVERDUE" }},
+                "IN_PROGRESS": {{ cls: "pin-st-inprog",  ico: "↻", col: "#eab308", textCol: "#0f172a", badge: "🟡 IN PROGRESS" }},
+                "PENDING":     {{ cls: "pin-st-pending", ico: "⏳", col: "#f97316", textCol: "#fff",    badge: "🟠 PENDING / WAITING" }}
+            }};
+
             const map = L.map('pbumap', {{ center: [-2.35, 111.6], zoom: 8 }});
-            L.tileLayer('{tile_url}', {{ subdomains: '{tile_sub}', maxZoom: 19, attribution: '⚡ SIDATA PBU Tier & Hard Access Maps' }}).addTo(map);
+            L.tileLayer('{tile_url}', {{ subdomains: '{tile_sub}', maxZoom: 19, attribution: '⚡ SIDATA PBU Status & Tier Maps' }}).addTo(map);
 
             const bounds = [];
+            const stCounts = {{ CLOSED: 0, OPEN: 0, OVERDUE: 0, IN_PROGRESS: 0, PENDING: 0 }};
 
-            function makeIcon(cls, txt, lbl, bg) {{
+            function makeIcon(cls, txt, lbl, bg, borderCol) {{
                 const styleBg = bg ? `background:${{bg}};` : '';
+                const lblBdr = borderCol ? `border-color:${{borderCol}};` : '';
                 return L.divIcon({{
                     className: '',
                     iconSize: [34, 34],
                     iconAnchor: [17, 17],
                     popupAnchor: [0, -18],
-                    html: `<div style="position:relative;"><div class="${{cls}}" style="${{styleBg}}">${{txt}}</div><div class="pin-lbl">${{lbl}}</div></div>`
+                    html: `<div style="position:relative;"><div class="${{cls}}" style="${{styleBg}}">${{txt}}</div><div class="pin-lbl" style="${{lblBdr}}">${{lbl}}</div></div>`
                 }});
             }}
 
-            // Generator kurva Quadratic Bezier mulus agar garis Plan & Aktual tidak bertumpuk
             function makeCurvedPoints(p1, p2, bend) {{
                 const lat1 = p1[0], lon1 = p1[1], lat2 = p2[0], lon2 = p2[1];
                 const dLat = lat2 - lat1, dLon = lon2 - lon1;
@@ -2910,7 +3164,6 @@ def render_pbu_route_map_html(routes_list, hard_access_list=None, map_theme="Dar
                 if (dist < 0.0005) return [p1, p2];
                 const midLat = (lat1 + lat2) / 2;
                 const midLon = (lon1 + lon2) / 2;
-                // Vektor tegak lurus untuk kelengkungan
                 const ctrlLat = midLat - dLon * bend;
                 const ctrlLon = midLon + dLat * bend;
                 const pts = [];
@@ -2928,12 +3181,6 @@ def render_pbu_route_map_html(routes_list, hard_access_list=None, map_theme="Dar
             function addArrowAndLabel(pts, color, labelTxt) {{
                 if (!pts || pts.length < 4) return;
                 const midIdx = Math.floor(pts.length / 2);
-                const pA = pts[Math.max(0, midIdx - 1)];
-                const pB = pts[Math.min(pts.length - 1, midIdx + 1)];
-                const angleRad = Math.atan2(pB[1] - pA[1], pB[0] - pA[0]);
-                const deg = (angleRad * 180 / Math.PI);
-
-                // Panah arah di posisi 65% segmen
                 const arrIdx = Math.floor(pts.length * 0.65);
                 const pa1 = pts[Math.max(0, arrIdx - 1)];
                 const pa2 = pts[Math.min(pts.length - 1, arrIdx + 1)];
@@ -2956,53 +3203,73 @@ def render_pbu_route_map_html(routes_list, hard_access_list=None, map_theme="Dar
                 }}
             }}
 
-            routes.forEach((rt, rIdx) => {{
+            const drawnHB = new Set();
+
+            routes.forEach((rt) => {{
                 const hasHB = rt.hb_lat !== null && rt.hb_lon !== null;
                 const hasTgt = rt.tgt_lat !== null && rt.tgt_lon !== null;
+                const code = rt.map_status_code || "OPEN";
+                const sty = statusStyle[code] || statusStyle["OPEN"];
+                if (stCounts[code] !== undefined) stCounts[code] += 1;
 
-                if (hasHB) {{
-                    bounds.push([rt.hb_lat, rt.hb_lon]);
-                    const mHB = L.marker([rt.hb_lat, rt.hb_lon], {{ icon: makeIcon('pin-hb', '🏠', 'HB: ' + rt.tim1) }}).addTo(map);
-                    mHB.bindPopup(`
-                        <div class="pc">
-                            <div class="pc-h">🏠 HOMEBASE TIM: ${{rt.tim1}}</div>
-                            <div>👷 <b>PIC Task:</b> ${{rt.pic}}</div>
-                            <div>📍 <b>Koordinat HB:</b> ${{rt.hb_lat.toFixed(5)}}, ${{rt.hb_lon.toFixed(5)}}</div>
-                            <div>🎯 <b>Site Target:</b> ${{rt.target_sid}} (${{rt.sname}})</div>
-                            <div>📏 <b>Jarak ke Target:</b> ${{rt.dist_hb_tgt !== null ? rt.dist_hb_tgt + ' km (Est. Jalan ' + rt.est_road_tgt + ' km)' : '-'}}</div>
-                            <div>🚗 <b>Total Jarak Aktual:</b> ${{rt.total_act_km}} km (Est. Jalan ${{rt.est_road_act}} km)</div>
-                        </div>
-                    `);
+                if (showHBPins && hasHB) {{
+                    const hbKey = `${{rt.tim1}}_${{rt.hb_lat.toFixed(4)}}_${{rt.hb_lon.toFixed(4)}}`;
+                    if (!drawnHB.has(hbKey)) {{
+                        drawnHB.add(hbKey);
+                        bounds.push([rt.hb_lat, rt.hb_lon]);
+                        const mHB = L.marker([rt.hb_lat, rt.hb_lon], {{ icon: makeIcon('pin-hb', '🏠', 'HB: ' + rt.tim1, '', '#3b82f6') }}).addTo(map);
+                        mHB.bindPopup(`
+                            <div class="pc">
+                                <div class="pc-h" style="color:#60a5fa;">🏠 HOMEBASE TIM: ${{rt.tim1}}</div>
+                                <div>👷 <b>PIC Task:</b> ${{rt.pic}}</div>
+                                <div>📍 <b>Koordinat HB:</b> ${{rt.hb_lat.toFixed(5)}}, ${{rt.hb_lon.toFixed(5)}}</div>
+                                <div>🎯 <b>Contoh Target:</b> ${{rt.target_sid}} (${{rt.sname}})</div>
+                                <div>📏 <b>Jarak ke Target:</b> ${{rt.dist_hb_tgt !== null ? rt.dist_hb_tgt + ' km (Est. Jalan ' + rt.est_road_tgt + ' km)' : '-'}}</div>
+                            </div>
+                        `);
+                    }}
                 }}
 
                 if (hasTgt) {{
                     bounds.push([rt.tgt_lat, rt.tgt_lon]);
-                    const mTgt = L.marker([rt.tgt_lat, rt.tgt_lon], {{ icon: makeIcon('pin-tgt', '🎯', 'TGT: ' + rt.target_sid) }}).addTo(map);
+                    const odTxt = (code === "OVERDUE" && rt.overdue_days > 0) ? ` (+${{rt.overdue_days}}h)` : '';
+                    const pinLblTxt = `${{rt.target_sid}}${{odTxt}}`;
+                    const zBoost = (code === "OVERDUE") ? 600 : (code === "OPEN" ? 400 : (code === "PENDING" ? 350 : 200));
+                    const mTgt = L.marker([rt.tgt_lat, rt.tgt_lon], {{
+                        icon: makeIcon(sty.cls, sty.ico, pinLblTxt, '', sty.col),
+                        zIndexOffset: zBoost
+                    }}).addTo(map);
+
+                    const badgeTxt = rt.map_status_label || sty.badge;
                     mTgt.bindPopup(`
                         <div class="pc">
-                            <div class="pc-h">🎯 TARGET #${{rt.no}}: ${{rt.target_sid}} — ${{rt.sname}}</div>
-                            <div>⭐ <b>Class:</b> ${{rt.s_class}} | <b>Status:</b> ${{rt.status}}</div>
+                            <div class="pc-h" style="color:${{sty.col}};">#${{rt.no}} · ${{rt.target_sid}} — ${{rt.sname}}</div>
+                            <span class="pc-pill" style="background:${{sty.col}}; color:${{sty.textCol}};">${{badgeTxt}}</span>
+                            <div>⭐ <b>Class:</b> ${{rt.s_class}} | <b>Status Excel:</b> ${{rt.status}}</div>
+                            <div>👷 <b>PIC #1 / Tim:</b> ${{rt.tim1}} (${{rt.pic}})</div>
                             <div>🚧 <b>Akses Site:</b> ${{rt.hard_access_status || 'Normal'}}</div>
                             <div>🔧 <b>RCA / Action:</b> ${{rt.rca}} — ${{rt.action}}</div>
-                            <div>📅 <b>Plan / Target Closed:</b> ${{rt.plan_dt}} ➔ ${{rt.target_cl}}</div>
-                            <div>📏 <b>Jarak dari HB (${{rt.tim1}}):</b> ${{rt.dist_hb_tgt !== null ? rt.dist_hb_tgt + ' km (Est. Jalan ' + rt.est_road_tgt + ' km)' : '-'}}</div>
+                            <div>📅 <b>Plan ➔ Target Closed:</b> ${{rt.plan_dt}} ➔ ${{rt.target_cl}}</div>
+                            <div>📏 <b>Jarak dari HB:</b> ${{rt.dist_hb_tgt !== null ? rt.dist_hb_tgt + ' km (Est. Jalan ' + rt.est_road_tgt + ' km)' : '-'}}</div>
                             <div>💰 <b>Biaya:</b> Rp ${{Number(rt.biaya || 0).toLocaleString('id-ID')}}</div>
-                            <div class="pc-rmk"><b>🚦 Analisa:</b> ${{rt.analisa}}<br><b>📝 Hasil:</b> ${{rt.rem_hasil}}</div>
-                            <a class="pc-btn" href="https://www.google.com/maps?q=${{rt.tgt_lat}},${{rt.tgt_lon}}" target="_blank">🧭 Buka Google Maps</a>
+                            <div class="pc-rmk" style="border-left-color:${{sty.col}};"><b>🚦 Analisa:</b> ${{rt.analisa}}<br><b>📝 Hasil:</b> ${{rt.rem_hasil}}</div>
+                            <a class="pc-btn" style="background:${{sty.col}}; color:${{sty.textCol}} !important;" href="https://www.google.com/maps?q=${{rt.tgt_lat}},${{rt.tgt_lon}}" target="_blank">🧭 Buka Google Maps</a>
                         </div>
                     `);
                 }}
 
-                // 1. Garis Plan Melengkung (Sisi kiri: bend = -0.16)
+                // 1. Garis Plan Melengkung (Warna mengikuti status: Hijau=Closed, Ungu=Overdue, Oranye=Open/Lainnya)
                 if (showPlan && hasHB && hasTgt) {{
+                    const planCol = (code === "CLOSED") ? '#10b981' : (code === "OVERDUE" ? '#c026d3' : '#f59e0b');
                     const planPts = makeCurvedPoints([rt.hb_lat, rt.hb_lon], [rt.tgt_lat, rt.tgt_lon], -0.16);
-                    // Glow bawah
-                    L.polyline(planPts, {{ color: '#f59e0b', weight: 7, opacity: 0.16 }}).addTo(map);
+                    L.polyline(planPts, {{ color: planCol, weight: 6, opacity: 0.14 }}).addTo(map);
                     const planLine = L.polyline(planPts, {{
-                        color: '#f59e0b', weight: 3, opacity: 0.9, dashArray: '10, 8'
+                        color: planCol, weight: 2.8, opacity: 0.85, dashArray: '9, 8'
                     }}).addTo(map);
-                    planLine.bindTooltip(`📐 PLAN: HB ${{rt.tim1}} ➔ ${{rt.target_sid}} | ${{rt.dist_hb_tgt}} km (Est. Jalan ${{rt.est_road_tgt}} km)`, {{ sticky: true }});
-                    addArrowAndLabel(planPts, '#f59e0b', routes.length <= 5 ? `📐 ${{rt.dist_hb_tgt}} km` : '');
+                    planLine.bindTooltip(`📐 PLAN (${{rt.map_status_label || code}}): HB ${{rt.tim1}} ➔ ${{rt.target_sid}} | ${{rt.dist_hb_tgt}} km (Est. Jalan ${{rt.est_road_tgt}} km)`, {{ sticky: true }});
+                    if (routes.length <= 6) {{
+                        addArrowAndLabel(planPts, planCol, `📐 ${{rt.dist_hb_tgt}} km`);
+                    }}
                 }}
 
                 // 2. Garis Aktual Melengkung + Flow Animation (HB -> T#1 -> T#2 -> T#3)
@@ -3015,22 +3282,19 @@ def render_pbu_route_map_html(routes_list, hard_access_list=None, map_theme="Dar
                         if (prevPt) {{
                             const bendVal = (wIdx % 2 === 0) ? 0.18 : -0.18;
                             const segPts = makeCurvedPoints(prevPt, [wp.lat, wp.lon], bendVal);
-                            // Glow neon
-                            L.polyline(segPts, {{ color: colT, weight: 9, opacity: 0.22 }}).addTo(map);
-                            // Garis solid utama
-                            const segLine = L.polyline(segPts, {{ color: colT, weight: 4, opacity: 0.95 }}).addTo(map);
-                            // Garis animasi aliran arah
-                            L.polyline(segPts, {{ color: '#ffffff', weight: 1.8, opacity: 0.65, dashArray: '6, 12', className: 'flow-line' }}).addTo(map);
+                            L.polyline(segPts, {{ color: colT, weight: 8, opacity: 0.2 }}).addTo(map);
+                            const segLine = L.polyline(segPts, {{ color: colT, weight: 3.8, opacity: 0.94 }}).addTo(map);
+                            L.polyline(segPts, {{ color: '#ffffff', weight: 1.6, opacity: 0.65, dashArray: '6, 12', className: 'flow-line' }}).addTo(map);
                             segLine.bindTooltip(`🚗 TIER #${{wp.tier}} (${{wp.tgl}}): ${{wp.from_label}} ➔ ${{wp.site_id}} | ${{wp.leg_km}} km (Est. Jalan ${{wp.est_road_km}} km) | ${{wp.remark}}`, {{ sticky: true }});
                             addArrowAndLabel(segPts, colT, routes.length <= 6 ? `T${{wp.tier}}: ${{wp.leg_km}} km` : '');
                         }}
 
                         const mWp = L.marker([wp.lat, wp.lon], {{
-                            icon: makeIcon('pin-tr', 'T' + wp.tier, `T#${{wp.tier}}: ${{wp.site_id}} (${{wp.leg_km}}km)`, colT)
+                            icon: makeIcon('pin-tr', 'T' + wp.tier, `T#${{wp.tier}}: ${{wp.site_id}} (${{wp.leg_km}}km)`, colT, colT)
                         }}).addTo(map);
                         mWp.bindPopup(`
                             <div class="pc">
-                                <div class="pc-h">📍 KUNJUNGAN TIER #${{wp.tier}} — ${{wp.site_id}}</div>
+                                <div class="pc-h" style="color:${{colT}};">📍 KUNJUNGAN TIER #${{wp.tier}} — ${{wp.site_id}}</div>
                                 <div>📅 <b>Tanggal Kunjungan:</b> ${{wp.tgl}}</div>
                                 <div>👷 <b>Tim (Task #${{rt.no}} ${{rt.target_sid}}):</b> ${{rt.tim1}}</div>
                                 <div>📏 <b>Jarak dari ${{wp.from_label}}:</b> ${{wp.leg_km}} km (Est. Jalan ${{wp.est_road_km}} km)</div>
@@ -3043,15 +3307,16 @@ def render_pbu_route_map_html(routes_list, hard_access_list=None, map_theme="Dar
                 }}
             }});
 
-            // 3. Layer Pin Hard Access Pangkalan Bun (+ Preview Foto langsung di Popup!)
+            // 3. Layer Pin Hard Access (+ Preview Foto langsung di Popup!)
             if (showHardAccess && hardAccess && hardAccess.length > 0) {{
                 hardAccess.forEach(ha => {{
                     if (ha.lat === null || ha.lon === null) return;
                     bounds.push([ha.lat, ha.lon]);
-                    const isNormal = (ha.status || '').toLowerCase().includes('normal') || (ha.status || '').toLowerCase().includes('tembus') && !(ha.status || '').toLowerCase().includes('tidak');
+                    const isNormal = (ha.status || '').toLowerCase().includes('normal') || ((ha.status || '').toLowerCase().includes('tembus') && !(ha.status || '').toLowerCase().includes('tidak'));
                     const haBg = isNormal ? 'linear-gradient(135deg,#10b981,#047857)' : 'linear-gradient(135deg,#f97316,#dc2626)';
                     const mHA = L.marker([ha.lat, ha.lon], {{
-                        icon: makeIcon('pin-ha', '🚧', 'HA: ' + ha.site_id, haBg)
+                        icon: makeIcon('pin-ha', '🚧', 'HA: ' + ha.site_id, haBg, '#f97316'),
+                        zIndexOffset: 700
                     }}).addTo(map);
 
                     let photoHtml = '';
@@ -3064,7 +3329,7 @@ def render_pbu_route_map_html(routes_list, hard_access_list=None, map_theme="Dar
 
                     mHA.bindPopup(`
                         <div class="pc">
-                            <div class="pc-h-ha">🚧 HARD ACCESS: ${{ha.site_id}} (${{ha.site_name}})</div>
+                            <div class="pc-h" style="color:#fb923c;">🚧 HARD ACCESS: ${{ha.site_id}} (${{ha.site_name}})</div>
                             <div>📍 <b>Lokasi Kendala:</b> ${{ha.lokasi}}</div>
                             <div>🏷️ <b>Kategori:</b> ${{ha.kategori}}</div>
                             <div>⚠️ <b>Tingkat / Status:</b> ${{ha.tingkat}} | <b>${{ha.status}}</b></div>
@@ -3085,12 +3350,15 @@ def render_pbu_route_map_html(routes_list, hard_access_list=None, map_theme="Dar
             leg.onAdd = function() {{
                 const div = L.DomUtil.create('div', 'map-leg');
                 div.innerHTML = `
-                    <b>🗺️ Legenda Tier & Hard Access Maps (PBU)</b><br>
-                    🏠 Homebase (HB) Tim Tier #1 &nbsp;|&nbsp; 🎯 Site ID Target<br>
-                    🚧 Titik Hard Access (Klik untuk Foto Lokasi)<br>
-                    <span class="line-dash"></span> Rute Plan Melengkung (HB ➔ Target)<br>
-                    <span class="line-act"></span> Rute Aktual + Panah Arah (HB ➔ T1 ➔ T2 ➔ T3)<br>
-                    <b style="color:#06b6d4">● T1</b> &nbsp; <b style="color:#a855f7">● T2</b> &nbsp; <b style="color:#10b981">● T3</b> Kunjungan per Tier
+                    <b style="font-size:12px;">🗺️ Legenda Status Site (NOP Pangkalan Bun)</b><br>
+                    <span class="leg-dot" style="background:#10b981;"></span><b>Closed (Selesai):</b> ${{stCounts.CLOSED}} Site<br>
+                    <span class="leg-dot" style="background:#ef4444;"></span><b>Open (Aktif):</b> ${{stCounts.OPEN}} Site<br>
+                    <span class="leg-dot" style="background:#c026d3;"></span><b>Overdue (Lewat Target):</b> ${{stCounts.OVERDUE}} Site<br>
+                    <span class="leg-dot" style="background:#eab308;"></span><b>In Progress:</b> ${{stCounts.IN_PROGRESS}} Site<br>
+                    <span class="leg-dot" style="background:#f97316;"></span><b>Pending / Waiting:</b> ${{stCounts.PENDING}} Site<br>
+                    <hr style="border:0;border-top:1px solid rgba(255,255,255,0.16);margin:5px 0;">
+                    🏠 Homebase Tim &nbsp;|&nbsp; 🚧 Hard Access<br>
+                    <span class="line-dash"></span> Plan &nbsp;|&nbsp; <span class="line-act"></span> Aktual (<b style="color:#06b6d4">T1</b> <b style="color:#a855f7">T2</b> <b style="color:#10b981">T3</b>)
                 `;
                 return div;
             }};
@@ -5357,13 +5625,14 @@ if st.session_state['active_menu'] is None:
     with c_out2:
         st.markdown("""
             <div class='area-card' style='border-top-color: #9C27B0;'>
-                <div style='font-size: 40px; margin-bottom: 8px;'>📅</div>
-                <div class='login-title' style='font-size: 18px;'>Daily Tracker PLK</div>
-                <div class='login-desc' style='font-size: 12.5px;'>Planning Harian Leader Cluster, Tracker Tier Urgent & Auto-Closed SIDATA.</div>
+                <div style='font-size: 40px; margin-bottom: 8px;'>📋</div>
+                <div class='login-title' style='font-size: 18px;'>To Do List RTS</div>
+                <div class='login-desc' style='font-size: 12.5px;'>Plan Harian RTS, Carry-Over Pending Otomatis & Auto-Closed Sinkron SIDATA.</div>
             </div>
         """, unsafe_allow_html=True)
-        if st.button("📅 BUKA DAILY TRACKER", type="primary", use_container_width=True, key="m_tracker"):
-            st.session_state['active_menu'] = "📅 Daily Tracker Palangkaraya"
+        if st.button("📋 BUKA TO DO LIST RTS", type="primary", use_container_width=True, key="m_tracker"):
+            st.session_state['rts_entry_origin'] = "main"
+            st.session_state['active_menu'] = "📋 To Do List RTS"
             st.rerun()
 
     with c_out3:
@@ -5393,6 +5662,8 @@ if st.session_state['active_menu'] is None:
             st.session_state['proj_dash_unlocked'] = False
             st.session_state['proj_unlocked'] = False
             st.session_state.pop('sv_user', None)
+            st.session_state.pop('rts_user', None)
+            st.session_state.pop('rts_entry_origin', None)
             st.rerun()
     st.stop()
 else:
@@ -5405,12 +5676,18 @@ else:
         "📋 Program NOP & Task Force",
         "🛡️ SiDAVID (Verifikasi Internal)",
         "🚧 Form & Peta Hard Akses",
-        "📅 Daily Tracker Palangkaraya",
+        "📋 To Do List RTS",
         "👥 Kelola Master Tim (PLK & PBU)"
     ]
     c_top1, c_top2, c_top3 = st.columns([2.3, 5.4, 2.3])
     with c_top1:
-        if _is_office_sub and st.session_state.get('role') is None:
+        if menu == "📋 To Do List RTS" and st.session_state.get('role') is None and st.session_state.get('rts_entry_origin') == "landing":
+            if st.button("⬅️ KEMBALI KE LAYAR DEPAN", type="secondary", use_container_width=True, key="btn_back_main"):
+                st.session_state['active_menu'] = None
+                st.session_state.pop('rts_user', None)
+                st.session_state.pop('rts_entry_origin', None)
+                st.rerun()
+        elif _is_office_sub and st.session_state.get('role') is None:
             if st.button("⬅️ KEMBALI KE PORTAL OFFICE", type="secondary", use_container_width=True, key="btn_back_main"):
                 st.session_state['active_menu'] = "🏢 Portal Office"
                 st.session_state['dashboard_area'] = None
@@ -5438,6 +5715,8 @@ else:
             st.session_state['proj_dash_unlocked'] = False
             st.session_state['proj_unlocked'] = False
             st.session_state.pop('sv_user', None)
+            st.session_state.pop('rts_user', None)
+            st.session_state.pop('rts_entry_origin', None)
             st.rerun()
     st.markdown("<hr style='margin: 15px 0 25px 0;'>", unsafe_allow_html=True)
 
@@ -5536,7 +5815,7 @@ if menu in ["📝 Form Preventive Check", "📸 Form Pelaporan (Lapangan)"]:
                 panel_data = []
 
                 if konfigurasi_panel == "Individu (Satuan)":
-                    num_panels = st.number_input("Jumlah Panel", min_value=1, value=24)
+                    num_panels = st.number_input("Jumlah Panel", min_value=1, value=4, help="Default 4 agar form ringan; naikkan sesuai jumlah panel aktual jika memilih metode Individu.")
                     for i in range(int(num_panels)):
                         with st.expander(f"⚙️ Panel #{i+1}", expanded=(i==0)):
                             c1, c2, c3 = st.columns([1, 1, 1])
@@ -6676,7 +6955,7 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         else:
             st.markdown("### 📋 Daftar Laporan Site Terinspeksi")
             c_pg1, c_pg2, c_pg3 = st.columns([1.4, 1.4, 2.2])
-            per_page = c_pg1.selectbox("Tampilkan per halaman:", [10, 15, 25, 50], index=1, key="dash_per_page")
+            per_page = c_pg1.selectbox("Tampilkan per halaman:", [10, 15, 25, 50], index=0, key="dash_per_page")
             tot_pages = max(1, _math.ceil(len(filtered_indices) / per_page))
             cur_page = c_pg2.number_input(f"Halaman (1 s/d {tot_pages}):", min_value=1, max_value=tot_pages, value=1, step=1, key="dash_cur_page")
             p_start = (int(cur_page) - 1) * int(per_page)
@@ -6732,16 +7011,14 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                     wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')} ({r.get('role_fme', '-')})\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
                     cd = r.get('cond_data', {})
                     if cd:
-                        teks_info = ""
                         if cd.get('v_rn'):
                             v_rst = cd.get('volt_ac_rst') or f"{cd.get('v_rn','-')}/{cd.get('v_sn','-')}/{cd.get('v_tn','-')}"
                             i_rst = cd.get('load_ac_rst') or f"{cd.get('i_r','-')}/{cd.get('i_s','-')}/{cd.get('i_t','-')}"
-                            teks_info += f"**⚡ Power AC/DC:** Teg AC ({v_rst} V) | Arus AC ({i_rst} A) | Load DC ({cd.get('load_dc','-')} A) | BCL ({cd.get('set_bcl','-')}) | Cap ({cd.get('set_cap','-')})\n\n"
+                            wa_text += f"\n*⚡ Power AC/DC:* Teg AC ({v_rst} V) | Arus AC ({i_rst} A) | Load DC ({cd.get('load_dc','-')} A)\n"
                         if cd.get('gen_v'):
-                            teks_info += f"**⚙️ Genset/ATS:** Teg Out ({cd.get('gen_v','-')} V) | Arus ({cd.get('gen_i','-')} A) | ATS ({cd.get('gen_ats','-')}) | Issue ({cd.get('gen_issue','-')}) | HM ({cd.get('gen_hm','-')}) | BBM ({cd.get('gen_bbm','-')} L)\n\n"
-                        if teks_info: st.info(teks_info)
+                            wa_text += f"*⚙️ Genset/ATS:* Teg Out ({cd.get('gen_v','-')} V) | Arus ({cd.get('gen_i','-')} A) | HM ({cd.get('gen_hm','-')}) | BBM ({cd.get('gen_bbm','-')} L)\n"
                         if cd.get('note_action'):
-                            st.warning(f"**📝 NOTE/REMARK Lapangan:** {cd.get('note_action')}")
+                            wa_text += f"*📝 NOTE:* {cd.get('note_action')}\n"
                 else:
                     wa_text = f"*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({kategori_site} - {r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"
                 
@@ -6999,9 +7276,9 @@ elif menu == "📈 Monitoring Improvement":
     if not os.path.exists(file_master):
         st.error(f"❌ File '{file_master}' tidak ditemukan di sistem/server. Pastikan Anda telah meletakkan file tersebut satu folder dengan aplikasi.")
     else:
-        tab_dashboard, tab_tim, tab_editor = st.tabs(["📊 Kurva S", "👥 Progress Tim (Done/Berjalan)", "📝 Live Editor Data"])
+        m3_nav = st.radio("Navigasi Improvement:", ["📊 Kurva S", "👥 Progress Tim (Done/Berjalan)", "📝 Live Editor Data"], horizontal=True, key="m3_imp_nav", label_visibility="collapsed")
         
-        with tab_dashboard:
+        if m3_nav == "📊 Kurva S":
             st.markdown("### 📈 S-Curve Target vs Aktual")
             st.info("💡 Data grafik ini dibaca secara Real-Time dari **Sheet 'Kurva S'** di file Excel Master Anda.")
             
@@ -7036,7 +7313,7 @@ elif menu == "📈 Monitoring Improvement":
             except Exception as e:
                 st.error(f"Gagal memvisualisasikan Grafik S-Curve: {e}")
 
-        with tab_tim:
+        elif m3_nav == "👥 Progress Tim (Done/Berjalan)":
             st.markdown("### 👥 Dashboard Eksekusi Lapangan")
             st.info("💡 Sistem akan membaca Sheet **Tracker Improvement** untuk menghitung berapa site yang sudah Selesai (Done) dan masih dalam pengerjaan (On Progress).")
             
@@ -7089,7 +7366,7 @@ elif menu == "📈 Monitoring Improvement":
             except Exception as e:
                 st.error(f"Gagal memproses data tracker tim: {e}")
 
-        with tab_editor:
+        elif m3_nav == "📝 Live Editor Data":
             st.markdown("### 📝 Tabel Master Tracker & Viewer")
             st.write("Klik ganda (*double click*) pada sel tabel untuk merubah isi data secara instan.")
             
@@ -7554,293 +7831,573 @@ elif menu == "⚡ Dapot Power Hasil PMS":
         except Exception as e:
             st.error(f"Terjadi kesalahan saat memuat Dapot Power Executive Dashboard: {e}")
 # =========================================================================
-# MENU 5: DAILY TRACKER PLK (LEADER CLUSTER PLANNING + AUTO-CLOSED SIDATA)
+# MENU 5: TO DO LIST RTS (PASSWORD-ONLY RTS + AUTO-CLOSED SIDATA + CARRY-OVER PENDING)
 # =========================================================================
-elif menu == "📅 Daily Tracker Palangkaraya":
-    st.markdown("<h1 style='text-align: center;'>📅 Daily Tracker & Leader Cluster Planning (PLK)</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; opacity: 0.85;'>Planning harian Leader Cluster, pencatatan pengalihan Urgent (Tracker Tier #1/#2/#3) & Deteksi Auto-Closed dari Report Tim di SIDATA.</p>", unsafe_allow_html=True)
+elif menu == "📋 To Do List RTS":
+    st.markdown("<h1 style='text-align: center;'>📋 To Do List & Kontrol Harian Tim RTS</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.85;'>Planning harian RTS NOP Palangkaraya, Auto-Closing sinkron report SIDATA, Carry-Over otomatis kerjaan Pending lintas hari & Export/Import format Excel resmi.</p>", unsafe_allow_html=True)
 
-    fme_plk_df, src_tim_plk, _ = load_master_tim_df("PLK")
-    fme_plk_active = load_master_tim_names("PLK")
-    leader_candidates = []
-    if not fme_plk_df.empty:
-        ldr_rows = fme_plk_df[fme_plk_df["ROLE"].astype(str).str.lower().str.contains("leader|koordinator")]
-        leader_candidates = sorted(list({str(x).strip() for x in ldr_rows["NAMA"].dropna().tolist() if str(x).strip()}))
-    leader_options = list(dict.fromkeys(leader_candidates + fme_plk_active))
-    site_plk_list, _ = load_site_master_plk()
+    # Auto-unlock jika login sebagai Admin Utama
+    rts_sess = st.session_state.get("rts_user")
+    if rts_sess is None and st.session_state.get("role") == "Admin":
+        rts_sess = {"key": "admin", "rts_name": "SEMUA RTS (ADMIN)", "is_admin": True}
+        st.session_state["rts_user"] = rts_sess
 
-    df_dt_cloud, ok_dt_c = gsheet_read_df("Daily_Tracker_PLK", COLS_DAILY_TRACKER_PLK)
+    # Gerbang Login Password-Only RTS (doni, wind, fauzi, fahmiang)
+    if not rts_sess:
+        c_g1, c_g2, c_g3 = st.columns([1.2, 2.6, 1.2])
+        with c_g2:
+            with st.container(border=True):
+                st.markdown("<h3 style='text-align:center;'>🔐 Login RTS — To Do List</h3>", unsafe_allow_html=True)
+                st.caption("Masukkan password sesuai nama RTS untuk mengelola Plan Harian & Kontrol Tim.")
+                pwd_rts_in = st.text_input("Password RTS:", type="password", placeholder="Ketik password RTS...", key="pwd_rts_gate")
+                if st.button("🔓 MASUK KE TO DO LIST RTS", type="primary", use_container_width=True, key="btn_rts_gate_go"):
+                    pk = pwd_rts_in.strip().lower()
+                    if pk in RTS_ACCOUNTS:
+                        st.session_state["rts_user"] = {"key": pk, "rts_name": RTS_ACCOUNTS[pk], "is_admin": False}
+                        st.rerun()
+                    elif pwd_rts_in.strip() == "KUT2027":
+                        st.session_state["rts_user"] = {"key": "admin", "rts_name": "SEMUA RTS (ADMIN)", "is_admin": True}
+                        st.rerun()
+                    else:
+                        st.error("❌ Password RTS tidak dikenali!")
+        st.stop()
 
-    dt_nav = st.radio(
-        "Navigasi Daily Tracker PLK:",
+    active_rts_name = rts_sess["rts_name"]
+    is_rts_admin = bool(rts_sess.get("is_admin"))
+
+    # Baris Identitas RTS + Ganti Akun RTS
+    c_id1, c_id2, c_id3 = st.columns([3.0, 1.2, 1.2])
+    c_id1.markdown(
+        f"<div style='padding:8px 14px; border-radius:10px; background:var(--ux-card2); border-left:5px solid #9C27B0; font-weight:700;'>"
+        f"👤 RTS Aktif: <span style='color:#c084fc;'>{active_rts_name}</span> &nbsp;|&nbsp; 📅 Hari Ini: {datetime.date.today().strftime('%d %b %Y')}</div>",
+        unsafe_allow_html=True
+    )
+    if c_id2.button("🔄 Sync SIDATA", use_container_width=True, key="btn_rts_refresh"):
+        with st.spinner("Menyinkronkan SIDATA & To Do List..."):
+            get_laporan_db(force_refresh=True)
+            gsheet_read_df.clear()
+        st.rerun()
+    if c_id3.button("🔑 Ganti RTS", use_container_width=True, key="btn_rts_switch"):
+        st.session_state.pop("rts_user", None)
+        st.rerun()
+
+    # Muat data Master PLK (cached) & sheet cloud ToDoList_RTS (ringan, tanpa muat data PBU)
+    df_todo_cloud, ok_todo_c = gsheet_read_df("ToDoList_RTS", COLS_TODO_RTS)
+    fme_plk_df_td, _, _ = load_master_tim_df("PLK")
+    fme_plk_active_td = load_master_tim_names("PLK")
+    fme_info_map = {}
+    if not fme_plk_df_td.empty:
+        for _, r_fm in fme_plk_df_td.iterrows():
+            nm_f = str(r_fm.get("NAMA", "")).strip()
+            if nm_f:
+                fme_info_map[nm_f] = (
+                    str(r_fm.get("ROLE", "TE")).strip() or "TE",
+                    str(r_fm.get("CLUSTER", "Palangkaraya Kota")).strip() or "Palangkaraya Kota"
+                )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    rts_nav = st.radio(
+        "Navigasi To Do List RTS (Mode Ringan):",
         [
-            "🎯 Monitoring Auto-Closed SIDATA & Follow Up",
-            "📝 Input Planning Harian (Leader Cluster)",
-            "🔀 Update Tracker Tier Urgent & Live Editor",
-            "📂 Arsip Excel To Do List Lama"
+            "🎯 1. Board Harian & Carry-Over (Auto-Sync SIDATA)",
+            "➕ 2. Input Plan Harian RTS",
+            "✏️ 3. Ubah Plan & Update Status Manual",
+            "📊 4. Export & Import Excel Manual"
         ],
         horizontal=True,
-        key="dt_plk_nav",
+        key="rts_todo_nav",
         label_visibility="collapsed"
     )
     st.markdown("<hr style='margin: 8px 0 18px 0;'>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------------------
-    # SUB-1: MONITORING AUTO-CLOSED SIDATA & FOLLOW UP LEADER
+    # SUB-1: BOARD HARIAN & CARRY-OVER PENDING OTOMATIS + AUTO-CLOSED SIDATA
     # ---------------------------------------------------------------------
-    if dt_nav == "🎯 Monitoring Auto-Closed SIDATA & Follow Up":
-        c_top_dt1, c_top_dt2 = st.columns([3.5, 1.2])
-        c_top_dt1.info("💡 **Integrasi Otomatis SIDATA:** Jika `Plan Site ID` dan/atau `Tracker Tier #1/#2/#3` sudah terdeteksi masuk report tim di SIDATA pada tanggal tersebut, status otomatis menjadi **✅ CLOSED**. Jika belum ada report, status tetap **🔴 OPEN / 🟡 PARTIAL OPEN** agar Leader segera *follow up* tim.")
-        if c_top_dt2.button("🔄 Sinkron Report SIDATA", use_container_width=True, key="btn_sync_dt_sidata"):
-            with st.spinner("Menyegarkan data SIDATA & Daily Tracker..."):
-                get_laporan_db(force_refresh=True)
-                gsheet_read_df.clear()
-            st.rerun()
+    if rts_nav == "🎯 1. Board Harian & Carry-Over (Auto-Sync SIDATA)":
+        c_f1, c_f2, c_f3, c_f4 = st.columns([1.2, 1.3, 1.5, 1.3])
+        tgl_kontrol = c_f1.date_input("📅 Tanggal Kontrol:", value=datetime.date.today(), key="rts_tgl_ctrl")
+        rts_scope_opts = ["Semua RTS"] + TODO_RTS_LIST
+        def_rts_idx = 0 if is_rts_admin else (rts_scope_opts.index(active_rts_name) if active_rts_name in rts_scope_opts else 0)
+        pick_rts_view = c_f2.selectbox("👤 Filter RTS:", rts_scope_opts, index=def_rts_idx, key="rts_flt_who")
+        mode_view_td = c_f3.selectbox(
+            "📌 Tampilan Board:",
+            [
+                "🔥 Hari Ini + Carry-Over Pending",
+                "🔁 Khusus Carry-Over (Pending Kemarin)",
+                "🔴 Semua Belum Done (Open/Pending)",
+                "✅ Semua Sudah Done / Auto-Closed",
+                "📚 Semua Riwayat Data"
+            ],
+            key="rts_flt_board"
+        )
+        q_td = c_f4.text_input("🔍 Cari Site / FME / Task:", key="rts_flt_q")
 
-        if df_dt_cloud.empty:
-            st.warning("Belum ada data Planning di sheet `Daily_Tracker_PLK`. Silakan mulai input di tab **📝 Input Planning Harian (Leader Cluster)**.")
+        if df_todo_cloud.empty:
+            st.info("📋 Belum ada Plan di sheet **`ToDoList_RTS`**. Silakan input Plan harian di menu **➕ 2. Input Plan Harian RTS** atau upload Excel di **📊 4. Export & Import Excel Manual**.")
         else:
-            db_live_dt = get_laporan_db()
-            df_eval = evaluate_daily_tracker_with_sidata(df_dt_cloud, db_live_dt)
+            db_live_td = get_laporan_db()
+            df_ev = evaluate_todolist_rts(df_todo_cloud, db_live_td, active_date=tgl_kontrol)
 
-            # Filter Tanggal, Leader, Cluster, Status
-            cf1, cf2, cf3, cf4 = st.columns(4)
-            tgl_opts = ["Semua Tanggal"] + sorted(df_eval["Tanggal"].astype(str).unique().tolist(), reverse=True)
-            pick_tgl_f = cf1.selectbox("📅 Filter Tanggal:", tgl_opts, key="dt_flt_tgl")
-            ldr_opts = ["Semua Leader"] + sorted(df_eval["Leader_Cluster"].astype(str).unique().tolist())
-            pick_ldr_f = cf2.selectbox("👤 Filter Leader Cluster:", ldr_opts, key="dt_flt_ldr")
-            cl_opts = ["Semua Cluster"] + sorted(df_eval["Cluster"].astype(str).unique().tolist())
-            pick_cl_f = cf3.selectbox("📍 Filter Cluster:", cl_opts, key="dt_flt_cl")
-            st_opts = ["Semua Status", "✅ CLOSED", "🟡 PARTIAL OPEN", "🔴 OPEN"]
-            pick_st_f = cf4.selectbox("🚦 Filter Status SIDATA:", st_opts, key="dt_flt_st")
+            # Filter RTS
+            if pick_rts_view != "Semua RTS":
+                df_ev_rts = df_ev[df_ev["RTS Name"].astype(str).str.upper() == pick_rts_view.upper()].copy()
+            else:
+                df_ev_rts = df_ev.copy()
 
-            df_f = df_eval.copy()
-            if pick_tgl_f != "Semua Tanggal":
-                df_f = df_f[df_f["Tanggal"].astype(str) == pick_tgl_f]
-            if pick_ldr_f != "Semua Leader":
-                df_f = df_f[df_f["Leader_Cluster"].astype(str) == pick_ldr_f]
-            if pick_cl_f != "Semua Cluster":
-                df_f = df_f[df_f["Cluster"].astype(str) == pick_cl_f]
-            if pick_st_f == "✅ CLOSED":
-                df_f = df_f[df_f["Status_Auto_SIDATA"].str.contains("CLOSED")]
-            elif pick_st_f == "🟡 PARTIAL OPEN":
-                df_f = df_f[df_f["Status_Auto_SIDATA"].str.contains("PARTIAL")]
-            elif pick_st_f == "🔴 OPEN":
-                df_f = df_f[df_f["Status_Auto_SIDATA"].str.contains("🔴 OPEN")]
+            # Deteksi task yang otomatis ter-close oleh SIDATA namun belum di-commit ke sheet cloud
+            df_need_commit = df_ev[df_ev["Needs_Cloud_Close"] == True]
+            if not df_need_commit.empty:
+                c_ac1, c_ac2 = st.columns([3.2, 1.5])
+                c_ac1.success(f"⚡ **Terdeteksi {len(df_need_commit)} pekerjaan telah diisi tim di SIDATA!** Status pada tampilan & Excel otomatis menjadi **Done (Auto-Closed)**. Klik tombol di kanan untuk menyimpan status `Done` secara permanen ke Cloud.")
+                if c_ac2.button(f"💾 Commit {len(df_need_commit)} Auto-Closed ke Cloud", type="primary", use_container_width=True, key="btn_commit_autoclose_rts"):
+                    df_upd_c = df_todo_cloud.copy()
+                    now_ts_c = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    close_map = {str(r["Task_ID"]): r["End Date"] for _, r in df_need_commit.iterrows()}
+                    for tid_k, ed_val in close_map.items():
+                        mk = df_upd_c["Task_ID"].astype(str) == tid_k
+                        if mk.any():
+                            df_upd_c.loc[mk, "Status Task"] = "Done"
+                            df_upd_c.loc[mk, "End Date"] = ed_val
+                            df_upd_c.loc[mk, "Updated_At"] = now_ts_c
+                    if gsheet_overwrite_ws("ToDoList_RTS", df_upd_c[COLS_TODO_RTS]):
+                        st.success(f"✅ {len(close_map)} task berhasil di-closing permanen di Cloud (`ToDoList_RTS`)!")
+                        st.rerun()
 
-            tot_p = len(df_f)
-            cnt_cl = int(df_f["Status_Auto_SIDATA"].str.contains("CLOSED").sum()) if tot_p else 0
-            cnt_part = int(df_f["Status_Auto_SIDATA"].str.contains("PARTIAL").sum()) if tot_p else 0
-            cnt_op = int(df_f["Status_Auto_SIDATA"].str.contains("🔴 OPEN").sum()) if tot_p else 0
-            cnt_div = int(df_f["Eksekusi_Lapangan"].str.contains("Dialihkan").sum()) if tot_p else 0
+            # Hitung KPI Board untuk tanggal terpilih
+            df_board_today = df_ev_rts[df_ev_rts["Is_Active_Board"] == True]
+            cnt_plan_today = int((df_ev_rts["Start Date"] == tgl_kontrol.strftime("%Y-%m-%d")).sum())
+            cnt_carry = int(df_ev_rts["Is_Carry_Over"].sum())
+            cnt_auto_cl = int(df_board_today["Status_Sync_SIDATA"].str.contains("Auto-Closed").sum())
+            cnt_done_all = int((df_board_today["Status Task"] == "Done").sum())
+            cnt_open_all = len(df_board_today) - cnt_done_all
 
-            km1, km2, km3, km4, km5 = st.columns(5)
-            km1.metric("📋 Total Planning", f"{tot_p} Task")
-            km2.metric("✅ CLOSED (Terlapor)", f"{cnt_cl} ({(cnt_cl/tot_p*100) if tot_p else 0:.0f}%)")
-            km3.metric("🟡 Partial Open", f"{cnt_part} Task")
-            km4.metric("🔴 OPEN (Follow Up)", f"{cnt_op} Task")
-            km5.metric("🔀 Dialihkan Urgent", f"{cnt_div} Task")
+            k1, k2, k3, k4, k5 = st.columns(5)
+            k1.metric("📌 Plan Hari Ini", f"{cnt_plan_today} Task")
+            k2.metric("🔁 Carry-Over Pending", f"{cnt_carry} Task", delta="Muncul Lintas Hari" if cnt_carry else "Nihil")
+            k3.metric("✅ Auto-Closed SIDATA", f"{cnt_auto_cl} Task")
+            k4.metric("✅ Total Done", f"{cnt_done_all} / {len(df_board_today)}")
+            k5.metric("🔴 Masih Open / Pending", f"{cnt_open_all} Task")
 
-            cols_view = [
-                "Tanggal", "Cluster", "Leader_Cluster", "Plan_Site_ID", "Program_Kerja",
-                "Tim_Bertugas", "Eksekusi_Lapangan", "Status_Auto_SIDATA",
-                "Site_Belum_Input_SIDATA", "Bukti_Report_SIDATA",
-                "Tracker_Tier_1_Site_ID", "Tracker_Tier_1_Remark",
-                "Tracker_Tier_2_Site_ID", "Tracker_Tier_2_Remark",
-                "Tracker_Tier_3_Site_ID", "Tracker_Tier_3_Remark"
+            # Filter tampilan sesuai pilihan mode_view_td
+            if mode_view_td == "🔥 Hari Ini + Carry-Over Pending":
+                df_show = df_board_today.copy()
+            elif mode_view_td == "🔁 Khusus Carry-Over (Pending Kemarin)":
+                df_show = df_ev_rts[df_ev_rts["Is_Carry_Over"] == True].copy()
+            elif mode_view_td == "🔴 Semua Belum Done (Open/Pending)":
+                df_show = df_ev_rts[df_ev_rts["Status Task"] != "Done"].copy()
+            elif mode_view_td == "✅ Semua Sudah Done / Auto-Closed":
+                df_show = df_ev_rts[df_ev_rts["Status Task"] == "Done"].copy()
+            else:
+                df_show = df_ev_rts.copy()
+
+            if q_td.strip():
+                ql = q_td.strip().lower()
+                mask_q = df_show.apply(lambda r: ql in f"{r['Site ID']} {r['FME Name']} {r['Category Task']} {r['Cluster']} {r['Activity']} {r['Remark Kerjaan']}".lower(), axis=1)
+                df_show = df_show[mask_q]
+
+            # Urutkan: Carry-Over P1 paling atas agar langsung jadi perhatian RTS
+            if not df_show.empty:
+                df_show = df_show.sort_values(by=["Is_Carry_Over", "Prioritas", "Start Date"], ascending=[False, True, False])
+
+            cols_disp = [
+                "Tipe_Board", "Prioritas", "Category Task", "Site ID", "FME Name", "Role",
+                "RTS Name", "Cluster", "Start Date", "End Date", "Status Task",
+                "Status_Sync_SIDATA", "Bukti_SIDATA", "Activity", "Remark Kerjaan"
             ]
-            cols_view = [c for c in cols_view if c in df_f.columns]
-            st.markdown("#### 📊 Tabel Monitoring Realisasi Harian vs Inputan SIDATA")
-            st.dataframe(df_f[cols_view], use_container_width=True, hide_index=True, height=400)
+            st.markdown(f"#### 📋 Daftar Pekerjaan ({len(df_show)} Task)")
+            st.dataframe(df_show[[c for c in cols_disp if c in df_show.columns]], use_container_width=True, hide_index=True, height=400)
 
-            # Daftar Tugas Follow Up Leader + Auto-WA Reminder ke Tim
-            df_open_fu = df_f[~df_f["Status_Auto_SIDATA"].str.contains("CLOSED")]
-            if not df_open_fu.empty:
-                st.markdown(f"#### 🚨 Daftar Follow Up Leader — Belum Terdeteksi Input SIDATA ({len(df_open_fu)} Task)")
-                for idx_fu, r_fu in df_open_fu.head(20).iterrows():
-                    wa_rem = (
-                        f"*🔔 FOLLOW UP INPUT LAPORAN SIDATA — NOP PALANGKARAYA*\n"
-                        f"📅 *Tanggal:* {r_fu['Tanggal']}\n"
-                        f"👤 *Leader Cluster:* {r_fu['Leader_Cluster']} ({r_fu['Cluster']})\n"
-                        f"👷 *Tim Bertugas:* {r_fu['Tim_Bertugas']}\n"
-                        f"📋 *Program:* {r_fu['Program_Kerja']} | *Plan Awal:* {r_fu['Plan_Site_ID']}\n"
-                        f"🚦 *Status:* {r_fu['Status_Auto_SIDATA']}\n"
-                        f"⚠️ *Site Belum Terdeteksi Input di SIDATA:* {r_fu['Site_Belum_Input_SIDATA']}\n\n"
-                        f"Mohon tim segera menyelesaikan input laporan & eviden foto di aplikasi SIDATA hari ini agar status otomatis *CLOSED*. Terima kasih!"
+            # Daftar Follow Up & Reminder WA untuk task yang masih Open / Carry-Over
+            df_open_cards = df_show[df_show["Status Task"] != "Done"]
+            if not df_open_cards.empty:
+                st.markdown(f"#### 🚨 Kontrol & Follow Up Tim Lapangan — Belum Closed ({len(df_open_cards)} Task)")
+                for _, ro in df_open_cards.head(20).iterrows():
+                    bdr_c = "#EF4444" if ro["Is_Carry_Over"] else "#F59E0B"
+                    wa_msg = (
+                        f"*📋 TO DO LIST RTS — NOP PALANGKARAYA*\n"
+                        f"👤 *RTS:* {ro['RTS Name']}\n"
+                        f"👷 *FME:* {ro['FME Name']} ({ro['Role']})\n"
+                        f"📍 *Site ID:* {ro['Site ID']} ({ro['Cluster']})\n"
+                        f"⚡ *Task:* [{ro['Prioritas']}] {ro['Category Task']} — {ro['Activity'] or ro['Detail Activity']}\n"
+                        f"📅 *Start Date:* {ro['Start Date']} ({ro['Tipe_Board']})\n"
+                        f"🚦 *Status:* {ro['Status Task']} (Belum terdeteksi input SIDATA)\n"
+                        f"📝 *Remark:* {ro['Remark Kerjaan'] or '-'}\n\n"
+                        f"Mohon segera diselesaikan dan lakukan input laporan di SIDATA agar status otomatis *Done / Closed*. Terima kasih!"
                     )
                     with st.container(border=True):
-                        cfu1, cfu2 = st.columns([3.2, 1.3])
-                        cfu1.markdown(
-                            f"**{r_fu['Tanggal']} · {r_fu['Cluster']}** | Leader: **{r_fu['Leader_Cluster']}** | Tim: **{r_fu['Tim_Bertugas']}**<br>"
-                            f"🎯 Plan: `{r_fu['Plan_Site_ID']}` ({r_fu['Program_Kerja']}) · {r_fu['Eksekusi_Lapangan']}<br>"
-                            f"🚨 **Wajib Follow Up Input SIDATA:** `{r_fu['Site_Belum_Input_SIDATA']}`",
+                        co1, co2 = st.columns([3.3, 1.3])
+                        co1.markdown(
+                            f"<div style='border-left:5px solid {bdr_c}; padding-left:10px;'>"
+                            f"<b>{ro['Tipe_Board']}</b> · <b>[{ro['Prioritas']}] {ro['Category Task']}</b> · Site: <code>{ro['Site ID']}</code><br>"
+                            f"👷 <b>{ro['FME Name']}</b> ({ro['Role']}) · 📍 {ro['Cluster']} · 👤 RTS: {ro['RTS Name']}<br>"
+                            f"🔧 {ro['Category Activity']} — {ro['Detail Activity'] or ro['Activity'] or '-'} | 📝 {ro['Remark Kerjaan'] or '-'}"
+                            f"</div>",
                             unsafe_allow_html=True
                         )
-                        cfu2.link_button("📱 Kirim Reminder WA Tim", f"https://wa.me/?text={urllib.parse.quote(wa_rem)}", use_container_width=True)
+                        co2.link_button("📱 Follow Up WA Tim", f"https://wa.me/?text={urllib.parse.quote(wa_msg)}", use_container_width=True)
             else:
-                st.success("🎉 Mantap! Seluruh task pada filter ini sudah **CLOSED** (terdeteksi report masuk di SIDATA).")
-
-            # Export Excel Rekap Daily Tracker
-            if st.button("🛠️ Siapkan Download Rekap Daily Tracker PLK (.xlsx)", use_container_width=True, key="btn_prep_dt_xl"):
-                buf_dt = BytesIO()
-                with pd.ExcelWriter(buf_dt, engine="openpyxl") as xw:
-                    df_f[cols_view].to_excel(xw, sheet_name="Daily_Tracker_PLK", index=False)
-                st.session_state["dt_plk_xlsx_bytes"] = buf_dt.getvalue()
-            if st.session_state.get("dt_plk_xlsx_bytes"):
-                st.download_button(
-                    "📥 Download Rekap Daily Tracker + Auto-Closed (.xlsx)",
-                    data=st.session_state["dt_plk_xlsx_bytes"],
-                    file_name=f"Daily_Tracker_PLK_{datetime.date.today()}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    type="primary",
-                    use_container_width=True,
-                    key="dl_dt_plk_xl"
-                )
+                st.success("🎉 Mantap! Seluruh task pada tampilan ini sudah **Done / Auto-Closed**.")
 
     # ---------------------------------------------------------------------
-    # SUB-2: FORM INPUT PLANNING HARIAN OLEH LEADER CLUSTER
+    # SUB-2: INPUT PLAN HARIAN RTS (SATUAN + BATCH CEPAT)
     # ---------------------------------------------------------------------
-    elif dt_nav == "📝 Input Planning Harian (Leader Cluster)":
-        st.markdown("#### 📝 Form Input Planning Harian Tim oleh Leader Cluster")
-        st.info("💡 Leader mengisi rencana kerja pagi hari (`Plan Site ID`, `Program Kerja`, `Tim Tier #1/#2/#3`). Jika di tengah hari tim ternyata dialihkan ke Site lain yang lebih urgent, isi bagian **Tracker Tier #1/#2/#3** (bisa diisi sekarang atau di-update menyusul di tab **🔀 Update Tracker Tier Urgent**).")
+    elif rts_nav == "➕ 2. Input Plan Harian RTS":
+        site_plk_list_td, _ = load_site_master_plk()
+        st.markdown("#### ➕ Input Plan Harian RTS (Format 14 Kolom Resmi `Isian`)")
+        st.info("💡 Pilih `Category Task` maka `Prioritas (P1/P2/P3)` otomatis terisi; pilih `FME Name` maka `Role` & `Cluster` otomatis terisi dari Master Tim PLK. Jika tim belum menyelesaikan hari ini, task akan otomatis muncul lagi sebagai **Carry-Over Pending** besok.")
 
         with st.container(border=True):
-            c_i1, c_i2, c_i3 = st.columns(3)
-            dt_tgl = c_i1.date_input("📅 Tanggal Planning *:", value=datetime.date.today(), key="dt_in_tgl")
-            dt_cl = c_i2.selectbox("📍 Cluster *:", DAILY_CLUSTER_PLK_OPTS, key="dt_in_cl")
-            dt_ldr_pick = c_i3.selectbox("👤 Nama Leader Cluster *:", ["-- Ketik Manual --"] + leader_options, key="dt_in_ldr_p")
-            if dt_ldr_pick == "-- Ketik Manual --":
-                dt_ldr = c_i3.text_input("Ketik Nama Leader:", key="dt_in_ldr_m").strip()
+            c1, c2, c3 = st.columns(3)
+            in_cat = c1.selectbox("🏷️ Category Task *:", list(TODO_CATEGORY_PRIORITY.keys()), key="rts_in_cat")
+            def_prio = TODO_CATEGORY_PRIORITY.get(in_cat, "P2")
+            in_prio = c2.selectbox("⚡ Prioritas (Auto):", ["P1", "P2", "P3"], index=["P1", "P2", "P3"].index(def_prio), key=f"rts_in_prio_{in_cat}")
+            in_site = c3.selectbox("📍 Site ID (Master PLK) *:", [""] + site_plk_list_td, key="rts_in_site")
+
+            c4, c5, c6 = st.columns(3)
+            in_fme = c4.selectbox("👷 FME Name (Master Tim PLK) *:", [""] + fme_plk_active_td, key="rts_in_fme")
+            def_rl, def_cl = fme_info_map.get(in_fme, ("TE", "Palangkaraya Kota"))
+            rl_opts_in = TODO_ROLE_OPTS + ([def_rl] if def_rl and def_rl not in TODO_ROLE_OPTS else [])
+            in_role = c5.selectbox("🎖️ Role:", rl_opts_in, index=rl_opts_in.index(def_rl) if def_rl in rl_opts_in else 0, key=f"rts_in_rl_{in_fme}")
+            if is_rts_admin:
+                in_rts = c6.selectbox("👤 RTS Name *:", TODO_RTS_LIST, key="rts_in_rts_adm")
             else:
-                dt_ldr = dt_ldr_pick
+                in_rts = c6.text_input("👤 RTS Name (Auto Login):", value=active_rts_name, disabled=True, key="rts_in_rts_lk")
 
-            c_i4, c_i5, c_i6 = st.columns([1.6, 1.1, 1.3])
-            dt_plan_site = c_i4.selectbox("🎯 Plan Site ID (Master PLK) *:", [""] + site_plk_list, key="dt_in_psite")
-            dt_prog = c_i5.selectbox("⚙️ Program Kerja *:", DAILY_PROGRAM_KERJA_OPTS, key="dt_in_prog")
-            dt_plan_rmk = c_i6.text_input("📝 Remark Plan Awal:", placeholder="Cth: PM SPS / Cek Recti Drop", key="dt_in_prmk")
+            c7, c8, c9 = st.columns(3)
+            cl_opts_in = DAILY_CLUSTER_PLK_OPTS + ([def_cl] if def_cl and def_cl not in DAILY_CLUSTER_PLK_OPTS else [])
+            in_cl = c7.selectbox("🗺️ Cluster:", cl_opts_in, index=cl_opts_in.index(def_cl) if def_cl in cl_opts_in else 0, key=f"rts_in_cl_{in_fme}")
+            in_cat_act = c8.selectbox("⚙️ Category Activity:", TODO_CAT_ACTIVITY_OPTS, key="rts_in_cact")
+            in_status = c9.selectbox("🚦 Status Task Awal:", TODO_STATUS_OPTS, index=0, key="rts_in_st")
 
-            st.markdown("**👷 Penugasan Tim Lapangan (Diambil dari Master Tim PLK Dinamis):**")
-            c_t1, c_t2, c_t3 = st.columns(3)
-            dt_tim1 = c_t1.selectbox("Tim Tier #1 (Utama) *:", [""] + fme_plk_active, key="dt_in_t1")
-            dt_tim2 = c_t2.selectbox("Tim Tier #2 (Opsional):", [""] + fme_plk_active, key="dt_in_t2")
-            dt_tim3 = c_t3.selectbox("Tim Tier #3 (Opsional):", [""] + fme_plk_active, key="dt_in_t3")
+            c10, c11 = st.columns(2)
+            in_det_act = c10.text_input("📝 Detail Activity:", placeholder="Cth: Cek Recti Drop & Reset Modul", key="rts_in_dact")
+            in_act = c11.text_input("🔧 Activity:", placeholder="Cth: Troubleshoot Power / PM SPS", key="rts_in_act")
 
-            with st.expander("🔀 Opsional: Isi Tracker Tier #1/#2/#3 (Jika Tim Dialihkan ke Site Urgent Lain)", expanded=False):
-                st.caption("Contoh: Plan awal Site A, tetapi ada Site C & Site D lebih urgent pada tanggal tersebut -> pilih Site C di Tracker Tier #1 dan Site D di Tracker Tier #2 beserta Remark pekerjaannya.")
-                tr_inputs = {}
-                for k_t in (1, 2, 3):
-                    ct1, ct2, ct3 = st.columns([1, 1.6, 1.8])
-                    tr_inputs[f"tgl_{k_t}"] = ct1.date_input(f"Tgl Tracker Tier #{k_t}:", value=dt_tgl, key=f"dt_in_ttgl_{k_t}")
-                    tr_inputs[f"site_{k_t}"] = ct2.selectbox(f"Tracker Tier #{k_t} Site ID:", [""] + site_plk_list, key=f"dt_in_tsite_{k_t}")
-                    tr_inputs[f"rmk_{k_t}"] = ct3.text_input(f"Tracker Tier #{k_t} Remark:", placeholder=f"Pekerjaan urgent di Tier #{k_t}...", key=f"dt_in_trmk_{k_t}")
+            c12, c13, c14 = st.columns([1, 1, 2])
+            in_start = c12.date_input("📅 Start Date *:", value=datetime.date.today(), key="rts_in_sdate")
+            use_end = c13.checkbox("Isi End Date?", value=False, key="rts_in_uend")
+            in_end_str = c13.date_input("📅 End Date:", value=in_start, key="rts_in_edate").strftime("%Y-%m-%d") if use_end else ""
+            in_rem = c14.text_input("💬 Remark Kerjaan:", placeholder="Catatan tambahan / instruksi RTS...", key="rts_in_rem")
 
-            if st.button("🚀 SIMPAN PLANNING LEADER KE CLOUD (`Daily_Tracker_PLK`)", type="primary", use_container_width=True, key="btn_save_dt_plk"):
-                if not dt_ldr or not dt_plan_site or not dt_tim1:
-                    st.error("⚠️ Nama Leader Cluster, Plan Site ID, dan Tim Tier #1 wajib diisi!")
+            if st.button("🚀 SIMPAN PLAN HARIAN RTS KE CLOUD (`ToDoList_RTS`)", type="primary", use_container_width=True, key="btn_save_rts_single"):
+                if not in_site or not in_fme:
+                    st.error("⚠️ Site ID dan FME Name wajib dipilih!")
                 else:
-                    rec_dt = {
-                        "Tracker_ID": f"DT-PLK-{dt_tgl.strftime('%Y%m%d')}-{datetime.datetime.now().strftime('%H%M%S')}",
-                        "Tanggal": dt_tgl.strftime("%Y-%m-%d"),
-                        "Cluster": dt_cl,
-                        "Leader_Cluster": dt_ldr,
-                        "Plan_Site_ID": dt_plan_site,
-                        "Program_Kerja": dt_prog,
-                        "Plan_Remark": dt_plan_rmk.strip() or "-",
-                        "Tim_Tier_1": dt_tim1,
-                        "Tim_Tier_2": dt_tim2,
-                        "Tim_Tier_3": dt_tim3,
-                        "Tgl_Tracker_Tier_1": tr_inputs["tgl_1"].strftime("%Y-%m-%d") if tr_inputs["site_1"] else "",
-                        "Tracker_Tier_1_Site_ID": tr_inputs["site_1"],
-                        "Tracker_Tier_1_Remark": tr_inputs["rmk_1"].strip(),
-                        "Tgl_Tracker_Tier_2": tr_inputs["tgl_2"].strftime("%Y-%m-%d") if tr_inputs["site_2"] else "",
-                        "Tracker_Tier_2_Site_ID": tr_inputs["site_2"],
-                        "Tracker_Tier_2_Remark": tr_inputs["rmk_2"].strip(),
-                        "Tgl_Tracker_Tier_3": tr_inputs["tgl_3"].strftime("%Y-%m-%d") if tr_inputs["site_3"] else "",
-                        "Tracker_Tier_3_Site_ID": tr_inputs["site_3"],
-                        "Tracker_Tier_3_Remark": tr_inputs["rmk_3"].strip(),
+                    rec_td = {
+                        "Task_ID": f"TD-{in_start.strftime('%Y%m%d')}-{datetime.datetime.now().strftime('%H%M%S')}",
+                        "Category Task": in_cat,
+                        "Prioritas": in_prio,
+                        "Site ID": in_site,
+                        "FME Name": in_fme,
+                        "Role": in_role,
+                        "RTS Name": in_rts,
+                        "Cluster": in_cl,
+                        "Category Activity": in_cat_act,
+                        "Detail Activity": in_det_act.strip(),
+                        "Activity": in_act.strip() or in_cat,
+                        "Start Date": in_start.strftime("%Y-%m-%d"),
+                        "End Date": in_end_str,
+                        "Status Task": in_status,
+                        "Remark Kerjaan": in_rem.strip(),
                         "Updated_At": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     }
-                    if gsheet_append_row("Daily_Tracker_PLK", COLS_DAILY_TRACKER_PLK, rec_dt):
-                        st.success(f"✅ Planning Leader **{dt_ldr}** untuk `{dt_plan_site}` ({dt_prog}) oleh **{dt_tim1}** berhasil tersimpan ke Cloud!")
+                    if gsheet_append_row("ToDoList_RTS", COLS_TODO_RTS, rec_td):
+                        st.success(f"✅ Plan **[{in_prio}] {in_cat}** untuk `{in_site}` oleh **{in_fme}** (RTS: {in_rts}) tersimpan ke Cloud!")
                         st.rerun()
                     else:
-                        st.error("⚠️ Gagal menyimpan ke Google Sheets tab `Daily_Tracker_PLK`.")
+                        st.error("⚠️ Gagal menyimpan ke Google Sheets tab `ToDoList_RTS`.")
 
-    # ---------------------------------------------------------------------
-    # SUB-3: UPDATE TRACKER TIER URGENT (SITE C, D, DST.) & LIVE EDITOR
-    # ---------------------------------------------------------------------
-    elif dt_nav == "🔀 Update Tracker Tier Urgent & Live Editor":
-        if df_dt_cloud.empty:
-            st.warning("Belum ada data Planning untuk di-update.")
-        else:
-            st.markdown("#### 🔀 Catat Pengalihan Urgent (Tracker Tier #1 / #2 / #3) pada Planning yang Ada")
-            st.caption("Pilih Planning pagi yang ternyata dialihkan ke Site Urgent (Site C, Site D, dst.), lalu simpan agar langsung terdeteksi otomatis terhadap laporan SIDATA.")
+        # Mode Input Batch Cepat (Banyak Tim Sekaligus di Pagi Hari)
+        with st.expander("⚡ Input Banyak Plan RTS Sekaligus (Mode Tabel Pagi — 1x Simpan)", expanded=False):
+            cb1, cb2 = st.columns(2)
+            bt_tgl = cb1.date_input("📅 Start Date Batch:", value=datetime.date.today(), key="rts_bt_tgl")
+            bt_rts = cb2.selectbox("👤 RTS Name Batch:", TODO_RTS_LIST, index=TODO_RTS_LIST.index(active_rts_name) if active_rts_name in TODO_RTS_LIST else 0, disabled=(not is_rts_admin), key="rts_bt_who")
 
-            opts_dt_edit = [
-                f"{r['Tracker_ID']} | {r['Tanggal']} | Plan: {r['Plan_Site_ID']} | Tim: {r['Tim_Tier_1']} ({r['Leader_Cluster']})"
-                for _, r in df_dt_cloud.iloc[::-1].iterrows()
-            ]
-            pick_dt_lbl = st.selectbox("📌 Pilih Baris Planning untuk Di-update Tracker Tier-nya:", opts_dt_edit, key="dt_upd_pick")
-            pick_tid = pick_dt_lbl.split(" | ")[0].strip()
-            row_cur = df_dt_cloud[df_dt_cloud["Tracker_ID"].astype(str) == pick_tid].iloc[0]
+            if "rts_batch_df" not in st.session_state:
+                st.session_state["rts_batch_df"] = pd.DataFrame([{
+                    "Category Task": "PM", "Site ID": "", "FME Name": "", "Cluster": "Palangkaraya Kota",
+                    "Category Activity": "Preventive Maintenance (PM)", "Detail Activity": "",
+                    "Activity": "", "Status Task": "Waiting Update", "Remark Kerjaan": ""
+                }])
 
-            with st.container(border=True):
-                st.markdown(f"**Plan Awal:** `{row_cur['Plan_Site_ID']}` ({row_cur['Program_Kerja']}) · Tanggal `{row_cur['Tanggal']}` · Tim: **{row_cur['Tim_Tier_1']}**")
-                upd_tr = {}
-                for k_t in (1, 2, 3):
-                    cu1, cu2, cu3 = st.columns([1, 1.7, 1.8])
-                    cur_tgl_s = _fmt_date_short(row_cur.get(f"Tgl_Tracker_Tier_{k_t}"))
-                    def_d = pd.to_datetime(cur_tgl_s, errors="coerce")
-                    def_d_val = def_d.date() if pd.notna(def_d) else (pd.to_datetime(row_cur["Tanggal"], errors="coerce").date() if pd.notna(pd.to_datetime(row_cur["Tanggal"], errors="coerce")) else datetime.date.today())
-                    upd_tr[f"tgl_{k_t}"] = cu1.date_input(f"Tgl Tracker #{k_t}:", value=def_d_val, key=f"dt_u_tgl_{k_t}_{pick_tid}")
-                    cur_s = _clean_cell_str(row_cur.get(f"Tracker_Tier_{k_t}_Site_ID"))
-                    s_opts_u = [""] + site_plk_list + ([cur_s] if cur_s and cur_s not in site_plk_list else [])
-                    upd_tr[f"site_{k_t}"] = cu2.selectbox(f"Tracker Tier #{k_t} Site ID:", s_opts_u, index=s_opts_u.index(cur_s) if cur_s in s_opts_u else 0, key=f"dt_u_site_{k_t}_{pick_tid}")
-                    upd_tr[f"rmk_{k_t}"] = cu3.text_input(f"Tracker Tier #{k_t} Remark:", value=_clean_cell_str(row_cur.get(f"Tracker_Tier_{k_t}_Remark")), key=f"dt_u_rmk_{k_t}_{pick_tid}")
-
-                if st.button("💾 SIMPAN UPDATE TRACKER TIER KE CLOUD", type="primary", use_container_width=True, key=f"btn_dt_upd_tier_{pick_tid}"):
-                    df_new_dt = df_dt_cloud.copy()
-                    mask_t = df_new_dt["Tracker_ID"].astype(str) == pick_tid
-                    for k_t in (1, 2, 3):
-                        s_val = upd_tr[f"site_{k_t}"]
-                        df_new_dt.loc[mask_t, f"Tgl_Tracker_Tier_{k_t}"] = upd_tr[f"tgl_{k_t}"].strftime("%Y-%m-%d") if s_val else ""
-                        df_new_dt.loc[mask_t, f"Tracker_Tier_{k_t}_Site_ID"] = s_val
-                        df_new_dt.loc[mask_t, f"Tracker_Tier_{k_t}_Remark"] = upd_tr[f"rmk_{k_t}"].strip()
-                    df_new_dt.loc[mask_t, "Updated_At"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    if gsheet_overwrite_ws("Daily_Tracker_PLK", df_new_dt):
-                        st.success(f"✅ Tracker Tier untuk `{pick_tid}` berhasil diperbarui di Cloud!")
+            ed_bt = st.data_editor(
+                st.session_state["rts_batch_df"],
+                use_container_width=True,
+                num_rows="dynamic",
+                column_config={
+                    "Category Task": st.column_config.SelectboxColumn("Category Task *", options=list(TODO_CATEGORY_PRIORITY.keys()), default="PM"),
+                    "Site ID": st.column_config.SelectboxColumn("Site ID *", options=[""] + site_plk_list_td),
+                    "FME Name": st.column_config.SelectboxColumn("FME Name *", options=[""] + fme_plk_active_td),
+                    "Cluster": st.column_config.SelectboxColumn("Cluster", options=DAILY_CLUSTER_PLK_OPTS, default="Palangkaraya Kota"),
+                    "Category Activity": st.column_config.SelectboxColumn("Category Activity", options=TODO_CAT_ACTIVITY_OPTS, default="Preventive Maintenance (PM)"),
+                    "Status Task": st.column_config.SelectboxColumn("Status Task", options=TODO_STATUS_OPTS, default="Waiting Update")
+                },
+                key="rts_batch_ed"
+            )
+            if st.button("🚀 SIMPAN SEMUA PLAN BATCH KE CLOUD (`ToDoList_RTS`)", type="primary", use_container_width=True, key="btn_save_rts_batch"):
+                new_rows = []
+                now_s = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                tgl_s = bt_tgl.strftime("%Y-%m-%d")
+                for ib, r_b in ed_bt.iterrows():
+                    s_b = _clean_cell_str(r_b.get("Site ID"))
+                    f_b = _clean_cell_str(r_b.get("FME Name"))
+                    c_b = _clean_cell_str(r_b.get("Category Task")) or "PM"
+                    if not s_b or not f_b:
+                        continue
+                    rl_b, _ = fme_info_map.get(f_b, ("TE", "Palangkaraya Kota"))
+                    new_rows.append({
+                        "Task_ID": f"TD-{bt_tgl.strftime('%Y%m%d')}-{datetime.datetime.now().strftime('%H%M%S')}-{ib+1:02d}",
+                        "Category Task": c_b,
+                        "Prioritas": TODO_CATEGORY_PRIORITY.get(c_b, "P2"),
+                        "Site ID": s_b,
+                        "FME Name": f_b,
+                        "Role": rl_b,
+                        "RTS Name": bt_rts if is_rts_admin else active_rts_name,
+                        "Cluster": _clean_cell_str(r_b.get("Cluster")) or "Palangkaraya Kota",
+                        "Category Activity": _clean_cell_str(r_b.get("Category Activity")),
+                        "Detail Activity": _clean_cell_str(r_b.get("Detail Activity")),
+                        "Activity": _clean_cell_str(r_b.get("Activity")) or c_b,
+                        "Start Date": tgl_s,
+                        "End Date": "",
+                        "Status Task": _clean_cell_str(r_b.get("Status Task")) or "Waiting Update",
+                        "Remark Kerjaan": _clean_cell_str(r_b.get("Remark Kerjaan")),
+                        "Updated_At": now_s
+                    })
+                if not new_rows:
+                    st.error("⚠️ Isi minimal 1 baris lengkap (`Site ID` & `FME Name`).")
+                else:
+                    df_comb_td = pd.concat([df_todo_cloud, pd.DataFrame(new_rows)], ignore_index=True)
+                    if gsheet_overwrite_ws("ToDoList_RTS", df_comb_td[COLS_TODO_RTS]):
+                        st.session_state.pop("rts_batch_df", None)
+                        st.success(f"✅ {len(new_rows)} Plan Batch berhasil disimpan ke `ToDoList_RTS`!")
                         st.rerun()
+
+    # ---------------------------------------------------------------------
+    # SUB-3: UBAH PLAN CARRY-OVER & LIVE EDITOR MANUAL (14 KOLOM EXCEL)
+    # ---------------------------------------------------------------------
+    elif rts_nav == "✏️ 3. Ubah Plan & Update Status Manual":
+        if df_todo_cloud.empty:
+            st.info("Belum ada data To Do List untuk diedit.")
+        else:
+            site_plk_list_td, _ = load_site_master_plk()
+            st.markdown("#### 🔁 Ubah Plan / Update Status Cepat (Khusus Kerjaan Open / Carry-Over Pending)")
+            st.caption("Jika ada kerjaan pending dari hari kemarin yang perlu diubah jadwalnya (`Start Date`), dipindah FME/Site, atau ditutup manual (`Done`), ubah langsung di sini agar tidak lagi muncul sebagai carry-over besok.")
+
+            df_edit_scope = df_todo_cloud.copy()
+            if not is_rts_admin:
+                df_edit_scope = df_edit_scope[df_edit_scope["RTS Name"].astype(str).str.upper() == active_rts_name.upper()].copy()
+
+            df_open_scope = df_edit_scope[df_edit_scope["Status Task"].astype(str).str.lower() != "done"]
+            if not df_open_scope.empty:
+                opts_q_ed = [
+                    f"{r['Task_ID']} | {r['Start Date']} | [{r['Prioritas']}] {r['Site ID']} | {r['FME Name']} ({r['Status Task']})"
+                    for _, r in df_open_scope.iloc[::-1].iterrows()
+                ]
+                pick_ed_lbl = st.selectbox("📌 Pilih Task Open / Pending untuk Diubah Plannya:", opts_q_ed, key="rts_q_ed_pick")
+                pick_tid_ed = pick_ed_lbl.split(" | ")[0].strip()
+                cur_r = df_todo_cloud[df_todo_cloud["Task_ID"].astype(str) == pick_tid_ed].iloc[0]
+
+                with st.container(border=True):
+                    ce1, ce2, ce3 = st.columns(3)
+                    cur_s_val = _clean_cell_str(cur_r.get("Site ID"))
+                    s_opts_e = [""] + site_plk_list_td + ([cur_s_val] if cur_s_val and cur_s_val not in site_plk_list_td else [])
+                    new_s_e = ce1.selectbox("Ubah Site ID:", s_opts_e, index=s_opts_e.index(cur_s_val) if cur_s_val in s_opts_e else 0, key=f"rts_e_s_{pick_tid_ed}")
+                    cur_f_val = _clean_cell_str(cur_r.get("FME Name"))
+                    f_opts_e = [""] + fme_plk_active_td + ([cur_f_val] if cur_f_val and cur_f_val not in fme_plk_active_td else [])
+                    new_f_e = ce2.selectbox("Ubah FME Name:", f_opts_e, index=f_opts_e.index(cur_f_val) if cur_f_val in f_opts_e else 0, key=f"rts_e_f_{pick_tid_ed}")
+                    cur_st_val = _clean_cell_str(cur_r.get("Status Task")) or "Waiting Update"
+                    new_st_e = ce3.selectbox("Update Status Task:", TODO_STATUS_OPTS, index=TODO_STATUS_OPTS.index(cur_st_val) if cur_st_val in TODO_STATUS_OPTS else 0, key=f"rts_e_st_{pick_tid_ed}")
+
+                    ce4, ce5, ce6 = st.columns([1, 1, 2])
+                    sd_p = pd.to_datetime(cur_r.get("Start Date"), errors="coerce")
+                    new_sd_e = ce4.date_input("Ubah Start Date:", value=sd_p.date() if pd.notna(sd_p) else datetime.date.today(), key=f"rts_e_sd_{pick_tid_ed}")
+                    new_ed_e = ce5.text_input("End Date (YYYY-MM-DD):", value=_clean_cell_str(cur_r.get("End Date")) or (datetime.date.today().strftime("%Y-%m-%d") if new_st_e == "Done" else ""), key=f"rts_e_ed_{pick_tid_ed}")
+                    new_rmk_e = ce6.text_input("Update Remark Kerjaan:", value=_clean_cell_str(cur_r.get("Remark Kerjaan")), key=f"rts_e_rmk_{pick_tid_ed}")
+
+                    if st.button("💾 SIMPAN PERUBAHAN PLAN & STATUS", type="primary", use_container_width=True, key=f"btn_rts_q_upd_{pick_tid_ed}"):
+                        df_u_all = df_todo_cloud.copy()
+                        mk = df_u_all["Task_ID"].astype(str) == pick_tid_ed
+                        df_u_all.loc[mk, "Site ID"] = new_s_e
+                        df_u_all.loc[mk, "FME Name"] = new_f_e
+                        df_u_all.loc[mk, "Status Task"] = new_st_e
+                        df_u_all.loc[mk, "Start Date"] = new_sd_e.strftime("%Y-%m-%d")
+                        df_u_all.loc[mk, "End Date"] = new_ed_e.strip() or (datetime.date.today().strftime("%Y-%m-%d") if new_st_e == "Done" else "")
+                        df_u_all.loc[mk, "Remark Kerjaan"] = new_rmk_e.strip()
+                        df_u_all.loc[mk, "Updated_At"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        if gsheet_overwrite_ws("ToDoList_RTS", df_u_all[COLS_TODO_RTS]):
+                            st.success(f"✅ Plan & Status `{pick_tid_ed}` berhasil diperbarui!")
+                            st.rerun()
+            else:
+                st.success("✅ Tidak ada task Open / Carry-Over yang tersisa untuk RTS ini.")
 
             st.markdown("---")
-            with st.expander("🗂️ Live Editor Massal Tabel `Daily_Tracker_PLK` (Edit / Hapus Baris)", expanded=False):
-                ed_dt_all = st.data_editor(
-                    df_dt_cloud,
-                    use_container_width=True,
-                    num_rows="dynamic",
-                    column_config={
-                        "Program_Kerja": st.column_config.SelectboxColumn("Program Kerja", options=DAILY_PROGRAM_KERJA_OPTS),
-                        "Cluster": st.column_config.SelectboxColumn("Cluster", options=DAILY_CLUSTER_PLK_OPTS)
-                    },
-                    key="ed_dt_plk_cloud"
-                )
-                if st.button("💾 Simpan Perubahan Massal `Daily_Tracker_PLK`", type="primary", use_container_width=True, key="btn_save_ed_dt_all"):
-                    if gsheet_overwrite_ws("Daily_Tracker_PLK", ed_dt_all):
-                        st.success("✅ Database `Daily_Tracker_PLK` berhasil diperbarui!")
-                        st.rerun()
+            st.markdown("#### 🗂️ Live Editor Massal To Do List (14 Kolom Format Excel `Isian`)")
+            st.caption("Klik ganda pada sel untuk edit cepat banyak baris sekaligus, atau hapus baris yang dibatalkan, lalu klik Simpan.")
+            ed_all_td = st.data_editor(
+                df_edit_scope[COLS_TODO_RTS],
+                use_container_width=True,
+                num_rows="dynamic",
+                disabled=["Task_ID", "Updated_At"],
+                column_config={
+                    "Category Task": st.column_config.SelectboxColumn("Category Task", options=list(TODO_CATEGORY_PRIORITY.keys())),
+                    "Prioritas": st.column_config.SelectboxColumn("Prioritas", options=["P1", "P2", "P3"]),
+                    "RTS Name": st.column_config.SelectboxColumn("RTS Name", options=TODO_RTS_LIST),
+                    "Cluster": st.column_config.SelectboxColumn("Cluster", options=DAILY_CLUSTER_PLK_OPTS),
+                    "Category Activity": st.column_config.SelectboxColumn("Category Activity", options=TODO_CAT_ACTIVITY_OPTS),
+                    "Status Task": st.column_config.SelectboxColumn("Status Task", options=TODO_STATUS_OPTS)
+                },
+                key="ed_rts_todo_mass"
+            )
+            if st.button("💾 SIMPAN PERUBAHAN MASSAL KE CLOUD (`ToDoList_RTS`)", type="primary", use_container_width=True, key="btn_save_rts_mass"):
+                now_m = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                ed_clean = ed_all_td.copy()
+                ed_clean = ed_clean[ed_clean["Site ID"].astype(str).str.strip().str.lower().isin(["", "nan", "none"]) == False].copy()
+                for idx_c, rc in ed_clean.iterrows():
+                    if not _clean_cell_str(rc.get("Task_ID")):
+                        ed_clean.at[idx_c, "Task_ID"] = f"TD-ED-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{idx_c}"
+                    if not _clean_cell_str(rc.get("RTS Name")) and not is_rts_admin:
+                        ed_clean.at[idx_c, "RTS Name"] = active_rts_name
+                    ed_clean.at[idx_c, "Updated_At"] = now_m
+                if is_rts_admin:
+                    df_final_save = ed_clean[COLS_TODO_RTS]
+                else:
+                    df_other_rts = df_todo_cloud[df_todo_cloud["RTS Name"].astype(str).str.upper() != active_rts_name.upper()]
+                    df_final_save = pd.concat([df_other_rts, ed_clean], ignore_index=True)[COLS_TODO_RTS]
+                if gsheet_overwrite_ws("ToDoList_RTS", df_final_save):
+                    st.success("✅ Perubahan massal To Do List berhasil disimpan ke Cloud!")
+                    st.rerun()
 
     # ---------------------------------------------------------------------
-    # SUB-4: ARSIP EXCEL TO DO LIST LAMA (OPSIONAL)
+    # SUB-4: EXPORT & IMPORT EXCEL MANUAL (FORMAT RESMI 'To Do List NOP Palangkaraya')
     # ---------------------------------------------------------------------
     else:
-        file_todo = "To Do List NOP Palangkaraya.xlsx"
-        if not os.path.exists(file_todo):
-            st.info(f"ℹ️ File arsip lokal `{file_todo}` tidak ada di server. Seluruh Daily Tracker aktif kini tersimpan permanen di Google Sheets tab **`Daily_Tracker_PLK`**.")
-        else:
-            try:
-                df_old_todo = read_excel_cached(file_todo, sheet_name=0)
-                st.dataframe(df_old_todo, use_container_width=True, hide_index=True)
-            except Exception as e:
-                st.error(f"Gagal membaca arsip Excel lama: {e}")
+        st.markdown("#### 📊 Export & Import Manual — Format Resmi `To Do List NOP Palangkaraya.xlsx`")
+        st.info("💡 File Excel yang diunduh memiliki struktur identik 100% dengan format Excel Anda (`Isian` 14 kolom + `Category Task` + `RTS`), dan sudah tersinkron dengan status Auto-Closed dari SIDATA. RTS dapat mengedit status di Excel lalu mengunggahnya kembali ke sini.")
+
+        c_ex1, c_ex2 = st.columns(2)
+        with c_ex1:
+            with st.container(border=True):
+                st.markdown("##### 📥 1. Download Excel Format Resmi (`Isian`)")
+                scope_dl = st.radio(
+                    "Data yang diunduh:",
+                    ["Sesuai RTS Aktif" if not is_rts_admin else "Semua RTS", "Semua RTS (Gabungan)"],
+                    horizontal=True,
+                    key="rts_dl_scope"
+                )
+                if st.button("🛠️ Siapkan File Excel To Do List (.xlsx)", type="primary", use_container_width=True, key="btn_prep_rts_xl"):
+                    db_dl = get_laporan_db()
+                    df_ev_dl = evaluate_todolist_rts(df_todo_cloud, db_dl)
+                    if not df_ev_dl.empty and scope_dl == "Sesuai RTS Aktif" and not is_rts_admin:
+                        df_ev_dl = df_ev_dl[df_ev_dl["RTS Name"].astype(str).str.upper() == active_rts_name.upper()]
+                    st.session_state["rts_todo_xlsx_bytes"] = build_todolist_rts_excel(df_ev_dl)
+                if st.session_state.get("rts_todo_xlsx_bytes"):
+                    st.download_button(
+                        "📥 Download To Do List NOP Palangkaraya (.xlsx)",
+                        data=st.session_state["rts_todo_xlsx_bytes"],
+                        file_name=f"To_Do_List_NOP_Palangkaraya_{datetime.date.today()}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        type="primary",
+                        use_container_width=True,
+                        key="dl_rts_todo_xl"
+                    )
+
+        with c_ex2:
+            with st.container(border=True):
+                st.markdown("##### 📤 2. Upload Update Manual dari Excel (`Isian`)")
+                up_rts_xl = st.file_uploader("Upload Excel To Do List (.xlsx / .xls / .csv):", type=["xlsx", "xls", "csv"], key="up_rts_todo_xl")
+                mode_imp_rts = st.radio(
+                    "Mode Simpan Import:",
+                    ["Update / Gabung (Match Site ID + Start Date + FME)", "Tambahkan Semua (Append)", "Ganti Data RTS Ini (Replace)"],
+                    key="mode_imp_rts_xl"
+                )
+                if up_rts_xl is not None:
+                    try:
+                        if up_rts_xl.name.lower().endswith(".csv"):
+                            df_up_td = pd.read_csv(up_rts_xl)
+                        else:
+                            shs_td = get_excel_sheet_names_safe(up_rts_xl)
+                            def_sh_td = shs_td.index("Isian") if "Isian" in shs_td else 0
+                            pick_sh_td = st.selectbox("Pilih Sheet:", shs_td, index=def_sh_td, key="sh_up_rts_td")
+                            df_up_td = parse_excel_smart_header(up_rts_xl, pick_sh_td, target_keywords=("site id", "category task", "fme name"))
+
+                        # Normalisasi 14 kolom resmi
+                        now_up = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        norm_rows = []
+                        for iu, ru in df_up_td.iterrows():
+                            sid_u = _clean_cell_str(ru.get("Site ID"))
+                            fme_u = _clean_cell_str(ru.get("FME Name"))
+                            cat_u = _clean_cell_str(ru.get("Category Task"))
+                            if not sid_u and not fme_u and not cat_u:
+                                continue
+                            rts_u = _clean_cell_str(ru.get("RTS Name")).upper()
+                            if not rts_u:
+                                rts_u = active_rts_name if not is_rts_admin else "DONI DAMARA"
+                            sd_u = _fmt_date_short(ru.get("Start Date"))
+                            if sd_u == "-":
+                                sd_u = datetime.date.today().strftime("%Y-%m-%d")
+                            ed_u = _fmt_date_short(ru.get("End Date"))
+                            ed_u = "" if ed_u == "-" else ed_u
+                            norm_rows.append({
+                                "Task_ID": f"TD-IMP-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{iu+1:03d}",
+                                "Category Task": cat_u,
+                                "Prioritas": _clean_cell_str(ru.get("Prioritas")) or TODO_CATEGORY_PRIORITY.get(cat_u, "P2"),
+                                "Site ID": sid_u,
+                                "FME Name": fme_u,
+                                "Role": _clean_cell_str(ru.get("Role")) or "TE",
+                                "RTS Name": rts_u,
+                                "Cluster": _clean_cell_str(ru.get("Cluster")) or "Palangkaraya Kota",
+                                "Category Activity": _clean_cell_str(ru.get("Category Activity")),
+                                "Detail Activity": _clean_cell_str(ru.get("Detail Activity")),
+                                "Activity": _clean_cell_str(ru.get("Activity")),
+                                "Start Date": sd_u,
+                                "End Date": ed_u,
+                                "Status Task": _clean_cell_str(ru.get("Status Task")) or "Waiting Update",
+                                "Remark Kerjaan": _clean_cell_str(ru.get("Remark Kerjaan")),
+                                "Updated_At": now_up
+                            })
+
+                        df_norm_up = pd.DataFrame(norm_rows, columns=COLS_TODO_RTS)
+                        st.write(f"Terbaca **{len(df_norm_up)} baris** valid dari Excel:")
+                        st.dataframe(df_norm_up[COLS_TODO_EXCEL].head(10), use_container_width=True, hide_index=True)
+
+                        if st.button(f"🚀 SIMPAN HASIL IMPORT ({len(df_norm_up)} BARIS) KE CLOUD", type="primary", use_container_width=True, key="btn_commit_rts_imp"):
+                            if df_norm_up.empty:
+                                st.warning("Tidak ada baris valid untuk disimpan.")
+                            else:
+                                if "Replace" in mode_imp_rts:
+                                    if is_rts_admin:
+                                        df_out_imp = df_norm_up
+                                    else:
+                                        df_keep = df_todo_cloud[df_todo_cloud["RTS Name"].astype(str).str.upper() != active_rts_name.upper()]
+                                        df_out_imp = pd.concat([df_keep, df_norm_up], ignore_index=True)
+                                elif "Append" in mode_imp_rts:
+                                    df_out_imp = pd.concat([df_todo_cloud, df_norm_up], ignore_index=True)
+                                else:
+                                    # Merge / Update based on (Site ID, Start Date, FME Name)
+                                    df_base = df_todo_cloud.copy()
+                                    if df_base.empty:
+                                        df_out_imp = df_norm_up
+                                    else:
+                                        df_base["_k"] = (
+                                            df_base["Site ID"].astype(str).str.strip().str.upper() + "|" +
+                                            df_base["Start Date"].astype(str).str.slice(0, 10) + "|" +
+                                            df_base["FME Name"].astype(str).str.strip().str.upper()
+                                        )
+                                        df_norm_up["_k"] = (
+                                            df_norm_up["Site ID"].astype(str).str.strip().str.upper() + "|" +
+                                            df_norm_up["Start Date"].astype(str).str.slice(0, 10) + "|" +
+                                            df_norm_up["FME Name"].astype(str).str.strip().str.upper()
+                                        )
+                                        upd_keys = set(df_norm_up["_k"].tolist())
+                                        df_stay = df_base[~df_base["_k"].isin(upd_keys)].drop(columns=["_k"])
+                                        df_out_imp = pd.concat([df_stay, df_norm_up.drop(columns=["_k"])], ignore_index=True)
+
+                                if gsheet_overwrite_ws("ToDoList_RTS", df_out_imp[COLS_TODO_RTS]):
+                                    st.success(f"✅ {len(df_norm_up)} baris Excel berhasil disinkronkan ke Google Sheets (`ToDoList_RTS`)!")
+                                    st.rerun()
+                    except Exception as e:
+                        st.error(f"Gagal memproses file Excel To Do List: {e}")
 
 # =========================================================================
 # MENU 6: LOGISTIK & SPMS (MANAJEMEN STOK GUDANG)
@@ -7908,7 +8465,8 @@ elif menu == "📦 Logistik & SPMS":
                     
             with c4:
                 qty_out = st.number_input("📦 Jumlah Diambil (Pcs/Liter)", min_value=1, value=1, key="out_qty")
-                fme_plk_list, _, site_plk_list, _ = load_master_lists()
+                fme_plk_list = load_master_tim_names("PLK")
+                site_plk_list, _ = load_site_master_plk()
                 pic_out = st.selectbox("👷 Nama Tim / FME Pengambil", [""] + fme_plk_list, key="out_pic") if fme_plk_list else st.text_input("👷 FME / Tim Pengambil")
                 site_out = st.selectbox("📍 Digunakan Untuk Site Target", [""] + site_plk_list, key="out_site") if site_plk_list else st.text_input("📍 Digunakan Untuk Site")
                 
@@ -8804,14 +9362,20 @@ elif menu == "🗺️ Sysinfomap (Peta & Populasi Site)":
     m_s3.metric("⏳ Belum Dikunjungi (Filter)", f"{int((df_view['Jumlah_Visit_PM'] == 0).sum())} Site")
     m_s4.metric("🗼 Tower Owner Terbanyak", df_view['Site_Owner'].mode()[0] if not df_view.empty else "-")
 
-    tab_peta, tab_pop, tab_comp, tab_detail = st.tabs([
-        "🗺️ Peta Interaktif & Navigasi",
-        "📊 Populasi Kabupaten & Statistik Infrastruktur",
-        "🔄 Komparasi Database & Gap Kunjungan",
-        "📋 Tabel Data Lengkap & Inspector Site"
-    ])
+    m9_nav = st.radio(
+        "Navigasi Sysinfomap (Mode Ringan):",
+        [
+            "🗺️ Peta Interaktif & Navigasi",
+            "📊 Populasi Kabupaten & Statistik Infrastruktur",
+            "🔄 Komparasi Database & Gap Kunjungan",
+            "📋 Tabel Data Lengkap & Inspector Site"
+        ],
+        horizontal=True,
+        key="m9_sys_nav",
+        label_visibility="collapsed"
+    )
 
-    with tab_peta:
+    if m9_nav == "🗺️ Peta Interaktif & Navigasi":
         st.markdown("#### 🗺️ Interactive Tower Radar Map & Live Navigation")
         if df_view.empty:
             st.warning("Tidak ada site yang cocok dengan filter saat ini.")
@@ -9137,7 +9701,7 @@ elif menu == "🗺️ Sysinfomap (Peta & Populasi Site)":
                 </html>
                 """
                 st.components.v1.html(leaflet_html, height=575)
-    with tab_pop:
+    elif m9_nav == "📊 Populasi Kabupaten & Statistik Infrastruktur":
         st.markdown("#### 📊 Distribusi Populasi Site Berdasarkan Kabupaten & Infrastruktur")
         if df_view.empty:
             st.info("Tidak ada data untuk divisualisasikan.")
@@ -9181,7 +9745,7 @@ elif menu == "🗺️ Sysinfomap (Peta & Populasi Site)":
             rekap_kab = rekap_kab.sort_values(by='Total_Site', ascending=False).reset_index(drop=True)
             st.dataframe(rekap_kab, use_container_width=True, hide_index=True)
 
-    with tab_comp:
+    elif m9_nav == "🔄 Komparasi Database & Gap Kunjungan":
         st.markdown("#### 🔄 Komparasi Otomatis: Data KML Sysinfomap vs Database Existing SIDATA")
         st.info("💡 Modul ini membandingkan seluruh **Site ID di Sysinfomap (KML)** dengan **Master Excel Sidata**, **File Combat NOP Palangkaraya**, serta **Database Laporan Kunjungan Tim (Google Sheets)** sehingga terlihat jelas site mana yang baru, yang sudah terinspeksi, dan yang belum tersentuh.")
 
@@ -9236,7 +9800,7 @@ elif menu == "🗺️ Sysinfomap (Peta & Populasi Site)":
                 else:
                     st.success("✅ Tidak ada selisih Site ID!")
 
-    with tab_detail:
+    elif m9_nav == "📋 Tabel Data Lengkap & Inspector Site":
         st.markdown("#### 📋 Explorer Tabel Data Sysinfomap Lengkap")
         cols_tampil = ['site_id', 'Sitename', 'Kabupaten', 'site_class', 'Site_Owner', 'Status_site', 'Power_Source', 'BrandRecti', 'Transport_type', 'Type_Hub', 'Access', 'RTS', 'Status_Kunjungan', 'Tgl_Visit_Terakhir', 'lat', 'lon']
         st.dataframe(df_view[cols_tampil], use_container_width=True, hide_index=True, height=480)
@@ -9401,13 +9965,14 @@ elif menu == "🏢 Portal Office":
     with c_off8:
         st.markdown("""
             <div class='area-card' style='border-top-color: #9C27B0;'>
-                <div style='font-size: 44px; margin-bottom: 10px;'>📅</div>
-                <div class='login-title' style='font-size: 19px;'>Daily Tracker PLK</div>
-                <div class='login-desc' style='font-size: 13px;'>Planning Harian Leader Cluster, Pengalihan Tier Urgent & Auto-Closed Report SIDATA.</div>
+                <div style='font-size: 44px; margin-bottom: 10px;'>📋</div>
+                <div class='login-title' style='font-size: 19px;'>To Do List RTS</div>
+                <div class='login-desc' style='font-size: 13px;'>Plan Harian RTS (Doni/Winda/Fauzi/Fahmiang), Carry-Over Pending & Auto-Closed SIDATA.</div>
             </div>
         """, unsafe_allow_html=True)
-        if st.button("📅 BUKA DAILY TRACKER PLK", type="primary", use_container_width=True, key="off_btn_dailyplk"):
-            st.session_state['active_menu'] = "📅 Daily Tracker Palangkaraya"
+        if st.button("📋 BUKA TO DO LIST RTS", type="primary", use_container_width=True, key="off_btn_dailyplk"):
+            st.session_state['rts_entry_origin'] = "office"
+            st.session_state['active_menu'] = "📋 To Do List RTS"
             st.rerun()
 
     with c_off9:
@@ -9517,7 +10082,7 @@ elif menu == "📋 Program NOP & Task Force":
         ]
         df_pbu_cloud, ok_pbu_c = gsheet_read_df("Program_NOP_PBU", COLS_PROG_PBU)
         local_pbu_file = _find_first_existing(
-            ["Timeplan_Target_Closed_Biaya_Nov2026 (1).xlsx", "Timeplan_Target_Closed_Biaya_Nov2026 pangkalanbun.xlsx"],
+            ["SIGOPA Improvement.xlsx", "Timeplan_Target_Closed_Biaya_Nov2026 (1).xlsx", "Timeplan_Target_Closed_Biaya_Nov2026 pangkalanbun.xlsx"],
             "*Timeplan_Target_Closed_Biaya*.xlsx"
         )
         if df_pbu_cloud.empty and local_pbu_file:
@@ -9601,8 +10166,11 @@ elif menu == "📋 Program NOP & Task Force":
                 onsite_idx=onsite_idx_pbu, hard_access_by_site=ha_by_site_pbu
             )
             tot_pbu = len(df_pbu_routes)
-            cnt_closed_pbu = int(df_pbu_routes["Status"].astype(str).str.lower().str.contains("close|done|selesai").sum())
-            cnt_inprog_pbu = int(df_pbu_routes["Status"].astype(str).str.lower().str.contains("progress").sum())
+            cnt_closed_pbu = int((df_pbu_routes["Status Peta Code"] == "CLOSED").sum())
+            cnt_overdue_pbu = int((df_pbu_routes["Status Peta Code"] == "OVERDUE").sum())
+            cnt_pending_pbu = int((df_pbu_routes["Status Peta Code"] == "PENDING").sum())
+            cnt_inprog_pbu = int((df_pbu_routes["Status Peta Code"] == "IN_PROGRESS").sum())
+            cnt_open_only_pbu = int((df_pbu_routes["Status Peta Code"] == "OPEN").sum())
             cnt_open_pbu = tot_pbu - cnt_closed_pbu - cnt_inprog_pbu
             pct_pbu = (cnt_closed_pbu / tot_pbu * 100) if tot_pbu else 0.0
             cnt_divert_pbu = int(df_pbu_routes["Analisa Target / Divert"].astype(str).str.contains("Dialihkan").sum())
@@ -9613,9 +10181,9 @@ elif menu == "📋 Program NOP & Task Force":
 
             kpb1, kpb2, kpb3, kpb4, kpb5, kpb6 = st.columns(6)
             kpb1.metric("Total Site Target", f"{tot_pbu} Site")
-            kpb2.metric("✅ Closed", f"{cnt_closed_pbu} ({pct_pbu:.1f}%)")
-            kpb3.metric("🔀 Divert / Open", f"{cnt_divert_pbu} Divert / {cnt_open_pbu} Open")
-            kpb4.metric("🚧 Hard Access", f"{cnt_ha_pbu} Task", delta=f"{len(ha_list_pbu)} Laporan Lokasi")
+            kpb2.metric("🟢 Closed (Hijau)", f"{cnt_closed_pbu} ({pct_pbu:.1f}%)")
+            kpb3.metric("🔴 Open (Merah)", f"{cnt_open_only_pbu} Site", delta=f"{cnt_inprog_pbu} IP · {cnt_pending_pbu} Pending")
+            kpb4.metric("🟣 Overdue (Ungu)", f"{cnt_overdue_pbu} Site", delta="Lewat Target" if cnt_overdue_pbu else "Aman")
             kpb5.metric("🚗 Total Jarak Aktual", f"{tot_km_act_pbu:,.1f} km", delta=f"Est. Jalan {tot_km_act_pbu*1.35:,.0f} km")
             kpb6.metric("💰 Total Biaya", f"Rp {tot_biaya_pbu:,.0f}")
         else:
@@ -9647,14 +10215,14 @@ elif menu == "📋 Program NOP & Task Force":
             if df_pbu_routes.empty and not ha_list_pbu:
                 st.warning("Belum ada data Timeplan maupun Report Hard Access Pangkalan Bun.")
             else:
-                st.markdown("#### 🗺️ Tier Route & Hard Access Command Map — NOP Pangkalan Bun")
-                st.info("💡 **Garis Melengkung Putus-Putus Oranye** = Rute Plan (`HB Tim ➔ Site Target`). **Garis Melengkung Neon + Panah Bergerak (`T1 Cyan ➔ T2 Ungu ➔ T3 Hijau`)** = Tarikan Aktual Kunjungan Tim per Tier. **Pin 🚧** = Titik Hard Access lengkap dengan preview foto kondisi jalan/akses.")
+                st.markdown("#### 🗺️ Peta Status Warna, Tier Route & Hard Access — NOP Pangkalan Bun")
+                st.info("💡 **Kode Warna Site di Peta:** **🟢 Hijau** = Closed (Selesai) · **🔴 Merah** = Open (Aktif) · **🟣 Ungu Berkedip** = Overdue / Lewat Target (+hari) · **🟡 Kuning** = In Progress · **🟠 Oranye** = Pending / Waiting Material & Akses · **🚧** = Titik Hard Access ber-Foto.")
 
-                cm_c1, cm_c2, cm_c3 = st.columns([1.6, 1.2, 1.4])
+                cm_c1, cm_c2, cm_c3 = st.columns([1.8, 1.1, 1.3])
                 with cm_c1:
                     mode_peta_pbu = st.radio(
-                        "Mode Fokus Peta:",
-                        ["🎯 Fokus 1 Task", "👷 Per Tim (Tier #1)", "🚧 Fokus Hard Access", "🌐 Semua Rute"],
+                        "Mode Tampilan Peta:",
+                        ["🗺️ Peta Status Semua Site", "🎯 Fokus 1 Task", "👷 Per Tim (PIC #1)", "🚧 Fokus Hard Access", "🌐 Semua Rute + Garis"],
                         horizontal=True,
                         key="pbu_map_mode"
                     )
@@ -9665,28 +10233,52 @@ elif menu == "📋 Program NOP & Task Force":
                         key="pbu_map_theme"
                     )
                 with cm_c3:
+                    is_clean_status_mode = (mode_peta_pbu == "🗺️ Peta Status Semua Site")
                     cl_1, cl_2 = st.columns(2)
-                    chk_plan_line = cl_1.checkbox("📐 Garis Plan", value=True, key="pbu_chk_plan")
-                    chk_act_line = cl_2.checkbox("🚗 Garis Tier", value=True, key="pbu_chk_act")
+                    chk_plan_line = cl_1.checkbox("📐 Garis Plan", value=(not is_clean_status_mode), key=f"pbu_chk_plan_{is_clean_status_mode}")
+                    chk_act_line = cl_2.checkbox("🚗 Garis Tier", value=(not is_clean_status_mode), key=f"pbu_chk_act_{is_clean_status_mode}")
                     chk_ha_pins = cl_1.checkbox("🚧 Pin Hard Access", value=True, key="pbu_chk_ha")
-                    chk_dist_lbl = cl_2.checkbox("🏷️ Label km", value=True, key="pbu_chk_lbl")
+                    chk_hb_pins = cl_2.checkbox("🏠 Pin HB Tim", value=(not is_clean_status_mode), key=f"pbu_chk_hb_{is_clean_status_mode}")
 
-                selected_routes = map_routes_pbu
+                # Filter Status Warna (Multi-select cepat untuk langsung memisahkan Hijau/Merah/Ungu/Kuning/Oranye)
+                st_code_labels = {
+                    "CLOSED": f"🟢 Closed ({sum(1 for r in map_routes_pbu if r.get('map_status_code') == 'CLOSED')})",
+                    "OPEN": f"🔴 Open ({sum(1 for r in map_routes_pbu if r.get('map_status_code') == 'OPEN')})",
+                    "OVERDUE": f"🟣 Overdue ({sum(1 for r in map_routes_pbu if r.get('map_status_code') == 'OVERDUE')})",
+                    "IN_PROGRESS": f"🟡 In Progress ({sum(1 for r in map_routes_pbu if r.get('map_status_code') == 'IN_PROGRESS')})",
+                    "PENDING": f"🟠 Pending/Waiting ({sum(1 for r in map_routes_pbu if r.get('map_status_code') == 'PENDING')})",
+                }
+                picked_st_codes = st.multiselect(
+                    "🎨 Filter Warna Status Site di Peta:",
+                    options=list(st_code_labels.keys()),
+                    default=list(st_code_labels.keys()),
+                    format_func=lambda c: st_code_labels[c],
+                    key="pbu_map_status_flt"
+                )
+
+                base_filtered_routes = [r for r in map_routes_pbu if r.get("map_status_code", "OPEN") in picked_st_codes] if picked_st_codes else []
+                selected_routes = base_filtered_routes
                 selected_ha = ha_list_pbu
-                focus_route = map_routes_pbu[0] if map_routes_pbu else None
+                focus_route = base_filtered_routes[0] if base_filtered_routes else None
 
-                if mode_peta_pbu == "🎯 Fokus 1 Task" and map_routes_pbu:
-                    pick_task_key = st.selectbox("📌 Pilih Task / Site Target (Auto-Zoom ke rute tim):", [r["key"] for r in map_routes_pbu], key="pbu_pick_task_map")
-                    selected_routes = [r for r in map_routes_pbu if r["key"] == pick_task_key]
+                if mode_peta_pbu == "🎯 Fokus 1 Task" and base_filtered_routes:
+                    pick_task_key = st.selectbox(
+                        "📌 Pilih Task / Site Target (Auto-Zoom ke rute tim):",
+                        [r["key"] for r in base_filtered_routes],
+                        format_func=lambda k: f"{next((x['map_status_label'] for x in base_filtered_routes if x['key'] == k), '')} · {k}",
+                        key="pbu_pick_task_map"
+                    )
+                    selected_routes = [r for r in base_filtered_routes if r["key"] == pick_task_key]
                     focus_route = selected_routes[0] if selected_routes else None
-                elif mode_peta_pbu == "👷 Per Tim (Tier #1)" and map_routes_pbu:
-                    tim_list_pbu = sorted(list({r["tim1"] for r in map_routes_pbu if r["tim1"] != "-"}))
-                    pick_tim_map = st.selectbox("👷 Pilih Nama Tim (Tier Tim #1):", tim_list_pbu, key="pbu_pick_tim_map")
-                    selected_routes = [r for r in map_routes_pbu if r["tim1"] == pick_tim_map]
-                    focus_route = selected_routes[0] if selected_routes else None
+                elif mode_peta_pbu == "👷 Per Tim (PIC #1)" and base_filtered_routes:
+                    tim_list_pbu = sorted(list({r["tim1"] for r in base_filtered_routes if r["tim1"] != "-"}))
+                    if tim_list_pbu:
+                        pick_tim_map = st.selectbox("👷 Pilih Nama Tim (PIC #1 / Tier Tim #1):", tim_list_pbu, key="pbu_pick_tim_map")
+                        selected_routes = [r for r in base_filtered_routes if r["tim1"] == pick_tim_map]
+                        focus_route = selected_routes[0] if selected_routes else None
                 elif mode_peta_pbu == "🚧 Fokus Hard Access":
                     ha_sids_set = set(ha_by_site_pbu.keys())
-                    selected_routes = [r for r in map_routes_pbu if (r["target_sid"] in ha_sids_set) or ("🚧" in r.get("hard_access_status", "")) or ("⚠️" in r.get("hard_access_status", ""))]
+                    selected_routes = [r for r in base_filtered_routes if (r["target_sid"] in ha_sids_set) or ("🚧" in r.get("hard_access_status", "")) or ("⚠️" in r.get("hard_access_status", ""))]
                     focus_route = selected_routes[0] if selected_routes else None
                     if not selected_routes and not ha_list_pbu:
                         st.info("Belum ada data Hard Access yang tercatat. Admin dapat menginputnya di tab **🚧 Report Hard Access (Admin & Foto)**.")
@@ -9701,24 +10293,35 @@ elif menu == "📋 Program NOP & Task Force":
                             show_plan=chk_plan_line,
                             show_actual=chk_act_line,
                             show_hard_access=chk_ha_pins,
-                            show_dist_labels=chk_dist_lbl
+                            show_dist_labels=True,
+                            show_hb_pins=chk_hb_pins
                         ),
-                        height=615
+                        height=625
                     )
 
                 with c_mp_r:
                     with st.container(border=True):
-                        st.markdown("#### 📌 Kronologi Rute, Remark & Hard Access")
+                        st.markdown("#### 📌 Detail Site, Status & Kronologi Tier")
                         if mode_peta_pbu != "🎯 Fokus 1 Task" and len(selected_routes) > 1:
-                            pick_side = st.selectbox("Detail Task:", [r["key"] for r in selected_routes], key="pbu_side_detail_pick")
+                            pick_side = st.selectbox(
+                                "Pilih Site untuk Detail:",
+                                [r["key"] for r in selected_routes],
+                                format_func=lambda k: f"{next((x['map_status_label'] for x in selected_routes if x['key'] == k), '')} · {k}",
+                                key="pbu_side_detail_pick"
+                            )
                             focus_route = next((r for r in selected_routes if r["key"] == pick_side), selected_routes[0])
 
                         if focus_route:
+                            card_bdr = focus_route.get("map_color", "#EF4444")
+                            st_badge_lbl = focus_route.get("map_status_label", focus_route["status"])
                             st.markdown(f"""
-                                <div style="padding:12px 14px; border-radius:12px; background:var(--ux-card2); border-left:5px solid #EF4444; font-size:13px; line-height:1.6; margin-bottom:10px;">
-                                    <div style="font-size:15px; font-weight:800;">🎯 #{focus_route['no']} · {focus_route['target_sid']} ({focus_route['s_class']})</div>
+                                <div style="padding:12px 14px; border-radius:12px; background:var(--ux-card2); border-left:6px solid {card_bdr}; font-size:13px; line-height:1.6; margin-bottom:10px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
+                                        <span style="font-size:15px; font-weight:800;">#{focus_route['no']} · {focus_route['target_sid']} ({focus_route['s_class']})</span>
+                                        <span style="background:{card_bdr}; color:#fff; padding:2px 9px; border-radius:99px; font-size:11px; font-weight:800;">{st_badge_lbl}</span>
+                                    </div>
                                     <div><b>Site Name:</b> {focus_route['sname']}</div>
-                                    <div><b>Status:</b> <b>{focus_route['status']}</b> | <b>Biaya:</b> Rp {focus_route['biaya']:,.0f}</div>
+                                    <div><b>Status Excel:</b> <b>{focus_route['status']}</b> | <b>Biaya:</b> Rp {focus_route['biaya']:,.0f}</div>
                                     <div><b>Akses:</b> {focus_route.get('hard_access_status', '✅ Normal')}</div>
                                     <div><b>Action:</b> {focus_route['rca']} — {focus_route['action']}</div>
                                     <div><b>Plan ➔ Target:</b> {focus_route['plan_dt']} ➔ {focus_route['target_cl']}</div>
@@ -9819,7 +10422,7 @@ elif menu == "📋 Program NOP & Task Force":
                         if not ha_sid or not ha_lokasi.strip() or not ha_ket.strip():
                             st.error("⚠️ Site ID, Lokasi/Titik Hard Access, dan Keterangan Detail wajib diisi!")
                         else:
-                            with st.spinner("⏳ Mengunggah foto ke Cloudinary & menyimpan ke Google Sheets (`Hard_Access_PBU`)..."):
+                            with st.spinner("⏳ Mengunggah foto ke Cloudinary & menyimpan ke Google Sheets (`Site Hard Akses`)..."):
                                 urls_ha = upload_multiple_images(ha_photos_up, "hard_access_pbu") if ha_photos_up else []
                                 rec_id = f"HA-PBU-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
                                 row_ha = {
@@ -9945,33 +10548,46 @@ elif menu == "📋 Program NOP & Task Force":
                                 add_ha_pics = st.file_uploader("➕ Tambah Foto Susulan:", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True, key=f"add_ha_pic_{ha['record_id']}_{idx_h}")
                                 if st.button("💾 Simpan Update & Foto Susulan", type="primary", key=f"btn_upd_ha_{ha['record_id']}_{idx_h}"):
                                     with st.spinner("Mengunggah foto & memperbarui Cloud..."):
-                                        extra_urls = upload_multiple_images(add_ha_pics, "hard_access_pbu") if add_ha_pics else []
+                                        extra_urls = upload_multiple_images(add_ha_pics, "site_hard_akses") if add_ha_pics else []
                                         merged_urls = ha["photos"] + extra_urls
-                                        df_ha_upd = df_ha_pbu.copy()
-                                        mask_rid = df_ha_upd["Record_ID"].astype(str) == str(ha["record_id"])
-                                        if mask_rid.any():
-                                            df_ha_upd.loc[mask_rid, "Status_Akses"] = new_ha_st
-                                            df_ha_upd.loc[mask_rid, "Keterangan_Detail"] = new_ha_ket
-                                            df_ha_upd.loc[mask_rid, "Foto_URLs"] = json.dumps(merged_urls, ensure_ascii=False)
-                                            if gsheet_overwrite_ws("Hard_Access_PBU", df_ha_upd):
-                                                st.success("✅ Data & Foto Susulan Hard Access berhasil diperbarui!")
-                                                st.rerun()
+                                        target_sh = ha.get("source_sheet", "Site Hard Akses")
+                                        if target_sh == "Site Hard Akses":
+                                            df_ha_upd = df_ha_pbu.copy()
+                                            mask_rid = df_ha_upd["Record_ID"].astype(str) == str(ha["record_id"])
+                                            if mask_rid.any():
+                                                df_ha_upd.loc[mask_rid, "Status_Akses"] = new_ha_st
+                                                df_ha_upd.loc[mask_rid, "Keterangan_Detail"] = new_ha_ket
+                                                df_ha_upd.loc[mask_rid, "Foto_URLs"] = json.dumps(merged_urls, ensure_ascii=False)
+                                                if gsheet_overwrite_ws("Site Hard Akses", df_ha_upd):
+                                                    st.success("✅ Data & Foto Susulan berhasil diperbarui di sheet **`Site Hard Akses`**!")
+                                                    st.rerun()
+                                        else:
+                                            df_old_u, _ = gsheet_read_df("Hard_Access_PBU", COLS_HARD_ACCESS_PBU)
+                                            mask_old = df_old_u["Record_ID"].astype(str) == str(ha["record_id"])
+                                            if mask_old.any():
+                                                df_old_u.loc[mask_old, "Status_Akses"] = new_ha_st
+                                                df_old_u.loc[mask_old, "Keterangan_Detail"] = new_ha_ket
+                                                df_old_u.loc[mask_old, "Foto_URLs"] = json.dumps(merged_urls, ensure_ascii=False)
+                                                if gsheet_overwrite_ws("Hard_Access_PBU", df_old_u):
+                                                    st.success("✅ Data arsip lama berhasil diperbarui!")
+                                                    st.rerun()
 
                 if is_admin_ha:
-                    with st.expander("🗂️ Live Editor Tabel Database `Hard_Access_PBU` (Admin)", expanded=False):
+                    with st.expander("🗂️ Live Editor Tabel Database `Site Hard Akses` (Admin)", expanded=False):
                         ed_ha = st.data_editor(
                             df_ha_pbu,
                             use_container_width=True,
                             num_rows="dynamic",
                             column_config={
+                                "NOP": st.column_config.SelectboxColumn("NOP", options=["Pangkalan Bun", "Palangkaraya"]),
                                 "Status_Akses": st.column_config.SelectboxColumn("Status Akses", options=HARD_ACCESS_STATUS),
                                 "Tingkat_Kesulitan": st.column_config.SelectboxColumn("Tingkat Kesulitan", options=HARD_ACCESS_LEVEL)
                             },
                             key="ed_ha_pbu_tbl"
                         )
-                        if st.button("💾 Simpan Perubahan Tabel Hard Access ke Cloud", type="primary", use_container_width=True, key="btn_save_ed_ha_tbl"):
-                            if gsheet_overwrite_ws("Hard_Access_PBU", ed_ha):
-                                st.success("✅ Tabel `Hard_Access_PBU` berhasil diperbarui!")
+                        if st.button("💾 Simpan Perubahan Tabel `Site Hard Akses` ke Cloud", type="primary", use_container_width=True, key="btn_save_ed_ha_tbl"):
+                            if gsheet_overwrite_ws("Site Hard Akses", ed_ha):
+                                st.success("✅ Tabel `Site Hard Akses` berhasil diperbarui!")
                                 st.rerun()
 
         # -----------------------------------------------------------------
@@ -10032,7 +10648,7 @@ elif menu == "📋 Program NOP & Task Force":
 
                 st.markdown("#### 📋 Tabel Validasi Detail Jarak, Hard Access & Remark per Tier (Siap Audit Manajemen)")
                 cols_mgmt_view = [
-                    "No", "SITE ID Target", "SITE NAME", "Class", "Status", "Status Hard Access", "Tier Tim #1",
+                    "No", "SITE ID Target", "SITE NAME", "Class", "Status Peta", "Status", "Status Hard Access", "Tier Tim #1",
                     "HB->Target (km)", "Est Jalan HB->Target (km)",
                     "Total Jarak Aktual (km)", "Est Jalan Aktual (km)",
                     "Analisa Target / Divert", "Tarikan Rute Aktual",
@@ -10273,42 +10889,33 @@ elif menu == "🛡️ SiDAVID (Verifikasi Internal)":
     COLS_PERSONEL = ["Timestamp", "NOP", "Nama_Tim", "NIK_ID", "Jabatan_Role", "Status_Kerja", "Tanggal_Join", "Tanggal_Keluar", "Alasan_Keterangan"]
     COLS_LAINNYA = ["Timestamp", "NOP", "Kategori_Validasi", "Objek_Atau_Nama", "Keterangan_Punya", "Tanggal_Terbit", "Tanggal_Expired", "Status_Validasi", "URL_Bukti", "Catatan"]
 
-    df_mat, ok_mat = gsheet_read_df("Mateline", COLS_MATELINE)
-    df_srt, ok_srt = gsheet_read_df("SiDAVID_Sertifikat", COLS_SERTIF)
-    df_prs, ok_prs = gsheet_read_df("SiDAVID_Personel", COLS_PERSONEL)
-    df_lnn, ok_lnn = gsheet_read_df("SiDAVID_Validasi_Lain", COLS_LAINNYA)
-
-    if not ok_mat:
-        st.warning("⚠️ Koneksi Google Sheets belum aktif (`gcp_json`). Sinkronisasi cloud membutuhkan koneksi Spreadsheet aktif.")
-
-    tot_mat = len(df_mat)
-    tot_srt_punya = int((df_srt["Keterangan_Punya"].astype(str).str.strip().str.lower() == "punya").sum()) if not df_srt.empty else 0
-    tot_prs_aktif = int((df_prs["Status_Kerja"].astype(str).str.strip().str.lower() == "aktif").sum()) if not df_prs.empty else 0
-    tot_lnn = len(df_lnn)
-
     ux_hero(
         "INTERNAL COMPLIANCE & VERIFICATION",
         "SiDAVID Command Center",
-        "Monitoring terpusat Verifikasi Mateline, Kepatuhan Sertifikat WAH/BA/BE, Status Tim Join/Keluar & Validasi Standby.",
-        stats=[
-            (f"{tot_mat} Baris", "Data Sheet Mateline"),
-            (f"{tot_srt_punya} Sertifikat", "Sertifikat WAH/BA/BE"),
-            (f"{tot_prs_aktif} Personel", "Tim Status Aktif"),
-            (f"{tot_lnn} Item", "Validasi Lainnya")
-        ]
+        "Monitoring terpusat Verifikasi Mateline, Kepatuhan Sertifikat WAH/BA/BE, Status Tim Join/Keluar & Validasi Standby (Mode Ringan — hanya memuat tab aktif)."
     )
 
-    tab_mat, tab_srt, tab_prs, tab_lnn = st.tabs([
-        "📡 1. Verifikasi Mateline",
-        "🎓 2. Sertifikasi (WAH, BA, BE)",
-        "👥 3. Data Tim (Join & Keluar)",
-        "🧩 4. Validasi Data Lainnya (Standby)"
-    ])
+    sd_nav = st.radio(
+        "Modul SiDAVID:",
+        [
+            "📡 1. Verifikasi Mateline",
+            "🎓 2. Sertifikasi (WAH, BA, BE)",
+            "👥 3. Data Tim (Join & Keluar)",
+            "🧩 4. Validasi Data Lainnya (Standby)"
+        ],
+        horizontal=True,
+        key="sd_nav_radio",
+        label_visibility="collapsed"
+    )
+    st.markdown("<hr style='margin: 8px 0 18px 0;'>", unsafe_allow_html=True)
 
     # =====================================================================
     # TAB 1: VERIFIKASI MATELINE (TARIK EXCEL ➔ SAVE KE SHEET 'Mateline')
     # =====================================================================
-    with tab_mat:
+    if sd_nav == "📡 1. Verifikasi Mateline":
+        df_mat, ok_mat = gsheet_read_df("Mateline", COLS_MATELINE)
+        if not ok_mat:
+            st.warning("⚠️ Koneksi Google Sheets belum aktif (`gcp_json`).")
         st.markdown("### 📡 Verifikasi Data Mateline (Import Excel ➔ Save Sheet `Mateline`)")
         st.info("💡 Unggah file Excel tarikan dari **Mateline** di bawah ini. Data otomatis dibaca, ditambahkan kolom verifikasi, tersimpan ke Google Sheets tab **`Mateline`**, dan dapat diunduh kembali sebagai Excel dengan nama sheet **`Mateline`**.")
 
@@ -10409,7 +11016,8 @@ elif menu == "🛡️ SiDAVID (Verifikasi Internal)":
     # =====================================================================
     # TAB 2: SERTIFIKASI TIM (WAH, BA, BE)
     # =====================================================================
-    with tab_srt:
+    elif sd_nav == "🎓 2. Sertifikasi (WAH, BA, BE)":
+        df_srt, ok_srt = gsheet_read_df("SiDAVID_Sertifikat", COLS_SERTIF)
         st.markdown("### 🎓 Monitoring & Verifikasi Sertifikat Tim (WAH, BA, BE)")
 
         with st.expander("➕ Input / Update Data Sertifikat Personel (WAH / BA / BE)", expanded=df_srt.empty):
@@ -10550,7 +11158,8 @@ elif menu == "🛡️ SiDAVID (Verifikasi Internal)":
     # =====================================================================
     # TAB 3: DATA TIM BARU JOIN & KELUAR (MUTASI PERSONEL)
     # =====================================================================
-    with tab_prs:
+    elif sd_nav == "👥 3. Data Tim (Join & Keluar)":
+        df_prs, ok_prs = gsheet_read_df("SiDAVID_Personel", COLS_PERSONEL)
         st.markdown("### 👥 Data Personel Tim (Tanggal Join & Tanggal Keluar)")
 
         with st.expander("➕ Input Tim Baru Join / Catat Tim Keluar", expanded=df_prs.empty):
@@ -10636,7 +11245,8 @@ elif menu == "🛡️ SiDAVID (Verifikasi Internal)":
     # =====================================================================
     # TAB 4: VALIDASI DATA LAINNYA (MODUL STANDBY FLEKSIBEL)
     # =====================================================================
-    with tab_lnn:
+    elif sd_nav == "🧩 4. Validasi Data Lainnya (Standby)":
+        df_lnn, ok_lnn = gsheet_read_df("SiDAVID_Validasi_Lain", COLS_LAINNYA)
         st.markdown("### 🧩 Validasi Data Internal Lainnya (Modul Standby)")
         st.info("💡 Ruang validasi fleksibel yang siap pakai untuk kebutuhan audit internal lainnya (misal: **APD & Full Body Harness, SIM A/C, BPJS/KTP, MCU Kesehatan, Kalibrasi Alat Ukur, STNK Kendaraan Ops, SIK**, atau kategori baru sesuai kebutuhan NOP).")
 
@@ -10728,16 +11338,9 @@ elif menu == "🚧 Form & Peta Hard Akses":
     st.markdown("<h1 style='text-align: center;'>🚧 Form & Peta Rute Hard Akses Site</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; opacity: 0.85;'>Pendataan Lokasi Hard Akses NOP Pangkalan Bun & Palangkaraya, Rute Wajib Sewa Moda (Trail / 4WD / Klotok), Upload Eviden Foto & Peta Rute Interaktif — Tersimpan di Sheet <b><code>Site Hard Akses</code></b></p>", unsafe_allow_html=True)
 
-    # Muat koordinat site hanya saat diperlukan agar tetap ringan
-    site_plk_list_ha, coords_plk_ha = load_site_master_plk()
-    site_pbu_list_ha, coords_pbu_ha = load_site_master_pbu()
-    df_sha_raw, ok_sha, ha_all_list, _ = load_site_hard_akses(
-        nop_filter=None,
-        site_coords_plk=coords_plk_ha,
-        site_coords_pbu=coords_pbu_ha
-    )
-
     is_admin_sha = (st.session_state.get("role") == "Admin") or bool(st.session_state.get("sha_admin_unlocked", False))
+    # Baca sheet 'Site Hard Akses' lebih dulu (ringan); koordinat master KML PLK hanya dimuat bila benar-benar dibutuhkan!
+    df_sha_raw, ok_sha, ha_all_list, _ = load_site_hard_akses(nop_filter=None)
 
     cnt_sha_tot = len(ha_all_list)
     cnt_sha_plk = sum(1 for h in ha_all_list if "palangka" in h["nop"].lower())
@@ -10830,8 +11433,10 @@ elif menu == "🚧 Form & Peta Hard Akses":
                 sha_nop = st.radio("🏢 Pilih Area NOP *:", ["🔴 Pangkalan Bun", "🔵 Palangkaraya"], horizontal=True, key="sha_in_nop")
                 is_pbu_sel = "Pangkalan Bun" in sha_nop
                 nop_clean = "Pangkalan Bun" if is_pbu_sel else "Palangkaraya"
-                s_list_use = site_pbu_list_ha if is_pbu_sel else site_plk_list_ha
-                c_dict_use = coords_pbu_ha if is_pbu_sel else coords_plk_ha
+                if is_pbu_sel:
+                    s_list_use, c_dict_use = load_site_master_pbu()
+                else:
+                    s_list_use, c_dict_use = load_site_master_plk()
 
                 c1, c2 = st.columns(2)
                 with c1:
