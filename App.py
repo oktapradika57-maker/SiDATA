@@ -1621,6 +1621,94 @@ def gsheet_append_row(sheet_name, default_headers, row_dict):
     gsheet_read_df.clear()
     return True
 
+def _xl_col_letter(n_idx):
+    res = ""
+    while n_idx > 0:
+        n_idx, rem = divmod(n_idx - 1, 26)
+        res = chr(65 + rem) + res
+    return res or "A"
+
+def gsheet_sync_todo_diff(sheet_name, default_headers, key_col, upsert_dicts=None, delete_keys=None, only_inserts=False):
+    """Sinkronisasi cepat & aman terhadap sinyal jelek (tanpa ws.clear() yang berisiko mengosongkan sheet)."""
+    upsert_dicts = upsert_dicts or []
+    delete_set = {str(k).strip() for k in (delete_keys or []) if str(k).strip()}
+    if not upsert_dicts and not delete_set:
+        return True
+    try:
+        ws, head = _gs_cached_ws_and_head(sheet_name, tuple(default_headers))
+        # Jalur super cepat untuk insert baru murni (1 API call, 0 read, 0 clear)
+        if only_inserts and not delete_set and upsert_dicts:
+            rows_payload = [[str(d.get(c, "")) if d.get(c, "") is not None else "" for c in head] for d in upsert_dicts]
+            _gsheet_retry(ws.append_rows, rows_payload, value_input_option="RAW")
+            if sheet_name in _GS_LAST_OK and isinstance(_GS_LAST_OK[sheet_name], pd.DataFrame):
+                df_add = pd.DataFrame([{c: ("" if d.get(c, "") is None else str(d.get(c, ""))) for c in _GS_LAST_OK[sheet_name].columns} for d in upsert_dicts])
+                _GS_LAST_OK[sheet_name] = pd.concat([_GS_LAST_OK[sheet_name], df_add], ignore_index=True)
+            gsheet_read_df.clear()
+            return True
+
+        all_vals = _gsheet_retry(ws.get_all_values)
+        head_live = all_vals[0] if (all_vals and any(str(c).strip() for c in all_vals[0])) else list(head)
+        for ch in default_headers:
+            if ch not in head_live:
+                head_live.append(ch)
+        k_idx = head_live.index(key_col) if key_col in head_live else 0
+        upsert_map = {str(d.get(key_col, "")).strip(): d for d in upsert_dicts if str(d.get(key_col, "")).strip()}
+
+        # Jalur edit / tambah tanpa hapus -> pakai batch_update + append_rows (0 clear!)
+        if not delete_set:
+            existing_pos = {}
+            for r_i, rv in enumerate(all_vals[1:], start=2):
+                kv = str(rv[k_idx]).strip() if len(rv) > k_idx else ""
+                if kv:
+                    existing_pos[kv] = r_i
+            batch_upd = []
+            to_append = []
+            for kv, d in upsert_map.items():
+                row_vals = [str(d.get(c, "")) if d.get(c, "") is not None else "" for c in head_live]
+                if kv in existing_pos:
+                    batch_upd.append({"range": f"A{existing_pos[kv]}", "values": [row_vals]})
+                else:
+                    to_append.append(row_vals)
+            if batch_upd:
+                _gsheet_retry(ws.batch_update, batch_upd, value_input_option="RAW")
+            if to_append:
+                _gsheet_retry(ws.append_rows, to_append, value_input_option="RAW")
+            gsheet_read_df.clear()
+            return True
+
+        # Jalur hapus (+ opsional upsert): tulis payload baru DULU ke A1, baru bersihkan baris sisa di bawah (anti-hilang jika sinyal putus)
+        old_len = len(all_vals)
+        kept_rows = []
+        seen_upserts = set()
+        for rv in all_vals[1:]:
+            padded = list(rv[:len(head_live)]) + [""] * max(0, len(head_live) - len(rv))
+            kv = str(padded[k_idx]).strip() if len(padded) > k_idx else ""
+            if kv and kv in delete_set:
+                continue
+            if kv and kv in upsert_map:
+                d = upsert_map[kv]
+                padded = [str(d.get(c, "")) if d.get(c, "") is not None else "" for c in head_live]
+                seen_upserts.add(kv)
+            kept_rows.append(padded)
+        for kv, d in upsert_map.items():
+            if kv not in seen_upserts and kv not in delete_set:
+                kept_rows.append([str(d.get(c, "")) if d.get(c, "") is not None else "" for c in head_live])
+
+        new_payload = [head_live] + kept_rows
+        if len(new_payload) > ws.row_count or len(head_live) > ws.col_count:
+            _gsheet_retry(ws.resize, rows=max(len(new_payload) + 100, ws.row_count), cols=max(len(head_live) + 4, ws.col_count))
+        _gsheet_retry(ws.update, range_name="A1", values=new_payload, value_input_option="RAW")
+        if old_len > len(new_payload):
+            end_col = _xl_col_letter(max(len(head_live), 16))
+            _gsheet_retry(ws.batch_clear, [f"A{len(new_payload) + 1}:{end_col}{old_len}"])
+
+        df_clean_cache = pd.DataFrame(kept_rows, columns=head_live)
+        _GS_LAST_OK[sheet_name] = df_clean_cache
+        gsheet_read_df.clear()
+        return True
+    except Exception:
+        return False
+
 def sidavid_eval_expired(punya_status, exp_str):
     if str(punya_status).strip().lower() != "punya":
         return "❌ Belum Punya"
@@ -2288,10 +2376,10 @@ def render_hard_access_route_map_html(ha_list, map_theme="Dark NOC Command Cente
 # 📋 ENGINE TO DO LIST RTS (FORMAT EXCEL RESMI + CARRY-OVER + AUTO-CLOSED SIDATA)
 # =========================================================================
 DAILY_CLUSTER_PLK_OPTS = [
-    "Palangkaraya Kota", "Kapuas - Pulang Pisau", "Katingan - Kasongan",
-    "Gunung Mas - Kuala Kurun", "Barito Utara - Muara Teweh",
-    "Barito Selatan - Buntok", "Barito Timur - Tamiang Layang",
-    "Murung Raya - Puruk Cahu", "Lainnya"
+    "Palangkaraya Kota", "Kapuas", "Pulang Pisau", "Timpah", "Kayubulan",
+    "Katingan - Kasongan", "Gunung Mas - Kuala Kurun",
+    "Barito Utara - Muara Teweh", "Barito Selatan - Buntok",
+    "Barito Timur - Tamiang Layang", "Murung Raya - Puruk Cahu", "Lainnya"
 ]
 
 TODO_RTS_LIST = ["DONI DAMARA", "WINDA SOKENDA", "FAUZI", "FAHMIANG"]
@@ -2300,6 +2388,10 @@ TODO_CATEGORY_PRIORITY = {
     "Cell down": "P1",
     "Vswr": "P1",
     "Site Down": "P1",
+    "Troubleshoot OFDM": "P1",
+    "Ganti Optic": "P1",
+    "Ganti Modem": "P1",
+    "Support Survey": "P2",
     "Eas Validation": "P2",
     "PM": "P2",
     "Support Event": "P2",
@@ -2327,6 +2419,8 @@ TODO_CATEGORY_PRIORITY = {
 TODO_CAT_ACTIVITY_OPTS = [
     "Corrective / Troubleshoot",
     "Preventive Maintenance (PM)",
+    "Preventif / Troubleshoot",
+    "Troubleshoot Genset",
     "Task Force / Improvement",
     "Power & Battery",
     "Transport / Radio",
@@ -2369,16 +2463,46 @@ def build_sidata_site_reports_index(db_list):
         idx[sid_k].sort(key=lambda x: (x["tgl"], x["jam"]))
     return idx
 
+def find_duplicate_todo_tids(df_todo):
+    """Mendeteksi baris double input (Site ID + Start Date + FME Name + Category Task sama) dan mengembalikan Task_ID duplikat berlebih."""
+    if df_todo is None or df_todo.empty:
+        return [], set()
+    groups = {}
+    for i_r, rw in df_todo.iterrows():
+        tid = _clean_cell_str(rw.get("Task_ID"))
+        sid_n = _norm_site_id(rw.get("Site ID"))
+        sd = _fmt_date_short(rw.get("Start Date"))
+        fme_u = _clean_cell_str(rw.get("FME Name")).upper()
+        cat_l = _clean_cell_str(rw.get("Category Task")).lower()
+        if not tid or not sid_n:
+            continue
+        key = (sid_n, sd, fme_u, cat_l)
+        is_done = _clean_cell_str(rw.get("Status Task")).lower() in ("done", "closed", "selesai")
+        upd = _clean_cell_str(rw.get("Updated_At"))
+        groups.setdefault(key, []).append((tid, is_done, upd, i_r))
+
+    excess_tids = []
+    all_dup_tids = set()
+    for _, items in groups.items():
+        if len(items) > 1:
+            for it in items:
+                all_dup_tids.add(it[0])
+            # Pertahankan 1 baris terbaik (prioritaskan yang sudah Done / paling baru diupdate)
+            items_sorted = sorted(items, key=lambda x: (1 if x[1] else 0, x[2], x[3]))
+            for it in items_sorted[:-1]:
+                excess_tids.append(it[0])
+    return excess_tids, all_dup_tids
+
 def evaluate_todolist_rts(df_todo, db_list, active_date=None):
-    """Sinkronisasi To Do List RTS dengan report SIDATA (Auto-Closing) + Deteksi Carry-Over Pending otomatis lintas hari."""
+    """Sinkronisasi To Do List RTS dengan report SIDATA (Auto-Closing) + Deteksi Carry-Over Pending otomatis lintas hari + Penanda Double Input."""
     if active_date is None:
         active_date = datetime.date.today()
     if df_todo is None or df_todo.empty:
         return pd.DataFrame()
 
     sid_idx = build_sidata_site_reports_index(db_list)
+    _, dup_tids_set = find_duplicate_todo_tids(df_todo)
     out_rows = []
-    act_iso = active_date.strftime("%Y-%m-%d")
 
     for i_r, rw in df_todo.iterrows():
         tid = _clean_cell_str(rw.get("Task_ID")) or f"TD-{i_r+1:04d}"
@@ -2404,7 +2528,6 @@ def evaluate_todolist_rts(df_todo, db_list, active_date=None):
         start_d = start_dt_obj.date() if pd.notna(start_dt_obj) else active_date
         start_iso = start_d.strftime("%Y-%m-%d")
 
-        # Cek kecocokan report tim di SIDATA (pada Start Date atau hari-hari berikutnya saat carry-over)
         matched_rep = None
         if sid_n and sid_n in sid_idx:
             reps = [rp for rp in sid_idx[sid_n] if rp["tgl"] >= start_iso]
@@ -2436,11 +2559,11 @@ def evaluate_todolist_rts(df_todo, db_list, active_date=None):
         aging_h = (active_date - start_d).days if is_carry else 0
 
         if is_carry:
-            tipe_board = f"🔁 Carry-Over Pending (H+{aging_h})"
+            tipe_board = f"🔁 Carry-Over (H+{aging_h})"
         elif is_today:
-            tipe_board = "📌 Plan Hari Ini"
+            tipe_board = "📌 Hari Ini"
         elif start_d > active_date:
-            tipe_board = "🗓️ Plan Mendatang"
+            tipe_board = "🗓️ Mendatang"
         else:
             tipe_board = "📁 Arsip Closed"
 
@@ -2468,11 +2591,134 @@ def evaluate_todolist_rts(df_todo, db_list, active_date=None):
             "Is_Carry_Over": is_carry,
             "Is_Active_Board": (is_today or is_carry),
             "Needs_Cloud_Close": needs_cloud_close,
-            "Aging_Hari": aging_h
+            "Aging_Hari": aging_h,
+            "Is_Duplicate": tid in dup_tids_set
         }
         out_rows.append(row_out)
 
     return pd.DataFrame(out_rows)
+
+def render_todolist_responsive_table(df_show, is_mobile=False):
+    """Tabel Full-View Responsif (Tanpa Scroll Horizontal/Vertikal, Tanpa Task_ID) yang adaptif di Web maupun HP."""
+    if df_show is None or df_show.empty:
+        return "<div style='padding:18px;text-align:center;border-radius:14px;border:1px dashed var(--ux-line);color:var(--ux-muted);'>Tidak ada data pekerjaan untuk filter ini.</div>"
+
+    css = """
+    <style>
+    .td-wrap{width:100%;margin:8px 0 18px;border-radius:16px;overflow:hidden;border:1px solid var(--ux-line);background:var(--ux-card);box-shadow:var(--ux-shadow)}
+    .td-tbl{width:100%;border-collapse:collapse;table-layout:fixed;font-size:.82rem;line-height:1.45;color:var(--ux-ink)}
+    .td-tbl thead th{background:linear-gradient(135deg,#0f172a,#1e3a5f);color:#f8fafc;font-weight:800;font-size:.73rem;text-transform:uppercase;letter-spacing:.04em;padding:10px 9px;text-align:left;border-bottom:2px solid rgba(226,185,59,.5)}
+    .td-tbl tbody td{padding:9px 9px;vertical-align:top;border-bottom:1px solid var(--ux-line);word-wrap:break-word;overflow-wrap:anywhere;white-space:normal}
+    .td-tbl tbody tr:last-child td{border-bottom:0}
+    .td-tbl tbody tr:hover{background:var(--ux-card2)}
+    .td-row-done{background:rgba(16,185,129,.07)}
+    .td-row-carry{background:rgba(239,68,68,.08)}
+    .td-row-pend{background:rgba(245,158,11,.07)}
+    .td-pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.70rem;font-weight:800;line-height:1.35;margin:0 4px 3px 0;white-space:nowrap}
+    .td-p1{background:#dc2626;color:#fff} .td-p2{background:#d97706;color:#fff} .td-p3{background:#475569;color:#fff}
+    .td-st-done{background:#059669;color:#fff} .td-st-pend{background:#dc2626;color:#fff} .td-st-wait{background:#d97706;color:#fff} .td-st-prog{background:#2563eb;color:#fff}
+    .td-bd-carry{background:#be123c;color:#fff} .td-bd-today{background:#1d4ed8;color:#fff} .td-bd-arch{background:#475569;color:#fff} .td-bd-dup{background:#f59e0b;color:#111827}
+    .td-sub{display:block;font-size:.74rem;color:var(--ux-muted);margin-top:2px}
+    .td-site{font-weight:800;font-size:.85rem;color:var(--ux-accent)}
+    .td-cards{display:flex;flex-direction:column;gap:10px;margin:8px 0 18px}
+    .td-card{background:var(--ux-card);border:1px solid var(--ux-line);border-left:5px solid var(--ux-accent);border-radius:14px;padding:12px 13px;box-shadow:var(--ux-shadow);font-size:.84rem;line-height:1.45}
+    .td-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:6px}
+    @media (max-width:860px){
+        .td-tbl thead{display:none}
+        .td-tbl,.td-tbl tbody,.td-tbl tr,.td-tbl td{display:block;width:100% !important}
+        .td-tbl tbody tr{margin:10px;border:1px solid var(--ux-line);border-radius:12px;padding:6px 8px;background:var(--ux-card);box-shadow:var(--ux-shadow)}
+        .td-tbl tbody td{border-bottom:1px dashed var(--ux-line);padding:6px 4px}
+        .td-tbl tbody td:last-child{border-bottom:0}
+        .td-tbl tbody td::before{content:attr(data-lbl);display:block;font-size:.68rem;font-weight:800;text-transform:uppercase;color:var(--ux-muted);margin-bottom:2px}
+    }
+    </style>
+    """
+
+    def _p_cls(pr):
+        return "td-p1" if pr == "P1" else ("td-p3" if pr == "P3" else "td-p2")
+
+    def _s_cls(st_v):
+        sl = str(st_v).lower()
+        if sl == "done": return "td-st-done"
+        if "pend" in sl: return "td-st-pend"
+        if "prog" in sl: return "td-st-prog"
+        return "td-st-wait"
+
+    if is_mobile:
+        cards = []
+        for num, (_, r) in enumerate(df_show.iterrows(), 1):
+            st_v = str(r.get("Status Task", "Waiting Update"))
+            is_c = bool(r.get("Is_Carry_Over", False))
+            is_d = bool(r.get("Is_Duplicate", False))
+            bdr = "#059669" if st_v == "Done" else ("#dc2626" if is_c else "#2563EB")
+            bd_cls = "td-bd-carry" if is_c else ("td-bd-today" if "Hari Ini" in str(r.get("Tipe_Board", "")) else "td-bd-arch")
+            dup_b = '<span class="td-pill td-bd-dup">⚠️ Double Input</span>' if is_d else ""
+            act_txt = " · ".join([x for x in [str(r.get("Activity", "")).strip(), str(r.get("Detail Activity", "")).strip()] if x and x != "-"]) or "-"
+            end_txt = f" ➔ {r['End Date']}" if str(r.get("End Date", "")).strip() else ""
+            cards.append(
+                f'<div class="td-card" style="border-left-color:{bdr};">'
+                f'<div><b>#{num}</b> <span class="td-pill {bd_cls}">{_esc(r.get("Tipe_Board", ""))}</span>'
+                f'<span class="td-pill {_p_cls(r.get("Prioritas", "P2"))}">{_esc(r.get("Prioritas", "P2"))}</span>'
+                f'<span class="td-pill {_s_cls(st_v)}">{_esc(st_v)}</span>{dup_b}</div>'
+                f'<div style="margin-top:4px;"><span class="td-site">{_esc(r.get("Site ID", "-"))}</span> · <b>{_esc(r.get("Category Task", "-"))}</b></div>'
+                f'<div class="td-card-grid">'
+                f'<div><span class="td-sub">Cluster</span><b>{_esc(r.get("Cluster", "-"))}</b></div>'
+                f'<div><span class="td-sub">FME / Role</span><b>{_esc(r.get("FME Name", "-"))}</b> ({_esc(r.get("Role", "-"))})</div>'
+                f'<div><span class="td-sub">RTS</span>{_esc(r.get("RTS Name", "-"))}</div>'
+                f'<div><span class="td-sub">Tanggal</span>{_esc(r.get("Start Date", "-"))}{_esc(end_txt)}</div>'
+                f'</div>'
+                f'<div style="margin-top:6px;"><span class="td-sub">Activity &amp; Detail ({_esc(r.get("Category Activity", "-") or "-")})</span>{_esc(act_txt)}</div>'
+                f'<div style="margin-top:4px;"><span class="td-sub">Remark &amp; Sync SIDATA</span>{_esc(r.get("Remark Kerjaan", "-") or "-")} · <b>{_esc(r.get("Bukti_SIDATA", "-"))}</b></div>'
+                f'</div>'
+            )
+        return css + '<div class="td-cards">' + "".join(cards) + "</div>"
+
+    rows_html = []
+    for num, (_, r) in enumerate(df_show.iterrows(), 1):
+        st_v = str(r.get("Status Task", "Waiting Update"))
+        is_c = bool(r.get("Is_Carry_Over", False))
+        is_d = bool(r.get("Is_Duplicate", False))
+        tr_cls = "td-row-done" if st_v == "Done" else ("td-row-carry" if is_c else ("td-row-pend" if "pend" in st_v.lower() else ""))
+        bd_cls = "td-bd-carry" if is_c else ("td-bd-today" if "Hari Ini" in str(r.get("Tipe_Board", "")) else "td-bd-arch")
+        dup_b = '<span class="td-pill td-bd-dup">⚠️ Double Input</span>' if is_d else ""
+        end_s = str(r.get("End Date", "")).strip()
+        tgl_sub = f"Start: {r.get('Start Date', '-')}" + (f"<br>End: {end_s}" if end_s else "")
+        act_main = str(r.get("Activity", "")).strip()
+        det_main = str(r.get("Detail Activity", "")).strip()
+        rem_main = str(r.get("Remark Kerjaan", "")).strip()
+        act_parts = []
+        if act_main and act_main != "-": act_parts.append(f"<b>{_esc(act_main)}</b>")
+        if det_main and det_main != "-" and det_main.lower() != act_main.lower(): act_parts.append(_esc(det_main))
+        act_block = "<br>".join(act_parts) if act_parts else "-"
+        rem_block = f'<span class="td-sub">💬 {_esc(rem_main)}</span>' if (rem_main and rem_main != "-") else ""
+
+        rows_html.append(
+            f'<tr class="{tr_cls}">'
+            f'<td data-lbl="No" style="text-align:center;font-weight:800;">{num}</td>'
+            f'<td data-lbl="Board &amp; Tanggal"><span class="td-pill {bd_cls}">{_esc(r.get("Tipe_Board", ""))}</span>{dup_b}<span class="td-sub">{tgl_sub}</span></td>'
+            f'<td data-lbl="Category Task"><span class="td-pill {_p_cls(r.get("Prioritas", "P2"))}">{_esc(r.get("Prioritas", "P2"))}</span><b>{_esc(r.get("Category Task", "-"))}</b><span class="td-sub">{_esc(r.get("Category Activity", "-") or "-")}</span></td>'
+            f'<td data-lbl="Site &amp; Cluster"><span class="td-site">{_esc(r.get("Site ID", "-"))}</span><span class="td-sub">📍 {_esc(r.get("Cluster", "-"))}</span></td>'
+            f'<td data-lbl="FME &amp; RTS"><b>{_esc(r.get("FME Name", "-"))}</b> <span style="opacity:.75;">({_esc(r.get("Role", "-"))})</span><span class="td-sub">👤 {_esc(r.get("RTS Name", "-"))}</span></td>'
+            f'<td data-lbl="Activity &amp; Remark">{act_block}{rem_block}</td>'
+            f'<td data-lbl="Status &amp; SIDATA"><span class="td-pill {_s_cls(st_v)}">{_esc(st_v)}</span><span class="td-sub">{_esc(r.get("Bukti_SIDATA", "-"))}</span></td>'
+            f'</tr>'
+        )
+
+    return (
+        css
+        + '<div class="td-wrap"><table class="td-tbl">'
+        + '<thead><tr>'
+        + '<th style="width:4%;text-align:center;">No</th>'
+        + '<th style="width:13%;">Board &amp; Tgl</th>'
+        + '<th style="width:15%;">Category Task</th>'
+        + '<th style="width:15%;">Site &amp; Cluster</th>'
+        + '<th style="width:14%;">FME &amp; RTS</th>'
+        + '<th style="width:22%;">Activity, Detail &amp; Remark</th>'
+        + '<th style="width:17%;">Status &amp; Sync SIDATA</th>'
+        + '</tr></thead><tbody>'
+        + "".join(rows_html)
+        + '</tbody></table></div>'
+    )
 
 def build_todolist_rts_excel(df_eval):
     """Export Excel format resmi identik dengan 'To Do List NOP Palangkaraya (3).xlsx' (Sheet: Isian, Category Task, RTS)."""
@@ -2485,7 +2731,7 @@ def build_todolist_rts_excel(df_eval):
     thin = Side(style="thin", color="CBD5E1")
     brd = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-    # Sheet 1: Isian (14 Kolom Resmi)
+    # Sheet 1: Isian (14 Kolom Resmi — Tanpa Task_ID)
     ws = wb.active
     ws.title = "Isian"
     for ci, col_nm in enumerate(COLS_TODO_EXCEL, 1):
@@ -7831,11 +8077,11 @@ elif menu == "⚡ Dapot Power Hasil PMS":
         except Exception as e:
             st.error(f"Terjadi kesalahan saat memuat Dapot Power Executive Dashboard: {e}")
 # =========================================================================
-# MENU 5: TO DO LIST RTS (PASSWORD-ONLY RTS + AUTO-CLOSED SIDATA + CARRY-OVER PENDING)
+# MENU 5: TO DO LIST RTS (AUTO-SAVE BULK + FULL RESPONSIVE VIEW + HAPUS DOUBLE INPUT + NO TASK ID)
 # =========================================================================
 elif menu == "📋 To Do List RTS":
     st.markdown("<h1 style='text-align: center;'>📋 To Do List & Kontrol Harian Tim RTS</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; opacity: 0.85;'>Planning harian RTS NOP Palangkaraya, Auto-Closing sinkron report SIDATA, Carry-Over otomatis kerjaan Pending lintas hari & Export/Import format Excel resmi.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.85;'>Plan Harian RTS, Auto-Save Bulk tanpa klik Save, Auto-Closing sinkron SIDATA, Carry-Over Pending otomatis & Hapus Activity/Double Input.</p>", unsafe_allow_html=True)
 
     # Auto-unlock jika login sebagai Admin Utama
     rts_sess = st.session_state.get("rts_user")
@@ -7866,7 +8112,12 @@ elif menu == "📋 To Do List RTS":
     active_rts_name = rts_sess["rts_name"]
     is_rts_admin = bool(rts_sess.get("is_admin"))
 
-    # Baris Identitas RTS + Ganti Akun RTS
+    # Flash message untuk aksi hapus/sync
+    _rts_flash = st.session_state.pop("rts_flash_msg", None)
+    if _rts_flash:
+        st.success(_rts_flash)
+
+    # Baris Identitas RTS + Sync + Ganti Akun RTS
     c_id1, c_id2, c_id3 = st.columns([3.0, 1.2, 1.2])
     c_id1.markdown(
         f"<div style='padding:8px 14px; border-radius:10px; background:var(--ux-card2); border-left:5px solid #9C27B0; font-weight:700;'>"
@@ -7877,12 +8128,14 @@ elif menu == "📋 To Do List RTS":
         with st.spinner("Menyinkronkan SIDATA & To Do List..."):
             get_laporan_db(force_refresh=True)
             gsheet_read_df.clear()
+            st.session_state.pop("rts_mass_base", None)
         st.rerun()
     if c_id3.button("🔑 Ganti RTS", use_container_width=True, key="btn_rts_switch"):
         st.session_state.pop("rts_user", None)
+        st.session_state.pop("rts_mass_base", None)
         st.rerun()
 
-    # Muat data Master PLK (cached) & sheet cloud ToDoList_RTS (ringan, tanpa muat data PBU)
+    # Muat data Master PLK (cached) & sheet cloud ToDoList_RTS
     df_todo_cloud, ok_todo_c = gsheet_read_df("ToDoList_RTS", COLS_TODO_RTS)
     fme_plk_df_td, _, _ = load_master_tim_df("PLK")
     fme_plk_active_td = load_master_tim_names("PLK")
@@ -7896,13 +8149,18 @@ elif menu == "📋 To Do List RTS":
                     str(r_fm.get("CLUSTER", "Palangkaraya Kota")).strip() or "Palangkaraya Kota"
                 )
 
+    # Helper opsi selectbox aman (tetap mendukung nilai legacy jika ada di sheet lama)
+    def _merge_opts(base_opts, series_vals):
+        extra = [str(v).strip() for v in series_vals if str(v).strip() and str(v).strip() not in base_opts and str(v).strip().lower() not in ("nan", "none")]
+        return list(base_opts) + sorted(list(set(extra)))
+
     st.markdown("<br>", unsafe_allow_html=True)
     rts_nav = st.radio(
         "Navigasi To Do List RTS (Mode Ringan):",
         [
-            "🎯 1. Board Harian & Carry-Over (Auto-Sync SIDATA)",
-            "➕ 2. Input Plan Harian RTS",
-            "✏️ 3. Ubah Plan & Update Status Manual",
+            "🎯 1. Board Harian & Carry-Over (Full View)",
+            "➕ 2. Input Plan Harian (Bulk Auto-Save & Satuan)",
+            "✏️ 3. Edit Plan, Auto-Save & Hapus Activity",
             "📊 4. Export & Import Excel Manual"
         ],
         horizontal=True,
@@ -7912,10 +8170,10 @@ elif menu == "📋 To Do List RTS":
     st.markdown("<hr style='margin: 8px 0 18px 0;'>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------------------
-    # SUB-1: BOARD HARIAN & CARRY-OVER PENDING OTOMATIS + AUTO-CLOSED SIDATA
+    # SUB-1: BOARD HARIAN & CARRY-OVER PENDING OTOMATIS + FULL VIEW TANPA SCROLL + HAPUS DOUBLE INPUT
     # ---------------------------------------------------------------------
-    if rts_nav == "🎯 1. Board Harian & Carry-Over (Auto-Sync SIDATA)":
-        c_f1, c_f2, c_f3, c_f4 = st.columns([1.2, 1.3, 1.5, 1.3])
+    if rts_nav == "🎯 1. Board Harian & Carry-Over (Full View)":
+        c_f1, c_f2, c_f3, c_f4 = st.columns([1.15, 1.25, 1.55, 1.3])
         tgl_kontrol = c_f1.date_input("📅 Tanggal Kontrol:", value=datetime.date.today(), key="rts_tgl_ctrl")
         rts_scope_opts = ["Semua RTS"] + TODO_RTS_LIST
         def_rts_idx = 0 if is_rts_admin else (rts_scope_opts.index(active_rts_name) if active_rts_name in rts_scope_opts else 0)
@@ -7931,10 +8189,10 @@ elif menu == "📋 To Do List RTS":
             ],
             key="rts_flt_board"
         )
-        q_td = c_f4.text_input("🔍 Cari Site / FME / Task:", key="rts_flt_q")
+        q_td = c_f4.text_input("🔍 Cari Site / FME / Cluster / Task:", key="rts_flt_q")
 
         if df_todo_cloud.empty:
-            st.info("📋 Belum ada Plan di sheet **`ToDoList_RTS`**. Silakan input Plan harian di menu **➕ 2. Input Plan Harian RTS** atau upload Excel di **📊 4. Export & Import Excel Manual**.")
+            st.info("📋 Belum ada Plan di sheet **`ToDoList_RTS`**. Silakan input Plan harian di menu **➕ 2. Input Plan Harian (Bulk Auto-Save & Satuan)** atau upload Excel di **📊 4. Export & Import Excel Manual**.")
         else:
             db_live_td = get_laporan_db()
             df_ev = evaluate_todolist_rts(df_todo_cloud, db_live_td, active_date=tgl_kontrol)
@@ -7945,23 +8203,35 @@ elif menu == "📋 To Do List RTS":
             else:
                 df_ev_rts = df_ev.copy()
 
+            # Deteksi Double Input (Duplikat) di scope RTS aktif -> 1 klik bersihkan
+            df_cloud_scope_dup = df_todo_cloud if pick_rts_view == "Semua RTS" else df_todo_cloud[df_todo_cloud["RTS Name"].astype(str).str.upper() == pick_rts_view.upper()]
+            dup_excess_tids, _ = find_duplicate_todo_tids(df_cloud_scope_dup)
+            if dup_excess_tids:
+                cd_a, cd_b = st.columns([3.2, 1.5])
+                cd_a.warning(f"⚠️ **Terdeteksi {len(dup_excess_tids)} baris Double Input (duplikat Site ID + Tanggal + FME + Category Task sama).** Anda bisa hapus otomatis atau pilih manual di bawah.")
+                if cd_b.button(f"🧹 Hapus {len(dup_excess_tids)} Double Input Otomatis", type="primary", use_container_width=True, key="btn_del_dup_board"):
+                    if gsheet_sync_todo_diff("ToDoList_RTS", COLS_TODO_RTS, "Task_ID", delete_keys=dup_excess_tids):
+                        st.session_state.pop("rts_mass_base", None)
+                        st.session_state["rts_flash_msg"] = f"🧹 {len(dup_excess_tids)} baris double input berhasil dihapus otomatis!"
+                        st.rerun()
+
             # Deteksi task yang otomatis ter-close oleh SIDATA namun belum di-commit ke sheet cloud
             df_need_commit = df_ev[df_ev["Needs_Cloud_Close"] == True]
             if not df_need_commit.empty:
                 c_ac1, c_ac2 = st.columns([3.2, 1.5])
-                c_ac1.success(f"⚡ **Terdeteksi {len(df_need_commit)} pekerjaan telah diisi tim di SIDATA!** Status pada tampilan & Excel otomatis menjadi **Done (Auto-Closed)**. Klik tombol di kanan untuk menyimpan status `Done` secara permanen ke Cloud.")
-                if c_ac2.button(f"💾 Commit {len(df_need_commit)} Auto-Closed ke Cloud", type="primary", use_container_width=True, key="btn_commit_autoclose_rts"):
-                    df_upd_c = df_todo_cloud.copy()
+                c_ac1.success(f"⚡ **Terdeteksi {len(df_need_commit)} pekerjaan telah diisi tim di SIDATA!** Status otomatis **Done (Auto-Closed)**. Klik tombol kanan untuk mengunci permanen ke Cloud.")
+                if c_ac2.button(f"💾 Commit {len(df_need_commit)} Auto-Closed", type="primary", use_container_width=True, key="btn_commit_autoclose_rts"):
                     now_ts_c = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    close_map = {str(r["Task_ID"]): r["End Date"] for _, r in df_need_commit.iterrows()}
-                    for tid_k, ed_val in close_map.items():
-                        mk = df_upd_c["Task_ID"].astype(str) == tid_k
-                        if mk.any():
-                            df_upd_c.loc[mk, "Status Task"] = "Done"
-                            df_upd_c.loc[mk, "End Date"] = ed_val
-                            df_upd_c.loc[mk, "Updated_At"] = now_ts_c
-                    if gsheet_overwrite_ws("ToDoList_RTS", df_upd_c[COLS_TODO_RTS]):
-                        st.success(f"✅ {len(close_map)} task berhasil di-closing permanen di Cloud (`ToDoList_RTS`)!")
+                    ups_close = []
+                    for _, r_nc in df_need_commit.iterrows():
+                        d_c = {c: _clean_cell_str(r_nc.get(c)) for c in COLS_TODO_RTS}
+                        d_c["Status Task"] = "Done"
+                        d_c["End Date"] = _clean_cell_str(r_nc.get("End Date")) or tgl_kontrol.strftime("%Y-%m-%d")
+                        d_c["Updated_At"] = now_ts_c
+                        ups_close.append(d_c)
+                    if gsheet_sync_todo_diff("ToDoList_RTS", COLS_TODO_RTS, "Task_ID", upsert_dicts=ups_close):
+                        st.session_state.pop("rts_mass_base", None)
+                        st.session_state["rts_flash_msg"] = f"✅ {len(ups_close)} task berhasil di-closing permanen di Cloud (`ToDoList_RTS`)!"
                         st.rerun()
 
             # Hitung KPI Board untuk tanggal terpilih
@@ -7993,20 +8263,57 @@ elif menu == "📋 To Do List RTS":
 
             if q_td.strip():
                 ql = q_td.strip().lower()
-                mask_q = df_show.apply(lambda r: ql in f"{r['Site ID']} {r['FME Name']} {r['Category Task']} {r['Cluster']} {r['Activity']} {r['Remark Kerjaan']}".lower(), axis=1)
+                mask_q = df_show.apply(lambda r: ql in f"{r['Site ID']} {r['FME Name']} {r['Category Task']} {r['Cluster']} {r['Category Activity']} {r['Activity']} {r['Detail Activity']} {r['Remark Kerjaan']}".lower(), axis=1)
                 df_show = df_show[mask_q]
 
             # Urutkan: Carry-Over P1 paling atas agar langsung jadi perhatian RTS
             if not df_show.empty:
-                df_show = df_show.sort_values(by=["Is_Carry_Over", "Prioritas", "Start Date"], ascending=[False, True, False])
+                df_show = df_show.sort_values(by=["Is_Carry_Over", "Prioritas", "Start Date"], ascending=[False, True, False]).reset_index(drop=True)
 
-            cols_disp = [
-                "Tipe_Board", "Prioritas", "Category Task", "Site ID", "FME Name", "Role",
-                "RTS Name", "Cluster", "Start Date", "End Date", "Status Task",
-                "Status_Sync_SIDATA", "Bukti_SIDATA", "Activity", "Remark Kerjaan"
-            ]
-            st.markdown(f"#### 📋 Daftar Pekerjaan ({len(df_show)} Task)")
-            st.dataframe(df_show[[c for c in cols_disp if c in df_show.columns]], use_container_width=True, hide_index=True, height=400)
+            ch_v1, ch_v2 = st.columns([2.6, 1.6])
+            ch_v1.markdown(f"#### 📋 Daftar Pekerjaan — Full View ({len(df_show)} Task)")
+            view_style_td = ch_v2.radio(
+                "Gaya Tabel:",
+                ["📋 Tabel Full Responsif", "📊 Mode Copy/Sort"],
+                horizontal=True,
+                key="rts_view_style",
+                label_visibility="collapsed"
+            )
+
+            if view_style_td == "📋 Tabel Full Responsif":
+                st.markdown(render_todolist_responsive_table(df_show, is_mobile=IS_HP), unsafe_allow_html=True)
+            else:
+                # Mode dataframe tanpa Task_ID & tinggi dinamis agar tidak perlu scroll vertikal
+                cols_disp = [
+                    "Tipe_Board", "Prioritas", "Category Task", "Site ID", "FME Name", "Role",
+                    "RTS Name", "Cluster", "Category Activity", "Activity", "Detail Activity",
+                    "Start Date", "End Date", "Status Task", "Bukti_SIDATA", "Remark Kerjaan"
+                ]
+                dyn_h = min(max((len(df_show) + 1) * 38 + 16, 140), 2200)
+                st.dataframe(df_show[[c for c in cols_disp if c in df_show.columns]], use_container_width=True, hide_index=True, height=dyn_h)
+
+            # Panel Hapus Activity / Double Input Cepat langsung dari Board (Tanpa menampilkan Task_ID)
+            if not df_show.empty:
+                with st.expander("🗑️ Hapus Activity yang Salah / Double Input", expanded=bool(dup_excess_tids)):
+                    st.caption("Pilih 1 atau lebih baris yang salah / double input, lalu klik **Hapus Terpilih** (langsung terhapus permanen dari Cloud).")
+                    del_label_to_tid = {}
+                    del_opts = []
+                    for i_d, r_d in df_show.iterrows():
+                        dup_tag = " [⚠️ DOUBLE]" if r_d.get("Is_Duplicate") else ""
+                        lbl_d = f"#{i_d+1} · {r_d['Start Date']} · [{r_d['Prioritas']}] {r_d['Site ID']} · {r_d['FME Name']} · {r_d['Category Task']} ({r_d['Status Task']}){dup_tag}"
+                        if lbl_d in del_label_to_tid:
+                            lbl_d = f"{lbl_d} (baris {i_d+1})"
+                        del_label_to_tid[lbl_d] = str(r_d["Task_ID"])
+                        del_opts.append(lbl_d)
+                    picked_del_lbls = st.multiselect("Pilih Activity yang akan dihapus:", del_opts, key="rts_board_del_multi")
+                    if st.button(f"🗑️ HAPUS ACTIVITY TERPILIH ({len(picked_del_lbls)})", type="primary", disabled=(not picked_del_lbls), use_container_width=True, key="btn_rts_board_del_go"):
+                        tids_del = [del_label_to_tid[lb] for lb in picked_del_lbls]
+                        if gsheet_sync_todo_diff("ToDoList_RTS", COLS_TODO_RTS, "Task_ID", delete_keys=tids_del):
+                            st.session_state.pop("rts_mass_base", None)
+                            st.session_state["rts_flash_msg"] = f"🗑️ {len(tids_del)} activity berhasil dihapus dari Cloud!"
+                            st.rerun()
+                        else:
+                            st.error("⚠️ Gagal menghapus — periksa koneksi internet lalu coba lagi.")
 
             # Daftar Follow Up & Reminder WA untuk task yang masih Open / Carry-Over
             df_open_cards = df_show[df_show["Status Task"] != "Done"]
@@ -8040,240 +8347,434 @@ elif menu == "📋 To Do List RTS":
                 st.success("🎉 Mantap! Seluruh task pada tampilan ini sudah **Done / Auto-Closed**.")
 
     # ---------------------------------------------------------------------
-    # SUB-2: INPUT PLAN HARIAN RTS (SATUAN + BATCH CEPAT)
+    # SUB-2: INPUT PLAN HARIAN RTS (BULK AUTO-SAVE TANPA KLIK SAVE + INPUT SATUAN)
     # ---------------------------------------------------------------------
-    elif rts_nav == "➕ 2. Input Plan Harian RTS":
+    elif rts_nav == "➕ 2. Input Plan Harian (Bulk Auto-Save & Satuan)":
         site_plk_list_td, _ = load_site_master_plk()
-        st.markdown("#### ➕ Input Plan Harian RTS (Format 14 Kolom Resmi `Isian`)")
-        st.info("💡 Pilih `Category Task` maka `Prioritas (P1/P2/P3)` otomatis terisi; pilih `FME Name` maka `Role` & `Cluster` otomatis terisi dari Master Tim PLK. Jika tim belum menyelesaikan hari ini, task akan otomatis muncul lagi sebagai **Carry-Over Pending** besok.")
+        t_in_bulk, t_in_one = st.tabs([
+            "⚡ Input Bulk Otomatis (Auto-Save per Baris — Tanpa Klik Save)",
+            "📝 Input Satuan (1 Task)"
+        ])
 
-        with st.container(border=True):
-            c1, c2, c3 = st.columns(3)
-            in_cat = c1.selectbox("🏷️ Category Task *:", list(TODO_CATEGORY_PRIORITY.keys()), key="rts_in_cat")
-            def_prio = TODO_CATEGORY_PRIORITY.get(in_cat, "P2")
-            in_prio = c2.selectbox("⚡ Prioritas (Auto):", ["P1", "P2", "P3"], index=["P1", "P2", "P3"].index(def_prio), key=f"rts_in_prio_{in_cat}")
-            in_site = c3.selectbox("📍 Site ID (Master PLK) *:", [""] + site_plk_list_td, key="rts_in_site")
+        # --- TAB BULK AUTO-SAVE ---
+        with t_in_bulk:
+            st.markdown("#### ⚡ Input Bulk Plan Harian RTS — Auto-Save Langsung ke Cloud")
+            st.info("💡 **Tanpa perlu klik tombol Save!** Begitu `Site ID` dan `FME Name` terisi pada sebuah baris, baris tersebut **otomatis tersimpan ke Google Sheets** (jika ada perubahan sel, otomatis ter-update; jika baris dihapus, otomatis terhapus). Aman meski sinyal naik-turun.")
 
-            c4, c5, c6 = st.columns(3)
-            in_fme = c4.selectbox("👷 FME Name (Master Tim PLK) *:", [""] + fme_plk_active_td, key="rts_in_fme")
-            def_rl, def_cl = fme_info_map.get(in_fme, ("TE", "Palangkaraya Kota"))
-            rl_opts_in = TODO_ROLE_OPTS + ([def_rl] if def_rl and def_rl not in TODO_ROLE_OPTS else [])
-            in_role = c5.selectbox("🎖️ Role:", rl_opts_in, index=rl_opts_in.index(def_rl) if def_rl in rl_opts_in else 0, key=f"rts_in_rl_{in_fme}")
-            if is_rts_admin:
-                in_rts = c6.selectbox("👤 RTS Name *:", TODO_RTS_LIST, key="rts_in_rts_adm")
-            else:
-                in_rts = c6.text_input("👤 RTS Name (Auto Login):", value=active_rts_name, disabled=True, key="rts_in_rts_lk")
+            cb1, cb2, cb3 = st.columns([1.3, 1.5, 1.4])
+            bt_tgl = cb1.date_input("📅 Start Date Bulk:", value=datetime.date.today(), key="rts_bt_tgl")
+            bt_rts = cb2.selectbox(
+                "👤 RTS Name Bulk:",
+                TODO_RTS_LIST,
+                index=TODO_RTS_LIST.index(active_rts_name) if active_rts_name in TODO_RTS_LIST else 0,
+                disabled=(not is_rts_admin),
+                key="rts_bt_who"
+            )
+            if cb3.button("🧹 Lembar Bulk Baru", use_container_width=True, key="btn_rts_bulk_new_sheet", help="Mengosongkan lembar input di bawah untuk mulai input sesi baru (data yg sudah Auto-Save di Cloud tetap aman)."):
+                st.session_state["rts_bulk_ver"] = st.session_state.get("rts_bulk_ver", 0) + 1
+                st.session_state.pop("rts_bulk_init_df", None)
+                st.session_state.pop("rts_bulk_synced", None)
+                st.session_state.pop("rts_bulk_status_msg", None)
+                st.rerun()
 
-            c7, c8, c9 = st.columns(3)
-            cl_opts_in = DAILY_CLUSTER_PLK_OPTS + ([def_cl] if def_cl and def_cl not in DAILY_CLUSTER_PLK_OPTS else [])
-            in_cl = c7.selectbox("🗺️ Cluster:", cl_opts_in, index=cl_opts_in.index(def_cl) if def_cl in cl_opts_in else 0, key=f"rts_in_cl_{in_fme}")
-            in_cat_act = c8.selectbox("⚙️ Category Activity:", TODO_CAT_ACTIVITY_OPTS, key="rts_in_cact")
-            in_status = c9.selectbox("🚦 Status Task Awal:", TODO_STATUS_OPTS, index=0, key="rts_in_st")
-
-            c10, c11 = st.columns(2)
-            in_det_act = c10.text_input("📝 Detail Activity:", placeholder="Cth: Cek Recti Drop & Reset Modul", key="rts_in_dact")
-            in_act = c11.text_input("🔧 Activity:", placeholder="Cth: Troubleshoot Power / PM SPS", key="rts_in_act")
-
-            c12, c13, c14 = st.columns([1, 1, 2])
-            in_start = c12.date_input("📅 Start Date *:", value=datetime.date.today(), key="rts_in_sdate")
-            use_end = c13.checkbox("Isi End Date?", value=False, key="rts_in_uend")
-            in_end_str = c13.date_input("📅 End Date:", value=in_start, key="rts_in_edate").strftime("%Y-%m-%d") if use_end else ""
-            in_rem = c14.text_input("💬 Remark Kerjaan:", placeholder="Catatan tambahan / instruksi RTS...", key="rts_in_rem")
-
-            if st.button("🚀 SIMPAN PLAN HARIAN RTS KE CLOUD (`ToDoList_RTS`)", type="primary", use_container_width=True, key="btn_save_rts_single"):
-                if not in_site or not in_fme:
-                    st.error("⚠️ Site ID dan FME Name wajib dipilih!")
-                else:
-                    rec_td = {
-                        "Task_ID": f"TD-{in_start.strftime('%Y%m%d')}-{datetime.datetime.now().strftime('%H%M%S')}",
-                        "Category Task": in_cat,
-                        "Prioritas": in_prio,
-                        "Site ID": in_site,
-                        "FME Name": in_fme,
-                        "Role": in_role,
-                        "RTS Name": in_rts,
-                        "Cluster": in_cl,
-                        "Category Activity": in_cat_act,
-                        "Detail Activity": in_det_act.strip(),
-                        "Activity": in_act.strip() or in_cat,
-                        "Start Date": in_start.strftime("%Y-%m-%d"),
-                        "End Date": in_end_str,
-                        "Status Task": in_status,
-                        "Remark Kerjaan": in_rem.strip(),
-                        "Updated_At": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            bulk_ver = st.session_state.get("rts_bulk_ver", 0)
+            if "rts_bulk_init_df" not in st.session_state:
+                st.session_state["rts_bulk_init_df"] = pd.DataFrame([
+                    {
+                        "Category Task": "PM", "Site ID": "", "FME Name": "", "Cluster": "Palangkaraya Kota",
+                        "Category Activity": "Preventive Maintenance (PM)", "Detail Activity": "",
+                        "Activity": "", "Status Task": "Waiting Update", "Remark Kerjaan": ""
                     }
-                    if gsheet_append_row("ToDoList_RTS", COLS_TODO_RTS, rec_td):
-                        st.success(f"✅ Plan **[{in_prio}] {in_cat}** untuk `{in_site}` oleh **{in_fme}** (RTS: {in_rts}) tersimpan ke Cloud!")
-                        st.rerun()
-                    else:
-                        st.error("⚠️ Gagal menyimpan ke Google Sheets tab `ToDoList_RTS`.")
+                    for _ in range(3)
+                ])
+            if "rts_bulk_synced" not in st.session_state:
+                st.session_state["rts_bulk_synced"] = {}
 
-        # Mode Input Batch Cepat (Banyak Tim Sekaligus di Pagi Hari)
-        with st.expander("⚡ Input Banyak Plan RTS Sekaligus (Mode Tabel Pagi — 1x Simpan)", expanded=False):
-            cb1, cb2 = st.columns(2)
-            bt_tgl = cb1.date_input("📅 Start Date Batch:", value=datetime.date.today(), key="rts_bt_tgl")
-            bt_rts = cb2.selectbox("👤 RTS Name Batch:", TODO_RTS_LIST, index=TODO_RTS_LIST.index(active_rts_name) if active_rts_name in TODO_RTS_LIST else 0, disabled=(not is_rts_admin), key="rts_bt_who")
-
-            if "rts_batch_df" not in st.session_state:
-                st.session_state["rts_batch_df"] = pd.DataFrame([{
-                    "Category Task": "PM", "Site ID": "", "FME Name": "", "Cluster": "Palangkaraya Kota",
-                    "Category Activity": "Preventive Maintenance (PM)", "Detail Activity": "",
-                    "Activity": "", "Status Task": "Waiting Update", "Remark Kerjaan": ""
-                }])
+            status_slot = st.empty()
 
             ed_bt = st.data_editor(
-                st.session_state["rts_batch_df"],
+                st.session_state["rts_bulk_init_df"],
                 use_container_width=True,
+                hide_index=True,
                 num_rows="dynamic",
+                height=min(max((len(st.session_state["rts_bulk_init_df"]) + 4) * 38 + 40, 260), 1200),
                 column_config={
                     "Category Task": st.column_config.SelectboxColumn("Category Task *", options=list(TODO_CATEGORY_PRIORITY.keys()), default="PM"),
                     "Site ID": st.column_config.SelectboxColumn("Site ID *", options=[""] + site_plk_list_td),
                     "FME Name": st.column_config.SelectboxColumn("FME Name *", options=[""] + fme_plk_active_td),
                     "Cluster": st.column_config.SelectboxColumn("Cluster", options=DAILY_CLUSTER_PLK_OPTS, default="Palangkaraya Kota"),
                     "Category Activity": st.column_config.SelectboxColumn("Category Activity", options=TODO_CAT_ACTIVITY_OPTS, default="Preventive Maintenance (PM)"),
-                    "Status Task": st.column_config.SelectboxColumn("Status Task", options=TODO_STATUS_OPTS, default="Waiting Update")
+                    "Detail Activity": st.column_config.TextColumn("Detail Activity"),
+                    "Activity": st.column_config.TextColumn("Activity"),
+                    "Status Task": st.column_config.SelectboxColumn("Status Task", options=TODO_STATUS_OPTS, default="Waiting Update"),
+                    "Remark Kerjaan": st.column_config.TextColumn("Remark Kerjaan")
                 },
-                key="rts_batch_ed"
+                key=f"rts_batch_ed_v{bulk_ver}"
             )
-            if st.button("🚀 SIMPAN SEMUA PLAN BATCH KE CLOUD (`ToDoList_RTS`)", type="primary", use_container_width=True, key="btn_save_rts_batch"):
-                new_rows = []
-                now_s = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                tgl_s = bt_tgl.strftime("%Y-%m-%d")
-                for ib, r_b in ed_bt.iterrows():
-                    s_b = _clean_cell_str(r_b.get("Site ID"))
-                    f_b = _clean_cell_str(r_b.get("FME Name"))
-                    c_b = _clean_cell_str(r_b.get("Category Task")) or "PM"
-                    if not s_b or not f_b:
-                        continue
-                    rl_b, _ = fme_info_map.get(f_b, ("TE", "Palangkaraya Kota"))
-                    new_rows.append({
-                        "Task_ID": f"TD-{bt_tgl.strftime('%Y%m%d')}-{datetime.datetime.now().strftime('%H%M%S')}-{ib+1:02d}",
-                        "Category Task": c_b,
-                        "Prioritas": TODO_CATEGORY_PRIORITY.get(c_b, "P2"),
-                        "Site ID": s_b,
-                        "FME Name": f_b,
-                        "Role": rl_b,
-                        "RTS Name": bt_rts if is_rts_admin else active_rts_name,
-                        "Cluster": _clean_cell_str(r_b.get("Cluster")) or "Palangkaraya Kota",
-                        "Category Activity": _clean_cell_str(r_b.get("Category Activity")),
-                        "Detail Activity": _clean_cell_str(r_b.get("Detail Activity")),
-                        "Activity": _clean_cell_str(r_b.get("Activity")) or c_b,
-                        "Start Date": tgl_s,
-                        "End Date": "",
-                        "Status Task": _clean_cell_str(r_b.get("Status Task")) or "Waiting Update",
-                        "Remark Kerjaan": _clean_cell_str(r_b.get("Remark Kerjaan")),
-                        "Updated_At": now_s
-                    })
-                if not new_rows:
-                    st.error("⚠️ Isi minimal 1 baris lengkap (`Site ID` & `FME Name`).")
+
+            # ENGINE AUTO-SAVE REAL-TIME (Setiap edit/tambah/hapus langsung sinkron ke Cloud)
+            synced_map = st.session_state["rts_bulk_synced"]
+            now_auto = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            tgl_auto = bt_tgl.strftime("%Y-%m-%d")
+            rts_eff = bt_rts if is_rts_admin else active_rts_name
+
+            upserts_auto = []
+            pending_updates_map = {}
+            new_only_flag = True
+            active_valid_idxs = set()
+
+            for ib, r_b in ed_bt.iterrows():
+                s_b = _clean_cell_str(r_b.get("Site ID"))
+                f_b = _clean_cell_str(r_b.get("FME Name"))
+                if not s_b or not f_b:
+                    continue
+                active_valid_idxs.add(ib)
+                c_b = _clean_cell_str(r_b.get("Category Task")) or "PM"
+                rl_b, def_cl_b = fme_info_map.get(f_b, ("TE", "Palangkaraya Kota"))
+                cl_b = _clean_cell_str(r_b.get("Cluster")) or def_cl_b
+                ca_b = _clean_cell_str(r_b.get("Category Activity")) or "Preventive Maintenance (PM)"
+                da_b = _clean_cell_str(r_b.get("Detail Activity"))
+                ac_b = _clean_cell_str(r_b.get("Activity")) or c_b
+                st_b = _clean_cell_str(r_b.get("Status Task")) or "Waiting Update"
+                rm_b = _clean_cell_str(r_b.get("Remark Kerjaan"))
+                ed_b = tgl_auto if st_b == "Done" else ""
+
+                sig_b = (c_b, TODO_CATEGORY_PRIORITY.get(c_b, "P2"), s_b, f_b, rl_b, rts_eff, cl_b, ca_b, da_b, ac_b, tgl_auto, ed_b, st_b, rm_b)
+                if ib in synced_map:
+                    if synced_map[ib]["sig"] != sig_b:
+                        tid_use = synced_map[ib]["tid"]
+                        new_only_flag = False
+                        rec_u = {
+                            "Task_ID": tid_use, "Category Task": c_b, "Prioritas": TODO_CATEGORY_PRIORITY.get(c_b, "P2"),
+                            "Site ID": s_b, "FME Name": f_b, "Role": rl_b, "RTS Name": rts_eff, "Cluster": cl_b,
+                            "Category Activity": ca_b, "Detail Activity": da_b, "Activity": ac_b,
+                            "Start Date": tgl_auto, "End Date": ed_b, "Status Task": st_b, "Remark Kerjaan": rm_b,
+                            "Updated_At": now_auto
+                        }
+                        upserts_auto.append(rec_u)
+                        pending_updates_map[ib] = {"tid": tid_use, "sig": sig_b}
                 else:
-                    df_comb_td = pd.concat([df_todo_cloud, pd.DataFrame(new_rows)], ignore_index=True)
-                    if gsheet_overwrite_ws("ToDoList_RTS", df_comb_td[COLS_TODO_RTS]):
-                        st.session_state.pop("rts_batch_df", None)
-                        st.success(f"✅ {len(new_rows)} Plan Batch berhasil disimpan ke `ToDoList_RTS`!")
-                        st.rerun()
+                    tid_new = f"TD-{bt_tgl.strftime('%Y%m%d')}-{datetime.datetime.now().strftime('%H%M%S')}-{_pysecrets.token_hex(2)}"
+                    rec_n = {
+                        "Task_ID": tid_new, "Category Task": c_b, "Prioritas": TODO_CATEGORY_PRIORITY.get(c_b, "P2"),
+                        "Site ID": s_b, "FME Name": f_b, "Role": rl_b, "RTS Name": rts_eff, "Cluster": cl_b,
+                        "Category Activity": ca_b, "Detail Activity": da_b, "Activity": ac_b,
+                        "Start Date": tgl_auto, "End Date": ed_b, "Status Task": st_b, "Remark Kerjaan": rm_b,
+                        "Updated_At": now_auto
+                    }
+                    upserts_auto.append(rec_n)
+                    pending_updates_map[ib] = {"tid": tid_new, "sig": sig_b}
+
+            # Jika baris yg sebelumnya sudah tersimpan dihapus dari tabel bulk -> hapus otomatis di Cloud
+            removed_idxs = [old_i for old_i in list(synced_map.keys()) if old_i not in active_valid_idxs]
+            del_tids_auto = [synced_map[old_i]["tid"] for old_i in removed_idxs]
+
+            if upserts_auto or del_tids_auto:
+                ok_sync_b = gsheet_sync_todo_diff(
+                    "ToDoList_RTS", COLS_TODO_RTS, "Task_ID",
+                    upsert_dicts=upserts_auto,
+                    delete_keys=del_tids_auto,
+                    only_inserts=(new_only_flag and not del_tids_auto)
+                )
+                if ok_sync_b:
+                    for ib_ok, meta_ok in pending_updates_map.items():
+                        synced_map[ib_ok] = meta_ok
+                    for old_i in removed_idxs:
+                        synced_map.pop(old_i, None)
+                    st.session_state.pop("rts_mass_base", None)
+                    st.session_state["rts_bulk_status_msg"] = ("ok", f"🟢 **Auto-Save Sukses ({datetime.datetime.now().strftime('%H:%M:%S')})** — **{len(synced_map)} baris** tersimpan aman ke Cloud (`ToDoList_RTS`).")
+                else:
+                    st.session_state["rts_bulk_status_msg"] = ("warn", "⚠️ **Gangguan sinyal saat Auto-Save!** Data tetap aman di layar Anda dan akan otomatis tersimpan saat edit berikutnya atau klik tombol Retry.")
+
+            st_kind, st_txt = st.session_state.get("rts_bulk_status_msg", ("idle", f"🟢 **Auto-Save Aktif** — Isi `Site ID` dan `FME Name`, baris langsung tersimpan otomatis ke Cloud ({len(synced_map)} baris tersimpan pada sesi ini)."))
+            if st_kind == "warn":
+                status_slot.warning(st_txt)
+                if st.button("🔄 Coba Auto-Save Ulang Sekarang", key="btn_rts_bulk_retry"):
+                    st.rerun()
+            elif st_kind == "ok":
+                status_slot.success(st_txt)
+            else:
+                status_slot.info(st_txt)
+
+        # --- TAB INPUT SATUAN ---
+        with t_in_one:
+            st.markdown("#### 📝 Input Plan Harian RTS (Format 14 Kolom Resmi `Isian`)")
+            with st.container(border=True):
+                c1, c2, c3 = st.columns(3)
+                in_cat = c1.selectbox("🏷️ Category Task *:", list(TODO_CATEGORY_PRIORITY.keys()), key="rts_in_cat")
+                def_prio = TODO_CATEGORY_PRIORITY.get(in_cat, "P2")
+                in_prio = c2.selectbox("⚡ Prioritas (Auto):", ["P1", "P2", "P3"], index=["P1", "P2", "P3"].index(def_prio), key=f"rts_in_prio_{in_cat}")
+                in_site = c3.selectbox("📍 Site ID (Master PLK) *:", [""] + site_plk_list_td, key="rts_in_site")
+
+                c4, c5, c6 = st.columns(3)
+                in_fme = c4.selectbox("👷 FME Name (Master Tim PLK) *:", [""] + fme_plk_active_td, key="rts_in_fme")
+                def_rl, def_cl = fme_info_map.get(in_fme, ("TE", "Palangkaraya Kota"))
+                rl_opts_in = TODO_ROLE_OPTS + ([def_rl] if def_rl and def_rl not in TODO_ROLE_OPTS else [])
+                in_role = c5.selectbox("🎖️ Role:", rl_opts_in, index=rl_opts_in.index(def_rl) if def_rl in rl_opts_in else 0, key=f"rts_in_rl_{in_fme}")
+                if is_rts_admin:
+                    in_rts = c6.selectbox("👤 RTS Name *:", TODO_RTS_LIST, key="rts_in_rts_adm")
+                else:
+                    in_rts = c6.text_input("👤 RTS Name (Auto Login):", value=active_rts_name, disabled=True, key="rts_in_rts_lk")
+
+                c7, c8, c9 = st.columns(3)
+                cl_opts_in = DAILY_CLUSTER_PLK_OPTS + ([def_cl] if def_cl and def_cl not in DAILY_CLUSTER_PLK_OPTS else [])
+                in_cl = c7.selectbox("🗺️ Cluster:", cl_opts_in, index=cl_opts_in.index(def_cl) if def_cl in cl_opts_in else 0, key=f"rts_in_cl_{in_fme}")
+                in_cat_act = c8.selectbox("⚙️ Category Activity:", TODO_CAT_ACTIVITY_OPTS, key="rts_in_cact")
+                in_status = c9.selectbox("🚦 Status Task Awal:", TODO_STATUS_OPTS, index=0, key="rts_in_st")
+
+                c10, c11 = st.columns(2)
+                in_det_act = c10.text_input("📝 Detail Activity:", placeholder="Cth: Cek Recti Drop & Reset Modul", key="rts_in_dact")
+                in_act = c11.text_input("🔧 Activity:", placeholder="Cth: Troubleshoot Power / PM SPS", key="rts_in_act")
+
+                c12, c13, c14 = st.columns([1, 1, 2])
+                in_start = c12.date_input("📅 Start Date *:", value=datetime.date.today(), key="rts_in_sdate")
+                use_end = c13.checkbox("Isi End Date?", value=False, key="rts_in_uend")
+                in_end_str = c13.date_input("📅 End Date:", value=in_start, key="rts_in_edate").strftime("%Y-%m-%d") if use_end else ""
+                in_rem = c14.text_input("💬 Remark Kerjaan:", placeholder="Catatan tambahan / instruksi RTS...", key="rts_in_rem")
+
+                if st.button("🚀 SIMPAN PLAN HARIAN RTS KE CLOUD (`ToDoList_RTS`)", type="primary", use_container_width=True, key="btn_save_rts_single"):
+                    if not in_site or not in_fme:
+                        st.error("⚠️ Site ID dan FME Name wajib dipilih!")
+                    else:
+                        rec_td = {
+                            "Task_ID": f"TD-{in_start.strftime('%Y%m%d')}-{datetime.datetime.now().strftime('%H%M%S')}-{_pysecrets.token_hex(2)}",
+                            "Category Task": in_cat,
+                            "Prioritas": in_prio,
+                            "Site ID": in_site,
+                            "FME Name": in_fme,
+                            "Role": in_role,
+                            "RTS Name": in_rts,
+                            "Cluster": in_cl,
+                            "Category Activity": in_cat_act,
+                            "Detail Activity": in_det_act.strip(),
+                            "Activity": in_act.strip() or in_cat,
+                            "Start Date": in_start.strftime("%Y-%m-%d"),
+                            "End Date": in_end_str,
+                            "Status Task": in_status,
+                            "Remark Kerjaan": in_rem.strip(),
+                            "Updated_At": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        }
+                        if gsheet_sync_todo_diff("ToDoList_RTS", COLS_TODO_RTS, "Task_ID", upsert_dicts=[rec_td], only_inserts=True):
+                            st.session_state.pop("rts_mass_base", None)
+                            st.session_state["rts_flash_msg"] = f"✅ Plan **[{in_prio}] {in_cat}** untuk `{in_site}` oleh **{in_fme}** tersimpan ke Cloud!"
+                            st.rerun()
+                        else:
+                            st.error("⚠️ Gagal menyimpan ke Google Sheets tab `ToDoList_RTS`.")
 
     # ---------------------------------------------------------------------
-    # SUB-3: UBAH PLAN CARRY-OVER & LIVE EDITOR MANUAL (14 KOLOM EXCEL)
+    # SUB-3: EDIT PLAN, AUTO-SAVE MASSAL & HAPUS ACTIVITY / DOUBLE INPUT (TANPA TASK ID)
     # ---------------------------------------------------------------------
-    elif rts_nav == "✏️ 3. Ubah Plan & Update Status Manual":
+    elif rts_nav == "✏️ 3. Edit Plan, Auto-Save & Hapus Activity":
         if df_todo_cloud.empty:
             st.info("Belum ada data To Do List untuk diedit.")
         else:
             site_plk_list_td, _ = load_site_master_plk()
-            st.markdown("#### 🔁 Ubah Plan / Update Status Cepat (Khusus Kerjaan Open / Carry-Over Pending)")
-            st.caption("Jika ada kerjaan pending dari hari kemarin yang perlu diubah jadwalnya (`Start Date`), dipindah FME/Site, atau ditutup manual (`Done`), ubah langsung di sini agar tidak lagi muncul sebagai carry-over besok.")
-
             df_edit_scope = df_todo_cloud.copy()
             if not is_rts_admin:
                 df_edit_scope = df_edit_scope[df_edit_scope["RTS Name"].astype(str).str.upper() == active_rts_name.upper()].copy()
+            df_edit_scope = df_edit_scope.reset_index(drop=True)
 
-            df_open_scope = df_edit_scope[df_edit_scope["Status Task"].astype(str).str.lower() != "done"]
-            if not df_open_scope.empty:
-                opts_q_ed = [
-                    f"{r['Task_ID']} | {r['Start Date']} | [{r['Prioritas']}] {r['Site ID']} | {r['FME Name']} ({r['Status Task']})"
-                    for _, r in df_open_scope.iloc[::-1].iterrows()
-                ]
-                pick_ed_lbl = st.selectbox("📌 Pilih Task Open / Pending untuk Diubah Plannya:", opts_q_ed, key="rts_q_ed_pick")
-                pick_tid_ed = pick_ed_lbl.split(" | ")[0].strip()
-                cur_r = df_todo_cloud[df_todo_cloud["Task_ID"].astype(str) == pick_tid_ed].iloc[0]
+            # Deteksi Double Input di scope edit
+            dup_excess_ed, dup_set_ed = find_duplicate_todo_tids(df_edit_scope)
+            if dup_excess_ed:
+                cde1, cde2 = st.columns([3.2, 1.5])
+                cde1.warning(f"⚠️ **Ditemukan {len(dup_excess_ed)} baris Double Input!** Klik tombol di kanan untuk langsung menghapus duplikat.")
+                if cde2.button(f"🧹 Hapus {len(dup_excess_ed)} Double Input", type="primary", use_container_width=True, key="btn_del_dup_ed"):
+                    if gsheet_sync_todo_diff("ToDoList_RTS", COLS_TODO_RTS, "Task_ID", delete_keys=dup_excess_ed):
+                        st.session_state.pop("rts_mass_base", None)
+                        st.session_state["rts_mass_ver"] = st.session_state.get("rts_mass_ver", 0) + 1
+                        st.session_state["rts_flash_msg"] = f"🧹 {len(dup_excess_ed)} baris double input berhasil dihapus!"
+                        st.rerun()
 
-                with st.container(border=True):
-                    ce1, ce2, ce3 = st.columns(3)
-                    cur_s_val = _clean_cell_str(cur_r.get("Site ID"))
-                    s_opts_e = [""] + site_plk_list_td + ([cur_s_val] if cur_s_val and cur_s_val not in site_plk_list_td else [])
-                    new_s_e = ce1.selectbox("Ubah Site ID:", s_opts_e, index=s_opts_e.index(cur_s_val) if cur_s_val in s_opts_e else 0, key=f"rts_e_s_{pick_tid_ed}")
-                    cur_f_val = _clean_cell_str(cur_r.get("FME Name"))
-                    f_opts_e = [""] + fme_plk_active_td + ([cur_f_val] if cur_f_val and cur_f_val not in fme_plk_active_td else [])
-                    new_f_e = ce2.selectbox("Ubah FME Name:", f_opts_e, index=f_opts_e.index(cur_f_val) if cur_f_val in f_opts_e else 0, key=f"rts_e_f_{pick_tid_ed}")
-                    cur_st_val = _clean_cell_str(cur_r.get("Status Task")) or "Waiting Update"
-                    new_st_e = ce3.selectbox("Update Status Task:", TODO_STATUS_OPTS, index=TODO_STATUS_OPTS.index(cur_st_val) if cur_st_val in TODO_STATUS_OPTS else 0, key=f"rts_e_st_{pick_tid_ed}")
+            # A. Edit / Hapus Cepat 1 Activity (Mendukung semua status agar double input yg sudah Done pun bisa dihapus)
+            st.markdown("#### 🔁 Ubah Plan / Update Status / Hapus 1 Activity")
+            st.caption("Pilih activity untuk diubah jadwalnya (`Start Date`), dipindah FME/Site, diubah statusnya, atau dihapus permanen jika double input.")
 
-                    ce4, ce5, ce6 = st.columns([1, 1, 2])
-                    sd_p = pd.to_datetime(cur_r.get("Start Date"), errors="coerce")
-                    new_sd_e = ce4.date_input("Ubah Start Date:", value=sd_p.date() if pd.notna(sd_p) else datetime.date.today(), key=f"rts_e_sd_{pick_tid_ed}")
-                    new_ed_e = ce5.text_input("End Date (YYYY-MM-DD):", value=_clean_cell_str(cur_r.get("End Date")) or (datetime.date.today().strftime("%Y-%m-%d") if new_st_e == "Done" else ""), key=f"rts_e_ed_{pick_tid_ed}")
-                    new_rmk_e = ce6.text_input("Update Remark Kerjaan:", value=_clean_cell_str(cur_r.get("Remark Kerjaan")), key=f"rts_e_rmk_{pick_tid_ed}")
+            if not df_edit_scope.empty:
+                flt_q_scope = st.radio("Tampilkan pilihan:", ["🔴 Hanya Open / Pending", "📚 Semua Activity (Termasuk Done)"], horizontal=True, key="rts_ed_flt_sc")
+                df_pick_sc = df_edit_scope[df_edit_scope["Status Task"].astype(str).str.lower() != "done"] if "Open" in flt_q_scope else df_edit_scope
 
-                    if st.button("💾 SIMPAN PERUBAHAN PLAN & STATUS", type="primary", use_container_width=True, key=f"btn_rts_q_upd_{pick_tid_ed}"):
-                        df_u_all = df_todo_cloud.copy()
-                        mk = df_u_all["Task_ID"].astype(str) == pick_tid_ed
-                        df_u_all.loc[mk, "Site ID"] = new_s_e
-                        df_u_all.loc[mk, "FME Name"] = new_f_e
-                        df_u_all.loc[mk, "Status Task"] = new_st_e
-                        df_u_all.loc[mk, "Start Date"] = new_sd_e.strftime("%Y-%m-%d")
-                        df_u_all.loc[mk, "End Date"] = new_ed_e.strip() or (datetime.date.today().strftime("%Y-%m-%d") if new_st_e == "Done" else "")
-                        df_u_all.loc[mk, "Remark Kerjaan"] = new_rmk_e.strip()
-                        df_u_all.loc[mk, "Updated_At"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        if gsheet_overwrite_ws("ToDoList_RTS", df_u_all[COLS_TODO_RTS]):
-                            st.success(f"✅ Plan & Status `{pick_tid_ed}` berhasil diperbarui!")
-                            st.rerun()
-            else:
-                st.success("✅ Tidak ada task Open / Carry-Over yang tersisa untuk RTS ini.")
+                if not df_pick_sc.empty:
+                    lbl_to_tid = {}
+                    opts_q_ed = []
+                    for idx_p, r_p in df_pick_sc.iloc[::-1].iterrows():
+                        dup_t = " [⚠️ DOUBLE]" if str(r_p["Task_ID"]) in dup_set_ed else ""
+                        lb = f"#{idx_p+1} · {r_p['Start Date']} · [{r_p['Prioritas']}] {r_p['Site ID']} · {r_p['FME Name']} · {r_p['Category Task']} ({r_p['Status Task']}){dup_t}"
+                        if lb in lbl_to_tid:
+                            lb = f"{lb} (#{idx_p+1})"
+                        lbl_to_tid[lb] = str(r_p["Task_ID"])
+                        opts_q_ed.append(lb)
 
-            st.markdown("---")
-            st.markdown("#### 🗂️ Live Editor Massal To Do List (14 Kolom Format Excel `Isian`)")
-            st.caption("Klik ganda pada sel untuk edit cepat banyak baris sekaligus, atau hapus baris yang dibatalkan, lalu klik Simpan.")
-            ed_all_td = st.data_editor(
-                df_edit_scope[COLS_TODO_RTS],
-                use_container_width=True,
-                num_rows="dynamic",
-                disabled=["Task_ID", "Updated_At"],
-                column_config={
-                    "Category Task": st.column_config.SelectboxColumn("Category Task", options=list(TODO_CATEGORY_PRIORITY.keys())),
-                    "Prioritas": st.column_config.SelectboxColumn("Prioritas", options=["P1", "P2", "P3"]),
-                    "RTS Name": st.column_config.SelectboxColumn("RTS Name", options=TODO_RTS_LIST),
-                    "Cluster": st.column_config.SelectboxColumn("Cluster", options=DAILY_CLUSTER_PLK_OPTS),
-                    "Category Activity": st.column_config.SelectboxColumn("Category Activity", options=TODO_CAT_ACTIVITY_OPTS),
-                    "Status Task": st.column_config.SelectboxColumn("Status Task", options=TODO_STATUS_OPTS)
-                },
-                key="ed_rts_todo_mass"
-            )
-            if st.button("💾 SIMPAN PERUBAHAN MASSAL KE CLOUD (`ToDoList_RTS`)", type="primary", use_container_width=True, key="btn_save_rts_mass"):
-                now_m = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                ed_clean = ed_all_td.copy()
-                ed_clean = ed_clean[ed_clean["Site ID"].astype(str).str.strip().str.lower().isin(["", "nan", "none"]) == False].copy()
-                for idx_c, rc in ed_clean.iterrows():
-                    if not _clean_cell_str(rc.get("Task_ID")):
-                        ed_clean.at[idx_c, "Task_ID"] = f"TD-ED-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{idx_c}"
-                    if not _clean_cell_str(rc.get("RTS Name")) and not is_rts_admin:
-                        ed_clean.at[idx_c, "RTS Name"] = active_rts_name
-                    ed_clean.at[idx_c, "Updated_At"] = now_m
-                if is_rts_admin:
-                    df_final_save = ed_clean[COLS_TODO_RTS]
+                    pick_ed_lbl = st.selectbox("📌 Pilih Activity:", opts_q_ed, key="rts_q_ed_pick")
+                    pick_tid_ed = lbl_to_tid[pick_ed_lbl]
+                    cur_r = df_todo_cloud[df_todo_cloud["Task_ID"].astype(str) == pick_tid_ed].iloc[0]
+
+                    with st.container(border=True):
+                        ce1, ce2, ce3 = st.columns(3)
+                        cur_s_val = _clean_cell_str(cur_r.get("Site ID"))
+                        s_opts_e = [""] + site_plk_list_td + ([cur_s_val] if cur_s_val and cur_s_val not in site_plk_list_td else [])
+                        new_s_e = ce1.selectbox("Ubah Site ID:", s_opts_e, index=s_opts_e.index(cur_s_val) if cur_s_val in s_opts_e else 0, key=f"rts_e_s_{pick_tid_ed}")
+                        cur_f_val = _clean_cell_str(cur_r.get("FME Name"))
+                        f_opts_e = [""] + fme_plk_active_td + ([cur_f_val] if cur_f_val and cur_f_val not in fme_plk_active_td else [])
+                        new_f_e = ce2.selectbox("Ubah FME Name:", f_opts_e, index=f_opts_e.index(cur_f_val) if cur_f_val in f_opts_e else 0, key=f"rts_e_f_{pick_tid_ed}")
+                        cur_st_val = _clean_cell_str(cur_r.get("Status Task")) or "Waiting Update"
+                        new_st_e = ce3.selectbox("Update Status Task:", TODO_STATUS_OPTS, index=TODO_STATUS_OPTS.index(cur_st_val) if cur_st_val in TODO_STATUS_OPTS else 0, key=f"rts_e_st_{pick_tid_ed}")
+
+                        ce4, ce5, ce6 = st.columns([1, 1, 2])
+                        sd_p = pd.to_datetime(cur_r.get("Start Date"), errors="coerce")
+                        new_sd_e = ce4.date_input("Ubah Start Date:", value=sd_p.date() if pd.notna(sd_p) else datetime.date.today(), key=f"rts_e_sd_{pick_tid_ed}")
+                        cur_cl_val = _clean_cell_str(cur_r.get("Cluster")) or "Palangkaraya Kota"
+                        cl_opts_e = _merge_opts(DAILY_CLUSTER_PLK_OPTS, [cur_cl_val])
+                        new_cl_e = ce5.selectbox("Ubah Cluster:", cl_opts_e, index=cl_opts_e.index(cur_cl_val), key=f"rts_e_cl_{pick_tid_ed}")
+                        new_rmk_e = ce6.text_input("Update Remark Kerjaan:", value=_clean_cell_str(cur_r.get("Remark Kerjaan")), key=f"rts_e_rmk_{pick_tid_ed}")
+
+                        cb_u1, cb_u2 = st.columns([2.5, 1.2])
+                        if cb_u1.button("💾 SIMPAN PERUBAHAN PLAN & STATUS", type="primary", use_container_width=True, key=f"btn_rts_q_upd_{pick_tid_ed}"):
+                            upd_rec = {c: _clean_cell_str(cur_r.get(c)) for c in COLS_TODO_RTS}
+                            upd_rec["Site ID"] = new_s_e
+                            upd_rec["FME Name"] = new_f_e
+                            upd_rec["Cluster"] = new_cl_e
+                            upd_rec["Status Task"] = new_st_e
+                            upd_rec["Start Date"] = new_sd_e.strftime("%Y-%m-%d")
+                            upd_rec["End Date"] = _clean_cell_str(cur_r.get("End Date")) or (datetime.date.today().strftime("%Y-%m-%d") if new_st_e == "Done" else "")
+                            upd_rec["Remark Kerjaan"] = new_rmk_e.strip()
+                            upd_rec["Updated_At"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            if gsheet_sync_todo_diff("ToDoList_RTS", COLS_TODO_RTS, "Task_ID", upsert_dicts=[upd_rec]):
+                                st.session_state.pop("rts_mass_base", None)
+                                st.session_state["rts_mass_ver"] = st.session_state.get("rts_mass_ver", 0) + 1
+                                st.session_state["rts_flash_msg"] = f"✅ Plan & Status untuk `{new_s_e}` ({new_f_e}) berhasil diperbarui!"
+                                st.rerun()
+                        if cb_u2.button("🗑️ HAPUS ACTIVITY INI", type="secondary", use_container_width=True, key=f"btn_rts_q_del_{pick_tid_ed}"):
+                            if gsheet_sync_todo_diff("ToDoList_RTS", COLS_TODO_RTS, "Task_ID", delete_keys=[pick_tid_ed]):
+                                st.session_state.pop("rts_mass_base", None)
+                                st.session_state["rts_mass_ver"] = st.session_state.get("rts_mass_ver", 0) + 1
+                                st.session_state["rts_flash_msg"] = f"🗑️ Activity `{cur_s_val}` ({cur_f_val}) berhasil dihapus permanen!"
+                                st.rerun()
                 else:
-                    df_other_rts = df_todo_cloud[df_todo_cloud["RTS Name"].astype(str).str.upper() != active_rts_name.upper()]
-                    df_final_save = pd.concat([df_other_rts, ed_clean], ignore_index=True)[COLS_TODO_RTS]
-                if gsheet_overwrite_ws("ToDoList_RTS", df_final_save):
-                    st.success("✅ Perubahan massal To Do List berhasil disimpan ke Cloud!")
-                    st.rerun()
+                    st.success("✅ Tidak ada task Open / Pending yang tersisa untuk RTS ini.")
+
+            # B. Live Editor Massal — AUTO-SAVE + CHECKBOX HAPUS + TANPA TASK ID
+            st.markdown("---")
+            st.markdown("#### 🗂️ Live Editor Massal (Auto-Save Otomatis · Tanpa Task ID)")
+            st.caption("💡 Setiap perubahan sel **langsung tersimpan otomatis ke Cloud** tanpa klik tombol Save. Untuk menghapus baris (misal double input), cukup centang kolom **`🗑️ Hapus`** di sisi paling kiri!")
+
+            mass_ver = st.session_state.get("rts_mass_ver", 0)
+            mass_scope_tag = (active_rts_name, is_rts_admin, mass_ver)
+            if st.session_state.get("rts_mass_base_tag") != mass_scope_tag or "rts_mass_base" not in st.session_state:
+                base_m = df_edit_scope[COLS_TODO_RTS].copy().reset_index(drop=True)
+                st.session_state["rts_mass_base"] = base_m
+                st.session_state["rts_mass_base_tag"] = mass_scope_tag
+                st.session_state["rts_mass_synced"] = {
+                    i_m: {
+                        "tid": str(rm["Task_ID"]),
+                        "sig": tuple(_clean_cell_str(rm.get(c)) for c in COLS_TODO_EXCEL)
+                    }
+                    for i_m, rm in base_m.iterrows()
+                }
+
+            base_m = st.session_state["rts_mass_base"]
+            df_live_disp = base_m[COLS_TODO_EXCEL].copy()
+            df_live_disp.insert(0, "🗑️ Hapus", False)
+
+            mass_status_slot = st.empty()
+
+            cat_opts_live = _merge_opts(list(TODO_CATEGORY_PRIORITY.keys()), df_live_disp["Category Task"])
+            cl_opts_live = _merge_opts(DAILY_CLUSTER_PLK_OPTS, df_live_disp["Cluster"])
+            cact_opts_live = _merge_opts(TODO_CAT_ACTIVITY_OPTS, df_live_disp["Category Activity"])
+            st_opts_live = _merge_opts(TODO_STATUS_OPTS, df_live_disp["Status Task"])
+            rts_opts_live = _merge_opts(TODO_RTS_LIST, df_live_disp["RTS Name"])
+
+            ed_all_td = st.data_editor(
+                df_live_disp,
+                use_container_width=True,
+                hide_index=True,
+                num_rows="dynamic",
+                height=min(max((len(df_live_disp) + 2) * 38 + 30, 220), 2000),
+                column_config={
+                    "🗑️ Hapus": st.column_config.CheckboxColumn("🗑️ Hapus", width="small", default=False),
+                    "Category Task": st.column_config.SelectboxColumn("Category Task", options=cat_opts_live),
+                    "Prioritas": st.column_config.SelectboxColumn("Prioritas", options=["P1", "P2", "P3"], width="small"),
+                    "RTS Name": st.column_config.SelectboxColumn("RTS Name", options=rts_opts_live),
+                    "Cluster": st.column_config.SelectboxColumn("Cluster", options=cl_opts_live),
+                    "Category Activity": st.column_config.SelectboxColumn("Category Activity", options=cact_opts_live),
+                    "Status Task": st.column_config.SelectboxColumn("Status Task", options=st_opts_live)
+                },
+                key=f"ed_rts_mass_{rts_sess['key']}_v{mass_ver}"
+            )
+
+            # ENGINE AUTO-SAVE & AUTO-DELETE MASSAL
+            m_synced = st.session_state["rts_mass_synced"]
+            now_m = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            m_upserts = []
+            m_pending_meta = {}
+            m_deletes = []
+            surviving_idxs = set()
+
+            for im, rm in ed_all_td.iterrows():
+                is_del_chk = bool(rm.get("🗑️ Hapus", False))
+                if is_del_chk:
+                    if im in m_synced:
+                        m_deletes.append(m_synced[im]["tid"])
+                    continue
+
+                sid_m = _clean_cell_str(rm.get("Site ID"))
+                if not sid_m:
+                    continue
+                surviving_idxs.add(im)
+
+                vals_m = {c: _clean_cell_str(rm.get(c)) for c in COLS_TODO_EXCEL}
+                if not vals_m["Prioritas"]:
+                    vals_m["Prioritas"] = TODO_CATEGORY_PRIORITY.get(vals_m["Category Task"], "P2")
+                if not vals_m["RTS Name"] and not is_rts_admin:
+                    vals_m["RTS Name"] = active_rts_name
+                if not vals_m["Start Date"]:
+                    vals_m["Start Date"] = datetime.date.today().strftime("%Y-%m-%d")
+                if not vals_m["Status Task"]:
+                    vals_m["Status Task"] = "Waiting Update"
+                if vals_m["Status Task"] == "Done" and not vals_m["End Date"]:
+                    vals_m["End Date"] = datetime.date.today().strftime("%Y-%m-%d")
+
+                sig_m = tuple(vals_m[c] for c in COLS_TODO_EXCEL)
+                if im in m_synced:
+                    if m_synced[im]["sig"] != sig_m:
+                        tid_m = m_synced[im]["tid"]
+                        rec_m = {"Task_ID": tid_m, **vals_m, "Updated_At": now_m}
+                        m_upserts.append(rec_m)
+                        m_pending_meta[im] = {"tid": tid_m, "sig": sig_m}
+                else:
+                    tid_m = f"TD-ED-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{_pysecrets.token_hex(2)}"
+                    rec_m = {"Task_ID": tid_m, **vals_m, "Updated_At": now_m}
+                    m_upserts.append(rec_m)
+                    m_pending_meta[im] = {"tid": tid_m, "sig": sig_m}
+
+            # Deteksi baris yang dihapus via tombol Delete di data_editor
+            for old_im in list(m_synced.keys()):
+                if old_im not in surviving_idxs and m_synced[old_im]["tid"] not in m_deletes:
+                    m_deletes.append(m_synced[old_im]["tid"])
+
+            if m_upserts or m_deletes:
+                ok_m = gsheet_sync_todo_diff("ToDoList_RTS", COLS_TODO_RTS, "Task_ID", upsert_dicts=m_upserts, delete_keys=m_deletes)
+                if ok_m:
+                    if m_deletes:
+                        st.session_state.pop("rts_mass_base", None)
+                        st.session_state["rts_mass_ver"] = mass_ver + 1
+                        st.session_state["rts_flash_msg"] = f"🗑️ {len(m_deletes)} activity berhasil dihapus dari Cloud!"
+                        st.rerun()
+                    else:
+                        for im_ok, meta_m in m_pending_meta.items():
+                            m_synced[im_ok] = meta_m
+                        mass_status_slot.success(f"🟢 **Auto-Save Sukses ({datetime.datetime.now().strftime('%H:%M:%S')})** — {len(m_upserts)} perubahan langsung tersimpan ke Cloud.")
+                else:
+                    mass_status_slot.warning("⚠️ Gangguan sinyal saat Auto-Save — perubahan tetap di layar, coba edit ulang atau klik 🔄 Sync SIDATA saat sinyal stabil.")
+            else:
+                mass_status_slot.info("🟢 **Auto-Save Aktif** — Edit sel langsung tersimpan · Centang **`🗑️ Hapus`** untuk langsung menghapus baris.")
 
     # ---------------------------------------------------------------------
     # SUB-4: EXPORT & IMPORT EXCEL MANUAL (FORMAT RESMI 'To Do List NOP Palangkaraya')
     # ---------------------------------------------------------------------
     else:
         st.markdown("#### 📊 Export & Import Manual — Format Resmi `To Do List NOP Palangkaraya.xlsx`")
-        st.info("💡 File Excel yang diunduh memiliki struktur identik 100% dengan format Excel Anda (`Isian` 14 kolom + `Category Task` + `RTS`), dan sudah tersinkron dengan status Auto-Closed dari SIDATA. RTS dapat mengedit status di Excel lalu mengunggahnya kembali ke sini.")
+        st.info("💡 File Excel yang diunduh memiliki struktur identik 100% dengan format Excel Anda (`Isian` 14 kolom tanpa Task ID + `Category Task` + `RTS`), dan sudah tersinkron dengan status Auto-Closed dari SIDATA.")
 
         c_ex1, c_ex2 = st.columns(2)
         with c_ex1:
@@ -8321,7 +8822,6 @@ elif menu == "📋 To Do List RTS":
                             pick_sh_td = st.selectbox("Pilih Sheet:", shs_td, index=def_sh_td, key="sh_up_rts_td")
                             df_up_td = parse_excel_smart_header(up_rts_xl, pick_sh_td, target_keywords=("site id", "category task", "fme name"))
 
-                        # Normalisasi 14 kolom resmi
                         now_up = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         norm_rows = []
                         for iu, ru in df_up_td.iterrows():
@@ -8339,7 +8839,7 @@ elif menu == "📋 To Do List RTS":
                             ed_u = _fmt_date_short(ru.get("End Date"))
                             ed_u = "" if ed_u == "-" else ed_u
                             norm_rows.append({
-                                "Task_ID": f"TD-IMP-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{iu+1:03d}",
+                                "Task_ID": f"TD-IMP-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{iu+1:03d}-{_pysecrets.token_hex(2)}",
                                 "Category Task": cat_u,
                                 "Prioritas": _clean_cell_str(ru.get("Prioritas")) or TODO_CATEGORY_PRIORITY.get(cat_u, "P2"),
                                 "Site ID": sid_u,
@@ -8374,7 +8874,6 @@ elif menu == "📋 To Do List RTS":
                                 elif "Append" in mode_imp_rts:
                                     df_out_imp = pd.concat([df_todo_cloud, df_norm_up], ignore_index=True)
                                 else:
-                                    # Merge / Update based on (Site ID, Start Date, FME Name)
                                     df_base = df_todo_cloud.copy()
                                     if df_base.empty:
                                         df_out_imp = df_norm_up
@@ -8394,7 +8893,9 @@ elif menu == "📋 To Do List RTS":
                                         df_out_imp = pd.concat([df_stay, df_norm_up.drop(columns=["_k"])], ignore_index=True)
 
                                 if gsheet_overwrite_ws("ToDoList_RTS", df_out_imp[COLS_TODO_RTS]):
-                                    st.success(f"✅ {len(df_norm_up)} baris Excel berhasil disinkronkan ke Google Sheets (`ToDoList_RTS`)!")
+                                    st.session_state.pop("rts_mass_base", None)
+                                    st.session_state["rts_mass_ver"] = st.session_state.get("rts_mass_ver", 0) + 1
+                                    st.session_state["rts_flash_msg"] = f"✅ {len(df_norm_up)} baris Excel berhasil disinkronkan ke Google Sheets (`ToDoList_RTS`)!"
                                     st.rerun()
                     except Exception as e:
                         st.error(f"Gagal memproses file Excel To Do List: {e}")
@@ -11826,7 +12327,8 @@ elif menu == "👥 Kelola Master Tim (PLK & PBU)":
         "STATUS_AKTIF": st.column_config.SelectboxColumn("Status Aktif", options=["Aktif", "Nonaktif"], default="Aktif")
     }
     if nop_k == "PLK":
-        cfg_mt["CLUSTER"] = st.column_config.SelectboxColumn("Cluster", options=DAILY_CLUSTER_PLK_OPTS)
+        _mt_cl_opts = list(DAILY_CLUSTER_PLK_OPTS) + sorted(list({str(v).strip() for v in df_mt.get("CLUSTER", []) if str(v).strip() and str(v).strip() not in DAILY_CLUSTER_PLK_OPTS}))
+        cfg_mt["CLUSTER"] = st.column_config.SelectboxColumn("Cluster", options=_mt_cl_opts)
     ed_mt = st.data_editor(df_mt, use_container_width=True, num_rows="dynamic", column_config=cfg_mt, key=f"ed_mt_tbl_{nop_k}")
 
     cb_mt1, cb_mt2 = st.columns(2)
