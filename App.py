@@ -71,14 +71,14 @@ from xml.sax.saxutils import escape as _xesc
 
 UI_THEME = "auto"   # "auto" = ikuti tema Streamlit/perangkat | "light" | "dark"
 
-_PAL_LIGHT = dict(bg="#F3F6FC", card="#FFFFFF", card2="#F7F9FE", line="#E1E7F3", ink="#0B1730", muted="#5A6A86",
-                  accent="#2563EB", gold="#B8891A", gold2="#E2B93B", ok="#059669", warn="#D97706", bad="#E11D48",
-                  btn1="#1D4ED8", btn2="#4F46E5", glow="rgba(37,99,235,.10)", gglow="rgba(184,137,26,.08)",
-                  shadow="0 1px 2px rgba(11,23,48,.06),0 10px 28px rgba(11,23,48,.07)")
-_PAL_DARK = dict(bg="#0A1020", card="#111A30", card2="#16213C", line="#243253", ink="#EAF0FF", muted="#93A4C7",
-                 accent="#5B9BFF", gold="#E8C547", gold2="#F6DE8D", ok="#34D399", warn="#FBBF24", bad="#FB7185",
-                 btn1="#1D4ED8", btn2="#4F46E5", glow="rgba(91,155,255,.12)", gglow="rgba(232,197,71,.06)",
-                 shadow="0 1px 2px rgba(0,0,0,.45),0 12px 32px rgba(0,0,0,.38)")
+_PAL_LIGHT = dict(bg="#F3F5F9", card="#FFFFFF", card2="#F8FAFC", line="#E3E8EF", ink="#0F172A", muted="#5B6B82",
+                  accent="#1D4ED8", gold="#1E3A8A", gold2="#3B82F6", ok="#047857", warn="#B45309", bad="#B91C1C",
+                  btn1="#1E3A8A", btn2="#1D4ED8", glow="rgba(29,78,216,.10)", gglow="rgba(0,0,0,0)",
+                  shadow="0 1px 2px rgba(15,23,42,.05),0 4px 14px rgba(15,23,42,.05)")
+_PAL_DARK = dict(bg="#0B1220", card="#111A2E", card2="#152038", line="#22304D", ink="#E6ECF7", muted="#94A3B8",
+                 accent="#60A5FA", gold="#3B82F6", gold2="#93C5FD", ok="#34D399", warn="#FBBF24", bad="#F87171",
+                 btn1="#1E40AF", btn2="#2563EB", glow="rgba(96,165,250,.14)", gglow="rgba(0,0,0,0)",
+                 shadow="0 1px 2px rgba(0,0,0,.40),0 6px 18px rgba(0,0,0,.30)")
 
 def _theme_mode():
     """Tentukan palet. Kalau config.toml memaksa tema, ikuti; kalau tidak, ikuti mode gelap/terang perangkat."""
@@ -298,12 +298,117 @@ section[data-testid="stFileUploaderDropzone"] button{width:100%;min-height:48px}
 </style>
 """
 
+
+# ----------------------------------------------------------------------------
+# 🏛️ CSS KORPORAT (lapisan di atas CSS lama: tampilan profesional, tenang, rapi)
+#   - Tidak menghapus kelas lama (.area-card, .login-box, .ux-hero, dst.)
+#   - Hanya menata ulang warna, radius, bayangan, tipografi & ikon kartu
+# ----------------------------------------------------------------------------
+_UX_CSS_CORP = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+html,body,.stApp,.stMarkdown,.stApp button,.stApp input,.stApp textarea,[data-testid="stMetric"],[data-testid="stWidgetLabel"]{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif !important}
+.stApp{background:var(--ux-bg) !important}
+.stApp::before{content:"";position:fixed;left:0;right:0;top:0;height:3px;z-index:9990;background:linear-gradient(90deg,#0B1B3F,#1E3A8A 45%,#1D4ED8)}
+.watermark-kut{opacity:.025 !important}
+
+/* tipografi tenang */
+h1{font-size:clamp(1.45rem,2.3vw,1.95rem) !important;font-weight:700 !important;letter-spacing:-.018em !important;color:var(--ux-ink)}
+h1::after{width:40px !important;height:3px !important;background:var(--ux-accent) !important;margin-top:10px !important}
+h2,h3{font-weight:650 !important;letter-spacing:-.012em !important}
+h4{font-weight:650 !important}
+
+/* tombol: solid, radius kecil, tanpa efek lompat */
+div[data-testid="stButton"] button,div[data-testid="stFormSubmitButton"] button,div[data-testid="stDownloadButton"] button,a[data-testid="stLinkButton"]{border-radius:8px !important;font-weight:600 !important;letter-spacing:0 !important;min-height:42px}
+button[kind="primary"],button[data-testid="stBaseButton-primary"],button[data-testid="stBaseButton-primaryFormSubmit"]{background:var(--ux-btn1) !important;border:1px solid var(--ux-btn1) !important;color:#fff !important;box-shadow:0 1px 2px rgba(15,23,42,.14) !important}
+button[kind="primary"]:hover,button[data-testid="stBaseButton-primary"]:hover,button[data-testid="stBaseButton-primaryFormSubmit"]:hover{background:var(--ux-btn2) !important;border-color:var(--ux-btn2) !important;transform:none !important;box-shadow:0 6px 16px -6px rgba(30,58,138,.45) !important}
+button[kind="secondary"],button[data-testid="stBaseButton-secondary"],button[data-testid="stBaseButton-secondaryFormSubmit"],a[data-testid="stLinkButton"]{background:var(--ux-card) !important;color:var(--ux-ink) !important;border:1px solid var(--ux-line) !important;box-shadow:0 1px 2px rgba(15,23,42,.04) !important}
+button[kind="secondary"]:hover,button[data-testid="stBaseButton-secondary"]:hover,a[data-testid="stLinkButton"]:hover{transform:none !important;border-color:var(--ux-accent) !important;color:var(--ux-accent) !important;box-shadow:none !important}
+
+/* input & label */
+div[data-baseweb="input"],div[data-baseweb="base-input"],div[data-baseweb="textarea"],div[data-baseweb="select"] > div{border-radius:8px !important;border-width:1px !important;background:var(--ux-card) !important}
+div[data-testid="stWidgetLabel"] p,div[data-testid="stWidgetLabel"] label{font-weight:600 !important;font-size:.85rem !important;color:var(--ux-ink) !important}
+
+/* tab */
+.stTabs [data-baseweb="tab-list"]{gap:2px !important}
+.stTabs [data-baseweb="tab"]{font-weight:600 !important;border-radius:6px 6px 0 0 !important;padding:9px 14px !important}
+.stTabs [data-baseweb="tab-highlight"]{height:2px !important;background:var(--ux-accent) !important}
+
+/* expander, container, alert, tabel */
+div[data-testid="stExpander"] details{border:1px solid var(--ux-line) !important;border-left:1px solid var(--ux-line) !important;border-radius:10px !important;box-shadow:none !important}
+div[data-testid="stExpander"] summary{font-weight:600 !important;font-size:.92rem}
+div[data-testid="stExpander"] summary:hover{color:var(--ux-accent) !important}
+div[data-testid="stVerticalBlockBorderWrapper"]{border-radius:10px !important}
+div[data-testid="stAlert"]{border-radius:8px !important}
+div[data-testid="stDataFrame"],div[data-testid="stDataEditor"]{border-radius:8px !important}
+
+/* KPI */
+div[data-testid="stMetric"]{border-radius:10px !important;padding:14px 16px 12px 18px !important;animation:none !important}
+div[data-testid="stMetric"]::before{width:3px !important;background:var(--ux-accent) !important}
+div[data-testid="stMetricLabel"] p{font-size:.7rem !important;font-weight:600 !important;letter-spacing:.06em !important}
+div[data-testid="stMetricValue"]{font-weight:700 !important}
+
+/* kartu menu / login: rapi, rata kiri, ikon dalam kotak kecil */
+.area-card,.login-box{border-radius:12px !important;border:1px solid var(--ux-line) !important;border-top:3px solid var(--ux-accent) !important;background:var(--ux-card) !important;
+  padding:20px 20px 18px !important;text-align:left !important;box-shadow:var(--ux-shadow) !important;animation:none !important}
+.area-card:hover,.login-box:hover{transform:none !important;box-shadow:0 10px 26px -14px rgba(15,23,42,.28) !important}
+.area-card > div:first-child,.login-box > div:first-child{font-size:21px !important;line-height:1 !important;width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+  border-radius:10px;background:var(--ux-card2);border:1px solid var(--ux-line);margin:0 0 14px 0 !important}
+.login-title{font-size:1.02rem !important;font-weight:700 !important;color:var(--ux-ink) !important;margin-bottom:6px !important;letter-spacing:-.01em}
+.login-desc{font-size:.83rem !important;color:var(--ux-muted) !important;line-height:1.55 !important;margin-bottom:12px !important}
+.area-badge{background:var(--ux-card2) !important;color:var(--ux-muted) !important;border:1px solid var(--ux-line) !important;border-radius:6px !important;font-size:.64rem !important;letter-spacing:.09em !important;font-weight:700 !important}
+.footer-okta span{color:var(--ux-accent) !important}
+
+/* hero banner korporat */
+.ux-hero{border-radius:14px !important;text-align:left !important;padding:26px 28px 22px !important;
+  background:linear-gradient(120deg,#0B1B3F 0%,#132E66 62%,#1D4ED8 140%) !important;border:1px solid rgba(255,255,255,.06) !important;box-shadow:0 12px 30px -16px rgba(11,27,63,.6) !important;animation:none !important}
+.ux-hero::before{background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px) !important;background-size:32px 32px !important}
+.ux-kicker{color:#DBEAFE !important;background:rgba(255,255,255,.08) !important;border:1px solid rgba(255,255,255,.18) !important;border-radius:6px !important;font-size:.66rem !important}
+.ux-hero-title{font-weight:700 !important;margin:12px 0 4px !important}
+.ux-hero-sub{margin:0 !important;color:#C3CFEA !important;font-size:.9rem !important}
+.ux-stats{justify-content:flex-start !important}
+.ux-stat{border-radius:10px !important;max-width:220px !important}
+.ux-stat b{font-weight:700 !important}
+.ux-split{margin:18px 0 8px !important}
+.ux-legend{justify-content:flex-start !important}
+
+/* ===== komponen baru SIDATA ===== */
+.sd-crumb{display:flex;align-items:center;gap:10px;min-height:42px;padding:8px 16px;border-radius:8px;background:var(--ux-card);border:1px solid var(--ux-line);font-size:.88rem;color:var(--ux-muted);overflow:hidden}
+.sd-crumb b{color:var(--ux-ink);font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sd-crumb i{font-style:normal;opacity:.5}
+.sd-crumb span{font-weight:700;letter-spacing:.08em;font-size:.72rem;color:var(--ux-accent)}
+.sd-card{--sd-c:#64748B;background:var(--ux-card);border:1px solid var(--ux-line);border-left:4px solid var(--sd-c);border-radius:10px;padding:14px 18px 12px;margin:6px 0 10px;box-shadow:var(--ux-shadow)}
+.sd-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px 16px;flex-wrap:wrap}
+.sd-site{font-size:1.04rem;font-weight:700;color:var(--ux-ink);letter-spacing:-.01em;line-height:1.3;overflow-wrap:anywhere}
+.sd-date{font-size:.78rem;color:var(--ux-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sd-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;color:var(--sd-c);
+  background:rgba(100,116,139,.08);background:color-mix(in srgb,var(--sd-c) 11%,transparent);border:1px solid color-mix(in srgb,var(--sd-c) 32%,transparent);white-space:nowrap}
+.sd-pill::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--sd-c)}
+.sd-meta{display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:10px;padding-top:10px;border-top:1px solid var(--ux-line);font-size:.85rem;color:var(--ux-ink)}
+.sd-meta > span{min-width:0}
+.sd-meta small{display:block;font-size:.64rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ux-muted);margin-bottom:2px}
+.sd-chip{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:6px;font-size:.72rem;font-weight:600;color:var(--ux-muted);background:var(--ux-card2);border:1px solid var(--ux-line)}
+.sd-ph{display:flex;align-items:center;gap:8px;margin:4px 0 8px;padding:7px 12px;border-radius:8px;border:1px dashed var(--ux-line);background:var(--ux-card2);font-size:.8rem;color:var(--ux-muted)}
+.sd-ph b{color:var(--ux-ink);font-weight:600}
+.sd-cap{font-size:.8rem;font-weight:650;color:var(--ux-ink);margin:6px 0 6px;letter-spacing:.01em}
+.sd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:14px}
+.sd-grid a{display:flex;align-items:center;justify-content:center;background:var(--ux-card2);border:1px solid var(--ux-line);border-radius:8px;padding:6px;min-height:150px;transition:border-color .15s ease}
+.sd-grid a:hover{border-color:var(--ux-accent)}
+.sd-grid img{max-width:100%;max-height:300px;height:auto;object-fit:contain;border-radius:5px;display:block}
+.sd-note{font-size:.8rem;color:var(--ux-muted);margin:2px 0 8px}
+@media (hover:none){.area-card:hover,.login-box:hover{box-shadow:var(--ux-shadow) !important}}
+</style>
+"""
+
 # CSS layar login (pengganti blok lama: tombol besar merah/biru sesuai label 🔴 / 🔵)
 _UX_CSS_LOGIN = """
 <style>
-.stApp div.stButton > button{min-height:68px !important;font-size:1.02rem !important;font-weight:800 !important;text-transform:uppercase;letter-spacing:.06em;border-radius:14px !important}
-.stApp button[kind="primary"],.stApp button[data-testid="stBaseButton-primary"]{background:linear-gradient(135deg,#F43F5E,#BE123C) !important;color:#fff !important;border:1px solid rgba(255,255,255,.2) !important;box-shadow:0 10px 22px -8px rgba(225,29,72,.6) !important}
-.stApp button[kind="secondary"],.stApp button[data-testid="stBaseButton-secondary"]{background:linear-gradient(135deg,#3B82F6,#1D4ED8) !important;color:#fff !important;border:1px solid rgba(255,255,255,.2) !important;box-shadow:0 10px 22px -8px rgba(37,99,235,.6) !important}
+.stApp div.stButton > button{min-height:52px !important;font-size:.9rem !important;font-weight:650 !important;text-transform:uppercase;letter-spacing:.05em !important;border-radius:8px !important}
+.stApp button[kind="primary"],.stApp button[data-testid="stBaseButton-primary"]{background:#1E3A8A !important;color:#fff !important;border:1px solid #1E3A8A !important;box-shadow:0 1px 2px rgba(15,23,42,.18) !important}
+.stApp button[kind="primary"]:hover,.stApp button[data-testid="stBaseButton-primary"]:hover{background:#1D4ED8 !important;border-color:#1D4ED8 !important}
+.stApp button[kind="secondary"],.stApp button[data-testid="stBaseButton-secondary"]{background:var(--ux-card) !important;color:#1E3A8A !important;border:1px solid #BFCBE0 !important}
+.stApp button[kind="secondary"]:hover,.stApp button[data-testid="stBaseButton-secondary"]:hover{border-color:#1D4ED8 !important;color:#1D4ED8 !important}
+@media (prefers-color-scheme:dark){.stApp button[kind="secondary"],.stApp button[data-testid="stBaseButton-secondary"]{color:#BFDBFE !important;border-color:#2B3B5C !important}}
 </style>
 """
 
@@ -330,7 +435,7 @@ UX_MODE = _theme_mode()
 
 def ux_boot():
     """Panggil sekali di awal halaman: pasang CSS tema + saklar tampilan."""
-    st.markdown(_UX_CSS.replace("__ROOT__", _root_css(UX_MODE)) + (_UX_CSS_HP if IS_HP else ""), unsafe_allow_html=True)
+    st.markdown(_UX_CSS.replace("__ROOT__", _root_css(UX_MODE)) + _UX_CSS_CORP + (_UX_CSS_HP if IS_HP else ""), unsafe_allow_html=True)
     try:
         box = st.container(key="view_switch")
     except TypeError:
@@ -656,8 +761,13 @@ def build_pptx(db_list):
     subtitle = slide.placeholders[1]
     title.text = "Laporan Lengkap Preventive Maintenance"
     subtitle.text = f"Total Site Terinspeksi: {len(db_list)}\nGenerated on: {datetime.date.today()}"
+
+    # ⚡ Prefetch paralel: foto pertama setiap site diunduh bersamaan (bukan satu per satu)
+    _first_imgs = [(r.get('url_sites') or [None])[0] for r in db_list]
+    _first_opt = [u.replace("upload/v", "upload/c_limit,w_500,q_80,f_jpg/v") if isinstance(u, str) else None for u in _first_imgs]
+    _img_bank = prefetch_images([u for u in _first_opt if u], timeout=8)
     
-    for r in db_list:
+    for _ri, r in enumerate(db_list):
         slide_layout = prs.slide_layouts[5]
         slide = prs.slides.add_slide(slide_layout)
         title = slide.shapes.title
@@ -684,10 +794,10 @@ def build_pptx(db_list):
         site_urls = r.get('url_sites', [])
         if site_urls and len(site_urls) > 0:
             try:
-                img_url = site_urls[0].replace("upload/v", "upload/c_limit,w_500,q_80,f_jpg/v")
-                resp = requests.get(img_url, timeout=5)
-                if resp.status_code == 200:
-                    image_stream = BytesIO(resp.content)
+                img_url = _first_opt[_ri] or site_urls[0].replace("upload/v", "upload/c_limit,w_500,q_80,f_jpg/v")
+                content = _img_bank.get(img_url) or _sd_http_get(img_url, timeout=5)
+                if content:
+                    image_stream = BytesIO(content)
                     slide.shapes.add_picture(image_stream, Inches(5.3), Inches(1.5), width=Inches(4.2))
             except: pass
                 
@@ -695,7 +805,7 @@ def build_pptx(db_list):
     prs.save(out)
     return out.getvalue()
 
-def build_pdf(r):
+def build_pdf(r, with_photos=True):
     from fpdf import FPDF
     from PIL import Image
     pdf = FPDF()
@@ -774,10 +884,20 @@ def build_pdf(r):
     pdf.cell(90, 6, "", 0, 0) 
     pdf.cell(90, 6, clean_text("Koordinator KUT Palangkaraya"), 0, 1, "C")
     
+    if not with_photos:
+        # Mode PDF Ringkas: Berita Acara tanpa lampiran foto (instan, tanpa unduh gambar)
+        try: return bytes(pdf.output())
+        except Exception:
+            out = pdf.output(dest='S')
+            return out.encode('latin-1', 'ignore') if isinstance(out, str) else out
+
     pdf.add_page()
     pdf.set_font("helvetica", "B", 12)
     pdf.cell(0, 10, clean_text("LAMPIRAN DOKUMENTASI FOTO (FULL)"), ln=True, align="C")
     pdf.ln(5)
+
+    def _opt_pdf(u):
+        return u.replace("upload/v", "upload/c_limit,w_800,f_jpg/v") if "upload/v" in u else u
     
     def draw_photo_grid(url_list, title):
         urls = [u for u in url_list if isinstance(u, str) and u.startswith("http")]
@@ -785,13 +905,13 @@ def build_pdf(r):
         pdf.set_font("helvetica", "B", 11)
         pdf.cell(0, 8, clean_text(title), ln=True)
         max_img_w = 160 
+        _bank = prefetch_images([_opt_pdf(u) for u in urls])   # ⚡ unduh paralel
         for u in urls:
-            opt_url = u
-            if "upload/v" in opt_url: opt_url = opt_url.replace("upload/v", "upload/c_limit,w_800,f_jpg/v")
+            opt_url = _opt_pdf(u)
             try:
-                response = requests.get(opt_url, timeout=12)
-                if response.status_code == 200:
-                    img = Image.open(BytesIO(response.content))
+                content = _bank.get(opt_url)
+                if content:
+                    img = Image.open(BytesIO(content))
                     if img.mode in ('RGBA', 'P', 'LA'): img = img.convert('RGB')
                     fd, temp_path = tempfile.mkstemp(suffix=".jpg")
                     os.close(fd)
@@ -833,6 +953,18 @@ def build_pdf(r):
     except Exception:
         out = pdf.output(dest='S')
         return out.encode('latin-1', 'ignore') if isinstance(out, str) else out
+
+@st.cache_data(show_spinner=False, max_entries=48, ttl=3600)
+def _build_pdf_cached(payload_json, with_photos):
+    return build_pdf(json.loads(payload_json), with_photos=with_photos)
+
+def build_pdf_cached(r, with_photos=True):
+    """PDF yang sama tidak dirakit dua kali (cache 1 jam, otomatis baru bila isi laporan berubah)."""
+    try:
+        payload = json.dumps(r, sort_keys=True, default=str)
+    except Exception:
+        return build_pdf(r, with_photos=with_photos)
+    return _build_pdf_cached(payload, with_photos)
 
 # -------------------------------------------------------------------------
 # TEMA PREMIUM & SAKLAR TAMPILAN WEB | HP
@@ -1324,21 +1456,158 @@ def upload_datalog(file_obj, folder_name="prev_datalog"):
         except Exception as e: return None
     return None
 
+# =========================================================================
+# 📷 MESIN FOTO EVIDENCE ON-DEMAND (AUTOMASI KECEPATAN)
+#   Prinsip: laporan (teks & angka) selalu tampil instan. Foto evidence BARU
+#   diunduh ketika pengguna memang ingin melihatnya.
+#   - Di dalam detail laporan Dashboard  -> 1 saklar "Tampilkan Foto Evidence"
+#     per laporan (rerun hanya bagian laporan itu, bukan seluruh halaman).
+#   - Di modul lain (Executive Project, Hard Akses, SiSAVA) -> saklar kecil
+#     per galeri foto.
+#   - Saklar global "Mode Foto Otomatis" (st.session_state['foto_auto'])
+#     mengembalikan perilaku lama: semua foto langsung tampil.
+# =========================================================================
+from contextlib import contextmanager as _ctxmgr
+import hashlib as _hl_foto
+from concurrent.futures import ThreadPoolExecutor as _TPE
+
+# st.fragment (Streamlit >= 1.37) membuat klik saklar foto hanya me-render ulang
+# bagian kecil itu saja. Versi lama otomatis jatuh ke perilaku biasa (tetap jalan).
+_sd_fragment = getattr(st, "fragment", None) or getattr(st, "experimental_fragment", None) or (lambda f: f)
+
+_FOTO_SEEN = {}   # penghitung kemunculan per-run agar key widget tetap unik & stabil
+
+def _foto_urls(url_data):
+    if not url_data: return []
+    if isinstance(url_data, str):
+        return [url_data] if url_data.startswith("http") else []
+    if isinstance(url_data, (list, tuple)):
+        return [u for u in url_data if isinstance(u, str) and u.startswith("http")]
+    return []
+
+def _foto_thumb(u, w=480):
+    """Minta Cloudinary mengirim versi ringan (lebar terbatas, kualitas eco, format otomatis WebP/AVIF)."""
+    if "res.cloudinary.com" in u and "/image/upload/" in u:
+        return u.replace("/image/upload/", "/image/upload/c_limit,w_%d,q_auto:eco,f_auto/" % w, 1)
+    if "cloudinary" in u and "upload/" in u:
+        return u.replace("upload/", "upload/w_%d,q_auto:eco/" % w, 1)
+    return u
+
+def _foto_cap_bersih(caption):
+    c = str(caption or "").strip()
+    while c and not c[0].isalnum():
+        c = c[1:].lstrip()
+    return c or "Foto Evidence"
+
+def _kumpulkan_url_foto(obj, _out=None):
+    """Hitung seluruh URL foto evidence di dalam 1 laporan (rekursif, tanpa unduh apa pun)."""
+    out = [] if _out is None else _out
+    if isinstance(obj, dict):
+        for v in obj.values(): _kumpulkan_url_foto(v, out)
+    elif isinstance(obj, (list, tuple)):
+        for v in obj: _kumpulkan_url_foto(v, out)
+    elif isinstance(obj, str):
+        lo = obj.lower()
+        if lo.startswith("http") and "/raw/upload/" not in lo and not lo.endswith((".pdf", ".xlsx", ".xls", ".csv", ".txt", ".zip", ".log")) \
+           and ("/image/upload/" in lo or lo.split("?")[0].endswith((".jpg", ".jpeg", ".png", ".webp", ".heic", ".gif"))):
+            out.append(obj)
+    return out
+
+def _foto_scope_get():
+    return st.session_state.get("_foto_scope")
+
+@_ctxmgr
+def foto_scope(enabled):
+    """Semua tampilkan_grid_foto di dalam blok ini mengikuti 1 saklar (True=tampil, False=ringkas)."""
+    prev = st.session_state.get("_foto_scope")
+    st.session_state["_foto_scope"] = bool(enabled)
+    try:
+        yield
+    finally:
+        st.session_state["_foto_scope"] = prev
+
+def foto_toggle_laporan(key_id, n_foto):
+    """Saklar foto per laporan. Mengembalikan True bila foto boleh diunduh & ditampilkan."""
+    if n_foto <= 0:
+        st.markdown('<div class="sd-note">Laporan ini tidak memiliki foto evidence.</div>', unsafe_allow_html=True)
+        return False
+    if st.session_state.get("foto_auto"):
+        st.markdown('<span class="sd-chip">📷 Mode Foto Otomatis aktif · %d foto</span>' % n_foto, unsafe_allow_html=True)
+        return True
+    return st.toggle("📷 Tampilkan Foto Evidence (%d foto)" % n_foto, key="foto_rep_%s" % key_id,
+                     help="Foto hanya diunduh saat saklar ini aktif, sehingga laporan terbuka jauh lebih cepat.")
+
+def _render_grid_html(urls, caption=""):
+    h = ""
+    if caption:
+        h += '<div class="sd-cap">%s</div>' % _esc(caption)
+    h += '<div class="sd-grid">'
+    for u in urls:
+        h += '<a href="%s" target="_blank" rel="noopener"><img src="%s" loading="lazy" decoding="async" alt="%s"></a>' % (
+            _esc(u), _esc(_foto_thumb(u)), _esc(_foto_cap_bersih(caption)))
+    h += "</div>"
+    st.markdown(h, unsafe_allow_html=True)
+
+@_sd_fragment
+def _foto_lazy_panel(urls, caption, key):
+    on = st.toggle("📷 Tampilkan foto — %s (%d)" % (_foto_cap_bersih(caption), len(urls)), key=key,
+                   help="Foto diunduh hanya ketika ingin dilihat agar halaman tetap ringan.")
+    if on:
+        _render_grid_html(urls, caption)
+
 def tampilkan_grid_foto(url_data, caption=""):
-    if not url_data: return
-    urls = []
-    if isinstance(url_data, str) and url_data.startswith("http"): urls = [url_data]
-    elif isinstance(url_data, list): urls = [u for u in url_data if isinstance(u, str) and u.startswith("http")]
-        
-    if urls:
-        if caption: st.markdown(f"*{caption}*")
-        img_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 15px;">'
-        for u in urls:
-            # OPTIMASI ANTI-LEMOT: Minta Cloudinary mengirim foto resolusi kecil (lebar 400px) untuk tampilan grid dashboard
-            opt_u = u.replace("upload/", "upload/w_400,q_auto:eco/") if "cloudinary" in u else u
-            img_html += f'<div style="background-color: var(--secondary-background-color); border: 1px solid var(--primary-color); border-radius: 8px; padding: 6px; text-align: center;"><a href="{u}" target="_blank"><img src="{opt_u}" loading="lazy" style="max-width: 100%; height: auto; max-height: 400px; object-fit: contain; border-radius: 6px;"></a></div>'
-        img_html += '</div>'
-        st.markdown(img_html, unsafe_allow_html=True)
+    urls = _foto_urls(url_data)
+    if not urls: return
+    scope = _foto_scope_get()
+    # 1) Mode otomatis / saklar laporan aktif -> tampilkan langsung (perilaku lama)
+    if st.session_state.get("foto_auto") or scope is True:
+        _render_grid_html(urls, caption)
+        return
+    # 2) Di dalam laporan yang saklar fotonya mati -> hanya ringkasan (nol unduhan foto)
+    if scope is False:
+        st.markdown('<div class="sd-ph">🖼️ <b>%s</b> · %d foto tersimpan</div>' % (_esc(_foto_cap_bersih(caption)), len(urls)), unsafe_allow_html=True)
+        return
+    # 3) Modul lain -> saklar kecil per galeri (dirender ulang sendiri, tidak seluruh halaman)
+    sig = _hl_foto.md5(("%s|%s" % (caption, "|".join(urls))).encode("utf-8")).hexdigest()[:12]
+    _FOTO_SEEN[sig] = _FOTO_SEEN.get(sig, 0) + 1
+    _foto_lazy_panel(urls, caption, "fl_%s_%d" % (sig, _FOTO_SEEN[sig]))
+
+# -------------------------------------------------------------------------
+# ⚡ PREFETCH FOTO PARALEL + CACHE (untuk PDF & PPTX)
+#   Sebelumnya foto diunduh satu per satu (lambat). Sekarang diunduh bersamaan
+#   (8 jalur) dan disimpan di cache server 1 jam -> PDF kedua & seterusnya instan.
+# -------------------------------------------------------------------------
+@st.cache_resource(show_spinner=False)
+def _sd_img_store():
+    return {"data": {}, "order": []}
+
+def _sd_http_get(url, timeout=12):
+    try:
+        resp = requests.get(url, timeout=timeout)
+        if resp.status_code == 200 and resp.content:
+            return resp.content
+    except Exception:
+        pass
+    return None
+
+def prefetch_images(urls, timeout=12, max_workers=8, limit=400):
+    """Unduh banyak foto sekaligus. Mengembalikan {url: bytes|None}. Hasil di-cache lintas sesi."""
+    store = _sd_img_store()
+    data, order = store["data"], store["order"]
+    out, todo = {}, []
+    for u in dict.fromkeys(u for u in urls if isinstance(u, str) and u.startswith("http")):
+        if u in data: out[u] = data[u]
+        else: todo.append(u)
+    if todo:
+        with _TPE(max_workers=min(max_workers, len(todo))) as ex:
+            for u, content in zip(todo, ex.map(lambda x: _sd_http_get(x, timeout), todo)):
+                out[u] = content
+                if content:
+                    data[u] = content; order.append(u)
+        while len(order) > limit:
+            data.pop(order.pop(0), None)
+    return out
+
 # -------------------------------------------------------------------------
 # SETUP DATABASE GOOGLE SHEETS
 # -------------------------------------------------------------------------
@@ -5950,7 +6219,7 @@ else:
                 st.rerun()
     with c_top2:
         st.markdown(
-            f"<div style='text-align: center; padding: 10px 16px; border-radius: 10px; background-color: var(--secondary-background-color); border: 1px solid var(--primary-color); font-weight: 800; font-size: 16px;'>📍 Menu Aktif: {menu}</div>",
+            f"<div class='sd-crumb'><span>SIDATA</span><i>›</i><b>{_esc(menu)}</b></div>",
             unsafe_allow_html=True
         )
     with c_top3:
@@ -6940,12 +7209,12 @@ elif menu == "📊 Hasil Laporan & Dashboard":
 
             with col_d1:
                 st.markdown(f"""
-                    <div class='area-card' style='border-top-color: #007BFF;'>
+                    <div class='area-card' style='border-top-color: #1D4ED8;'>
                         <div style='font-size: 50px; margin-bottom: 10px;'>🗼</div>
                         <div class='area-badge'>AREA OPERASIONAL 1</div>
                         <div class='login-title'>NOP PALANGKARAYA</div>
                         <div class='login-desc'>Daftar Site Preventive Maintenance (SPS & Reguler), Laporan Project, Dokumentasi Foto Modul Surya, Baterai, Datalog & Berita Acara PDF.</div>
-                        <div style='font-size: 20px; font-weight: 800; color: #007BFF; margin-bottom: 8px;'>📊 {len(idx_plk)} Laporan Tersedia</div>
+                        <div style='font-size: 15px; font-weight: 700; color: #1D4ED8; margin-bottom: 4px;'>{len(idx_plk)} laporan tersedia</div>
                     </div>
                 """, unsafe_allow_html=True)
                 if st.button("🔵 BUKA DASHBOARD PALANGKARAYA", type="secondary", use_container_width=True, key="btn_open_plk"):
@@ -6956,10 +7225,10 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                 st.markdown(f"""
                     <div class='area-card' style='border-top-color: #FF3333;'>
                         <div style='font-size: 50px; margin-bottom: 10px;'>📡</div>
-                        <div class='area-badge' style='color: #FF3333; border-color: #FF3333; background-color: rgba(255,51,51,0.12);'>AREA OPERASIONAL 2</div>
+                        <div class='area-badge'>AREA OPERASIONAL 2</div>
                         <div class='login-title'>NOP PANGKALAN BUN</div>
                         <div class='login-desc'>Daftar Site Visit Report FME, Parameter Rectifier, Simulasi ENVA, Kelistrikan, ACPDB, Genset & Dokumentasi Foto Lapangan.</div>
-                        <div style='font-size: 20px; font-weight: 800; color: #FF3333; margin-bottom: 8px;'>📊 {len(idx_pbu)} Laporan Tersedia</div>
+                        <div style='font-size: 15px; font-weight: 700; color: #B91C1C; margin-bottom: 4px;'>{len(idx_pbu)} laporan tersedia</div>
                     </div>
                 """, unsafe_allow_html=True)
                 if st.button("🔴 BUKA DASHBOARD PANGKALAN BUN", type="primary", use_container_width=True, key="btn_open_pbu"):
@@ -6973,17 +7242,22 @@ elif menu == "📊 Hasil Laporan & Dashboard":
         # ---------------------------------------------------------------------
         aktif_area = st.session_state.get('dashboard_area')
         
-        c_nav1, c_nav2 = st.columns([1.5, 3.5])
+        c_nav1, c_nav2, c_nav3 = st.columns([1.5, 3.0, 1.2])
         with c_nav1:
             if st.button("⬅️ Ganti Area Operasional Dashboard", use_container_width=True):
                 st.session_state['dashboard_area'] = None
                 st.rerun()
         with c_nav2:
-            warna_area = "#007BFF" if aktif_area == "Palangkaraya" else "#FF3333"
+            warna_area = "#1D4ED8" if aktif_area == "Palangkaraya" else "#B91C1C"
             st.markdown(
-                f"<div style='padding: 8px 18px; border-radius: 10px; border-left: 6px solid {warna_area}; background-color: var(--secondary-background-color); font-size: 18px; font-weight: 800;'>📍 Menampilkan Data NOP {aktif_area.upper()}</div>",
+                f"<div class='sd-crumb' style='border-left: 4px solid {warna_area};'><span>NOP</span><i>›</i><b>{_esc(aktif_area.upper())}</b><i>·</i>{len(db)} laporan tersinkron</div>",
                 unsafe_allow_html=True
             )
+        with c_nav3:
+            if st.button("🔄 Sinkron Data", use_container_width=True, key="btn_dash_resync", help="Ambil ulang laporan terbaru dari server (cache otomatis 10 menit)."):
+                with st.spinner("Menyinkronkan laporan terbaru..."):
+                    get_laporan_db(force_refresh=True)
+                st.rerun()
 
         st.markdown("<hr style='margin: 18px 0;'>", unsafe_allow_html=True)
 
@@ -7206,104 +7480,22 @@ elif menu == "📊 Hasil Laporan & Dashboard":
             cur_page = c_pg2.number_input(f"Halaman (1 s/d {tot_pages}):", min_value=1, max_value=tot_pages, value=1, step=1, key="dash_cur_page")
             p_start = (int(cur_page) - 1) * int(per_page)
             p_end = min(p_start + int(per_page), len(filtered_indices))
-            c_pg3.markdown(f"<div style='padding-top:30px;font-size:13px;opacity:0.85;'>⚡ Menampilkan laporan <b>{p_start+1}–{p_end}</b> dari <b>{len(filtered_indices)}</b> laporan (Mode Ringan)</div>", unsafe_allow_html=True)
+            with c_pg3:
+                st.markdown(f"<div style='padding-top:6px;font-size:13px;color:var(--ux-muted);'>Menampilkan laporan <b>{p_start+1}–{p_end}</b> dari <b>{len(filtered_indices)}</b></div>", unsafe_allow_html=True)
+                st.toggle("📷 Mode Foto Otomatis (semua foto langsung tampil)", key="foto_auto",
+                          help="Nonaktif (disarankan): laporan tampil instan, foto evidence diunduh hanya saat saklar foto di tiap laporan diaktifkan.")
             # ---------------------------------------------------------------------
             # TAMPILAN KARTU UI MODERN & URUTAN TERBARU DI ATAS (TERPAGINASI)
             # ---------------------------------------------------------------------
-            for i in filtered_indices[p_start:p_end]:
-                r = db[i]
-                site_id = r.get('site_name', 'Unknown')
-                kategori_site = r.get('kategori', 'SPS')
-                stat = r.get('status', '')
-                
-                if stat == "Normal" or stat == "Done":
-                    warna_status = "#00E676" 
-                    icon = "🟢"
-                elif stat in ["Minor Issue", "Update Progress", "On Progress"]:
-                    warna_status = "#FFC107" 
-                    icon = "🟡"
-                else:
-                    warna_status = "#FF5252" 
-                    icon = "🔴"
-                
-                is_new_reguler = kategori_site == "Site Reguler" and ("problem_alarm" in r or "cond_data" in r)
-                is_project = kategori_site == "Project"
-                
-                if kategori_site == "Pangkalan Bun":
-                    wa_text = generate_wa_pbu(r)
-                elif is_project:
-                    pd_data = r.get('proj_data', {})
-                    wa_text = f"*REPORT PROJECT ({pd_data.get('jenis_project', '')})* ⚡\n📍 *Project:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Tim/FME:* {r.get('teknisi', '-')}\n📊 *Status Laporan:* {r.get('status', '-')}\n"
-                    if pd_data.get('jenis_project') == "PO":
-                        wa_text += f"\n*📋 DETAIL PO:*\n- No PO: {pd_data.get('no_po', '-')}\n- Mitra: {pd_data.get('mitra', '-')}\n- Pekerjaan Utama: {pd_data.get('tipe_pekerjaan', '-')}\n- Progress Keseluruhan: {pd_data.get('avg_progress', 0):.1f}%\n"
-                        tabel_p = pd_data.get('tabel_pekerjaan', [])
-                        if tabel_p:
-                            wa_text += f"\n*🗺️ RINCIAN MULTI-SITE ({len(tabel_p)} Rute/Item):*\n"
-                            for idx, tp in enumerate(tabel_p):
-                                asal = tp.get('Site Asal', '')
-                                tuj = tp.get('Site Tujuan', '')
-                                pek = tp.get('Pekerjaan Spesifik', '')
-                                prog = tp.get('Progress (%)', 0)
-                                stat_tp = tp.get('Status', '')
-                                rute = f"{asal} ➡️ {tuj}" if asal and tuj else (asal or tuj or "Site Project")
-                                wa_text += f"  {idx+1}. {rute} | {pek} ({prog}% - {stat_tp})\n"
-                        if pd_data.get('tipe_pekerjaan') == "Instalasi Imacro":
-                            wa_text += f"\n*🛠️ Progress Imacro:* {', '.join(pd_data.get('progress_imacro', []))}\n"
-                    elif pd_data.get('jenis_project') == "SVA":
-                        wa_text += f"\n*📋 DETAIL SVA:*\n- No Tiket: {pd_data.get('no_tiket', '-')}\n- Temuan: {pd_data.get('temuan_sva', '-')}\n"
-                    if pd_data.get('note_akhir'):
-                        wa_text += f"\n*📝 NOTE:* {pd_data.get('note_akhir')}\n"
-                elif is_new_reguler:
-                    wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')} ({r.get('role_fme', '-')})\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
-                    cd = r.get('cond_data', {})
-                    if cd:
-                        if cd.get('v_rn'):
-                            v_rst = cd.get('volt_ac_rst') or f"{cd.get('v_rn','-')}/{cd.get('v_sn','-')}/{cd.get('v_tn','-')}"
-                            i_rst = cd.get('load_ac_rst') or f"{cd.get('i_r','-')}/{cd.get('i_s','-')}/{cd.get('i_t','-')}"
-                            wa_text += f"\n*⚡ Power AC/DC:* Teg AC ({v_rst} V) | Arus AC ({i_rst} A) | Load DC ({cd.get('load_dc','-')} A)\n"
-                        if cd.get('gen_v'):
-                            wa_text += f"*⚙️ Genset/ATS:* Teg Out ({cd.get('gen_v','-')} V) | Arus ({cd.get('gen_i','-')} A) | HM ({cd.get('gen_hm','-')}) | BBM ({cd.get('gen_bbm','-')} L)\n"
-                        if cd.get('note_action'):
-                            wa_text += f"*📝 NOTE:* {cd.get('note_action')}\n"
-                else:
-                    wa_text = f"*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({kategori_site} - {r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"
-                
-                wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
-    
-                with st.container(border=False):
-                    fme_tampil = r.get('teknisi', '-') if kategori_site != "Pangkalan Bun" else r.get('pb_te', '-')
-                    st.markdown(f"""
-                        <div style="padding: 18px 20px; border-radius: 12px; border-left: 8px solid {warna_status}; background-color: var(--secondary-background-color); margin-bottom: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.08); border-top: 1px solid rgba(128,128,128,0.1); border-right: 1px solid rgba(128,128,128,0.1); border-bottom: 1px solid rgba(128,128,128,0.1);">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <h3 style="margin: 0; padding: 0; font-size: 22px; font-weight: 800;">{icon} {site_id}</h3>
-                                <span style="font-size: 13px; font-weight: 700; color: #ffffff; background-color: {warna_status}; padding: 4px 12px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">📅 {r.get('timestamp', '')}</span>
-                            </div>
-                            <div style="font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>📝 Kategori:</b> {kategori_site} ({r.get('nop', '-')})</span>
-                                <span style="background-color: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px;"><b>👷 Tim:</b> {fme_tampil}</span>
-                            </div>
-                            <div style="font-size: 15px; border-top: 1px dashed rgba(128,128,128,0.3); padding-top: 8px; margin-top: 8px;">
-                                <b>📊 Status Akhir:</b> <span style="color: {warna_status}; font-weight: 900; font-size: 16px;">{stat}</span>
-                            </div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    c_btn1, c_btn2 = st.columns(2)
-                    with c_btn1:
-                        st.link_button("📱 Share Rangkuman Laporan (WA)", wa_url, use_container_width=True)
-                    with c_btn2:
-                        if kategori_site != "Pangkalan Bun" and not is_new_reguler and not is_project:
-                            if st.checkbox("📄 Buat PDF Resmi", key=f"prep_pdf_{i}"):
-                                with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..."):
-                                    try:
-                                        pdf_bytes = build_pdf(r)
-                                        st.download_button(label="📥 Download PDF", data=pdf_bytes, file_name=f"Berita_Acara_{site_id}.pdf", mime="application/pdf", key=f"dl_pdf_{i}", type="primary", use_container_width=True)
-                                    except Exception as e:
-                                        st.error(f"Gagal memproses PDF: {e}")
-                        else:
-                            st.button("📄 Format Tanpa PDF", disabled=True, key=f"dl_pdf_dis_{i}", use_container_width=True)
-    
-                    with st.expander("📂 BUKA DETAIL & DOKUMENTASI LAPORAN"):
+            # -----------------------------------------------------------------
+            # ⚡ DETAIL LAPORAN SEBAGAI FRAGMENT: klik di dalam detail (saklar foto,
+            # tab, dsb.) hanya me-render ulang laporan itu, bukan seluruh halaman.
+            # -----------------------------------------------------------------
+            @_sd_fragment
+            def _render_detail_laporan(i, r, stat, kategori_site, is_new_reguler, is_project):
+                with st.expander("📂 BUKA DETAIL & DOKUMENTASI LAPORAN"):
+                    _foto_on = foto_toggle_laporan(i, len(_kumpulkan_url_foto(r)))
+                    with foto_scope(_foto_on):
                         if kategori_site == "Pangkalan Bun":
                             st.markdown("### 📋 SITE VISIT REPORT (Pangkalan Bun)")
                             st.write(f"**FME NAME:** {r.get('pb_te', '-')} | **Ticket:** {r.get('pb_ticket', '-')}")
@@ -7511,6 +7703,102 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                                                 fetch_data_from_gsheets.clear() 
                                         st.success("✅ REVISI BERHASIL!")
                                         st.rerun()
+
+            for i in filtered_indices[p_start:p_end]:
+                r = db[i]
+                site_id = r.get('site_name', 'Unknown')
+                kategori_site = r.get('kategori', 'SPS')
+                stat = r.get('status', '')
+                
+                if stat == "Normal" or stat == "Done":
+                    warna_status = "#047857" 
+                    icon = "🟢"
+                elif stat in ["Minor Issue", "Update Progress", "On Progress"]:
+                    warna_status = "#B45309" 
+                    icon = "🟡"
+                else:
+                    warna_status = "#B91C1C" 
+                    icon = "🔴"
+                
+                is_new_reguler = kategori_site == "Site Reguler" and ("problem_alarm" in r or "cond_data" in r)
+                is_project = kategori_site == "Project"
+                
+                if kategori_site == "Pangkalan Bun":
+                    wa_text = generate_wa_pbu(r)
+                elif is_project:
+                    pd_data = r.get('proj_data', {})
+                    wa_text = f"*REPORT PROJECT ({pd_data.get('jenis_project', '')})* ⚡\n📍 *Project:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Tim/FME:* {r.get('teknisi', '-')}\n📊 *Status Laporan:* {r.get('status', '-')}\n"
+                    if pd_data.get('jenis_project') == "PO":
+                        wa_text += f"\n*📋 DETAIL PO:*\n- No PO: {pd_data.get('no_po', '-')}\n- Mitra: {pd_data.get('mitra', '-')}\n- Pekerjaan Utama: {pd_data.get('tipe_pekerjaan', '-')}\n- Progress Keseluruhan: {pd_data.get('avg_progress', 0):.1f}%\n"
+                        tabel_p = pd_data.get('tabel_pekerjaan', [])
+                        if tabel_p:
+                            wa_text += f"\n*🗺️ RINCIAN MULTI-SITE ({len(tabel_p)} Rute/Item):*\n"
+                            for idx, tp in enumerate(tabel_p):
+                                asal = tp.get('Site Asal', '')
+                                tuj = tp.get('Site Tujuan', '')
+                                pek = tp.get('Pekerjaan Spesifik', '')
+                                prog = tp.get('Progress (%)', 0)
+                                stat_tp = tp.get('Status', '')
+                                rute = f"{asal} ➡️ {tuj}" if asal and tuj else (asal or tuj or "Site Project")
+                                wa_text += f"  {idx+1}. {rute} | {pek} ({prog}% - {stat_tp})\n"
+                        if pd_data.get('tipe_pekerjaan') == "Instalasi Imacro":
+                            wa_text += f"\n*🛠️ Progress Imacro:* {', '.join(pd_data.get('progress_imacro', []))}\n"
+                    elif pd_data.get('jenis_project') == "SVA":
+                        wa_text += f"\n*📋 DETAIL SVA:*\n- No Tiket: {pd_data.get('no_tiket', '-')}\n- Temuan: {pd_data.get('temuan_sva', '-')}\n"
+                    if pd_data.get('note_akhir'):
+                        wa_text += f"\n*📝 NOTE:* {pd_data.get('note_akhir')}\n"
+                elif is_new_reguler:
+                    wa_text = f"*BERITA ACARA SITE REGULER* ⚡\n📍 *Site:* {site_id} ({r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *FME:* {r.get('teknisi', '-')} ({r.get('role_fme', '-')})\n📊 *Status:* {r.get('status', '-')}\n\n*🚨 PROBLEM ALARM:*\n{r.get('problem_alarm', '-')}\n\n*🔧 ACTION / PERBAIKAN:*\n{', '.join(r.get('action_reguler', [])) if isinstance(r.get('action_reguler'), list) else r.get('action_reguler', '-')}\n"
+                    cd = r.get('cond_data', {})
+                    if cd:
+                        if cd.get('v_rn'):
+                            v_rst = cd.get('volt_ac_rst') or f"{cd.get('v_rn','-')}/{cd.get('v_sn','-')}/{cd.get('v_tn','-')}"
+                            i_rst = cd.get('load_ac_rst') or f"{cd.get('i_r','-')}/{cd.get('i_s','-')}/{cd.get('i_t','-')}"
+                            wa_text += f"\n*⚡ Power AC/DC:* Teg AC ({v_rst} V) | Arus AC ({i_rst} A) | Load DC ({cd.get('load_dc','-')} A)\n"
+                        if cd.get('gen_v'):
+                            wa_text += f"*⚙️ Genset/ATS:* Teg Out ({cd.get('gen_v','-')} V) | Arus ({cd.get('gen_i','-')} A) | HM ({cd.get('gen_hm','-')}) | BBM ({cd.get('gen_bbm','-')} L)\n"
+                        if cd.get('note_action'):
+                            wa_text += f"*📝 NOTE:* {cd.get('note_action')}\n"
+                else:
+                    wa_text = f"*BERITA ACARA PREVENTIVE MAINTENANCE* ⚡\n📍 *Site:* {site_id} ({kategori_site} - {r.get('nop', '-')})\n📅 *Tanggal:* {r.get('timestamp', '-')}\n👷 *Pelaksana:* {r.get('teknisi', '-')}\n📊 *Status:* {r.get('status', '-')}\n\n*RINCIAN TINDAKAN:*\n{r.get('action', '-')}\n\n*POWER & LOAD:*\n- PLN: {r.get('pln_status', '-')}\n- Rectifier: {r.get('rect_brand', '-')} ({r.get('rect_out_v', '-')}V)\n- Load BTS: {r.get('total_load', '-')} A\n\n*SPAREPART:*\n{r.get('sparepart', '-')}"
+                
+                wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
+    
+                with st.container(border=False):
+                    fme_tampil = r.get('teknisi', '-') if kategori_site != "Pangkalan Bun" else r.get('pb_te', '-')
+                    _n_foto_card = len(_kumpulkan_url_foto(r))
+                    _kat_lbl = f"{kategori_site} · {r.get('nop', '-')}" if kategori_site != "Pangkalan Bun" else f"Pangkalan Bun · Ticket {r.get('pb_ticket', '-')}"
+                    st.markdown(
+                        f'<div class="sd-card" style="--sd-c:{warna_status};">'
+                        f'<div class="sd-top"><div class="sd-site">{_esc(site_id)}</div>'
+                        f'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><span class="sd-date">{_esc(r.get("timestamp", ""))}</span><span class="sd-pill">{_esc(stat or "-")}</span></div></div>'
+                        f'<div class="sd-meta">'
+                        f'<span><small>Kategori</small>{_esc(_kat_lbl)}</span>'
+                        f'<span><small>Tim / FME</small>{_esc(fme_tampil)}</span>'
+                        f'<span><small>Evidence</small>{_n_foto_card} foto</span>'
+                        f'</div></div>',
+                        unsafe_allow_html=True
+                    )
+                    
+                    c_btn1, c_btn2 = st.columns(2)
+                    with c_btn1:
+                        st.link_button("📱 Share Rangkuman Laporan (WA)", wa_url, use_container_width=True)
+                    with c_btn2:
+                        if kategori_site != "Pangkalan Bun" and not is_new_reguler and not is_project:
+                            if st.checkbox("📄 Buat PDF Resmi", key=f"prep_pdf_{i}"):
+                                pdf_mode = st.radio("Isi PDF", ["Lengkap + Lampiran Foto", "Ringkas (tanpa foto)"], horizontal=True,
+                                                    key=f"pdf_mode_{i}", label_visibility="collapsed")
+                                _pdf_foto = pdf_mode.startswith("Lengkap")
+                                with st.spinner("⏳ Rendering Dokumen PDF Resolusi Tinggi..." if _pdf_foto else "⏳ Menyusun Berita Acara..."):
+                                    try:
+                                        pdf_bytes = build_pdf_cached(r, with_photos=_pdf_foto)
+                                        st.download_button(label="📥 Download PDF", data=pdf_bytes, file_name=f"Berita_Acara_{site_id}{'' if _pdf_foto else '_Ringkas'}.pdf", mime="application/pdf", key=f"dl_pdf_{i}", type="primary", use_container_width=True)
+                                    except Exception as e:
+                                        st.error(f"Gagal memproses PDF: {e}")
+                        else:
+                            st.button("📄 Format Tanpa PDF", disabled=True, key=f"dl_pdf_dis_{i}", use_container_width=True)
+    
+                    _render_detail_laporan(i, r, stat, kategori_site, is_new_reguler, is_project)
 # =========================================================================
 # MENU 3: EXCEL LIVE-EDITOR (MONITORING IMPROVEMENT)
 # =========================================================================
@@ -10415,10 +10703,10 @@ elif menu == "🏢 Portal Office":
     c_off4, c_off5, c_off6 = st.columns(3)
     with c_off4:
         st.markdown("""
-            <div class='area-card' style='border-top-color: #FFD700; background: linear-gradient(145deg, #0f172a, #1e293b);'>
+            <div class='area-card' style='border-top-color: #1E3A8A;'>
                 <div style='font-size: 44px; margin-bottom: 10px;'>💎</div>
-                <div class='login-title' style='font-size: 19px; color: #FFD700 !important;'>Executive Project</div>
-                <div class='login-desc' style='font-size: 13px; color: #cbd5e1 !important;'>Dashboard Khusus PO & SVA: Budget vs Support, Timeline & Analisa Mandek.</div>
+                <div class='login-title' style='font-size: 19px;'>Executive Project</div>
+                <div class='login-desc' style='font-size: 13px;'>Dashboard Khusus PO & SVA: Budget vs Support, Timeline & Analisa Mandek.</div>
             </div>
         """, unsafe_allow_html=True)
         if st.button("💎 BUKA EXECUTIVE PROJECT", type="primary", use_container_width=True, key="off_btn_proj"):
