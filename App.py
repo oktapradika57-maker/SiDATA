@@ -43,12 +43,12 @@ def render_header_logo(is_login=False):
         if os.path.exists(filename):
             bg_base64 = get_base64_of_bin_file(filename)
             if bg_base64:
-                max_h = "96px" if is_login else "64px"
-                pad = "12px 28px" if is_login else "8px 20px"
+                max_h = "135px" if is_login else "100px"
+                pad = "16px 36px" if is_login else "12px 28px"
                 st.markdown(
                     f"""
                     <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px;">
-                        <div style="background: #ffffff; padding: {pad}; border-radius: 12px; box-shadow: var(--ux-shadow); border: 1px solid var(--ux-line); display: inline-flex; align-items: center; justify-content: center;">
+                        <div style="background: linear-gradient(145deg, #ffffff, #f3f6f9); padding: {pad}; border-radius: 20px; box-shadow: 0 10px 28px rgba(0,0,0,0.22); border: 2px solid var(--primary-color); display: inline-flex; align-items: center; justify-content: center;">
                             <img src="data:{mime};base64,{bg_base64}" style="max-height: {max_h}; width: auto; max-width: 100%; object-fit: contain; display: block;">
                         </div>
                     </div>
@@ -71,16 +71,16 @@ from xml.sax.saxutils import escape as _xesc
 
 UI_THEME = "auto"   # "auto" = ikuti tema Streamlit/perangkat | "light" | "dark"
 
-_PAL_LIGHT = dict(bg="#EDF1F6", card="#FFFFFF", card2="#F5F7FB", line="#D5DDE8", ink="#0C1B30", muted="#546278",
-                  accent="#1B5FC1", gold="#9A6B12", gold2="#C58B1B", ok="#0F8A5F", warn="#B7791F", bad="#C0392B",
-                  btn1="#1B5FC1", btn2="#154B9B", navy="#0B1F3A", navy2="#12315C", signal="#0E9F8E",
-                  glow="rgba(27,95,193,.14)", gglow="rgba(0,0,0,0)",
-                  shadow="0 1px 2px rgba(12,27,48,.06),0 4px 14px rgba(12,27,48,.05)")
-_PAL_DARK = dict(bg="#08111F", card="#0F1B2F", card2="#13223B", line="#223552", ink="#E8EEF7", muted="#8DA0BC",
-                 accent="#5B9DF5", gold="#D9A441", gold2="#E8BE6A", ok="#34C58A", warn="#E2A93B", bad="#F0766B",
-                 btn1="#2F6FD6", btn2="#2859B0", navy="#050C18", navy2="#0E2342", signal="#2DD4BF",
-                 glow="rgba(91,155,255,.18)", gglow="rgba(0,0,0,0)",
-                 shadow="0 1px 2px rgba(0,0,0,.5),0 6px 18px rgba(0,0,0,.35)")
+_PAL_LIGHT = dict(bg="#EEF2FA", card="#FFFFFF", card2="#F6F8FD", line="#DCE4F2", ink="#0B152C", muted="#52627E",
+                  accent="#2563EB", cyan="#0891B2", emerald="#059669", purple="#7C3AED", gold="#C69214", gold2="#F5C84B",
+                  ok="#059669", warn="#D97706", bad="#E11D48",
+                  btn1="#1D4ED8", btn2="#4F46E5", glow="rgba(37,99,235,.12)", gglow="rgba(198,146,20,.10)",
+                  shadow="0 2px 6px rgba(11,21,44,.05),0 14px 32px -12px rgba(15,23,42,.12)")
+_PAL_DARK = dict(bg="#060B18", card="#0F172A", card2="#16223C", line="#233354", ink="#F1F5FF", muted="#94A7CB",
+                 accent="#60A5FA", cyan="#22D3EE", emerald="#34D399", purple="#A78BFA", gold="#F0C84B", gold2="#FDE68A",
+                 ok="#34D399", warn="#FBBF24", bad="#FB7185",
+                 btn1="#2563EB", btn2="#4F46E5", glow="rgba(56,189,248,.14)", gglow="rgba(167,139,250,.10)",
+                 shadow="0 4px 12px rgba(0,0,0,.45),0 18px 40px -14px rgba(0,0,0,.62)")
 
 def _theme_mode():
     """Tentukan palet. Kalau config.toml memaksa tema, ikuti; kalau tidak, ikuti mode gelap/terang perangkat."""
@@ -110,184 +110,192 @@ def _svg_style(mode):
     return c(_PAL_LIGHT) + "@media (prefers-color-scheme:dark){" + c(_PAL_DARK) + "}"
 
 # ----------------------------------------------------------------------------
-# CSS UTAMA (dipakai Web & HP)
+# CSS UTAMA (EXECUTIVE NOC COMMAND CENTER — RINGAN & RESPONSIF WEB + HP)
 # ----------------------------------------------------------------------------
 _UX_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 __ROOT__
-html,body,.stApp{font-family:'IBM Plex Sans','Segoe UI',system-ui,-apple-system,Roboto,sans-serif;font-feature-settings:'tnum' 1}
-.stApp{background:var(--ux-bg) !important}
-.stApp::before{content:"";position:fixed;left:0;top:0;right:0;height:3px;background:var(--ux-navy);z-index:99998}
+html,body,.stApp{font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+.stApp{
+  background:
+    radial-gradient(920px 420px at 8% -6%,var(--ux-glow),transparent 68%),
+    radial-gradient(820px 380px at 94% -4%,var(--ux-gglow),transparent 68%),
+    radial-gradient(640px 320px at 50% 108%,rgba(14,165,233,.06),transparent 70%),
+    var(--ux-bg) !important;
+}
 
 /* --- buang elemen bawaan Streamlit yang mengganggu --- */
 #MainMenu,footer,header[data-testid="stHeader"],div[data-testid="stToolbar"],div[data-testid="stDecoration"],
 [data-testid="stSidebar"],[data-testid="collapsedControl"],[data-testid="stSidebarCollapsedControl"],[data-testid="stExpandSidebarButton"]{display:none !important}
 
 /* --- kanvas --- */
-[data-testid="stMainBlockContainer"],.stMainBlockContainer,.main .block-container{max-width:1240px !important;margin:0 auto !important;padding:.9rem 1.25rem 4rem !important}
+[data-testid="stMainBlockContainer"],.stMainBlockContainer,.main .block-container{max-width:1300px !important;margin:0 auto !important;padding:.5rem 1.35rem 4rem !important}
 
 /* --- indikator loading tipis (hanya saat skrip berjalan) --- */
-.stApp[data-test-script-state="running"]::after{content:"";position:fixed;left:0;top:3px;height:2px;width:100%;z-index:99999;
-  background:var(--ux-signal);transform-origin:0 50%;animation:ux-run 1.1s ease-in-out infinite}
-@keyframes ux-run{0%{transform:scaleX(.05)}60%{transform:scaleX(.8)}100%{transform:scaleX(1);opacity:.2}}
+.stApp[data-test-script-state="running"]::after{content:"";position:fixed;left:0;top:0;height:3px;width:100%;z-index:99999;
+  background:linear-gradient(90deg,var(--ux-cyan),var(--ux-accent),var(--ux-purple),var(--ux-gold2));transform-origin:0 50%;animation:ux-run 1.05s ease-in-out infinite}
+@keyframes ux-run{0%{transform:scaleX(.05)}60%{transform:scaleX(.82)}100%{transform:scaleX(1);opacity:.2}}
+@keyframes ux-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes ux-pulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.75)}70%{box-shadow:0 0 0 9px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
 
 /* --- tipografi --- */
-h1{font-weight:700 !important;letter-spacing:-.015em;color:var(--ux-ink)}
-h2,h3,h4{font-weight:650 !important;letter-spacing:-.005em;color:var(--ux-ink)}
-h3{font-size:1.18rem !important}
-h4{font-size:1.02rem !important}
-p,li,label,span{letter-spacing:0}
-hr{border:0 !important;height:1px !important;background:var(--ux-line) !important;margin:1.3rem 0 !important}
-code{border-radius:4px}
+h1{font-weight:800 !important;letter-spacing:-.025em}
+h1::after{content:"";display:block;width:64px;height:3.5px;border-radius:99px;margin:10px 0 0;background:linear-gradient(90deg,var(--ux-accent),var(--ux-cyan),var(--ux-gold2))}
+h1[style*="center"]::after{margin-left:auto;margin-right:auto}
+h2,h3,h4{font-weight:700 !important;letter-spacing:-.015em}
+hr{border:0 !important;height:1px !important;background:linear-gradient(90deg,transparent,var(--ux-line) 15%,var(--ux-line) 85%,transparent) !important;margin:1.35rem 0 !important}
 
-/* --- tombol --- */
+/* --- tombol eksekutif --- */
 div[data-testid="stButton"] button,div[data-testid="stFormSubmitButton"] button,div[data-testid="stDownloadButton"] button,a[data-testid="stLinkButton"]{
-  border-radius:8px !important;font-weight:600 !important;letter-spacing:0;font-size:.9rem;min-height:2.5rem;transition:background-color .15s ease,border-color .15s ease,color .15s ease}
+  border-radius:12px !important;font-weight:700 !important;letter-spacing:.015em;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,filter .18s ease}
 button[kind="primary"],button[data-testid="stBaseButton-primary"],button[data-testid="stBaseButton-primaryFormSubmit"]{
-  background:var(--ux-btn1) !important;color:#fff !important;border:1px solid var(--ux-btn2) !important;box-shadow:none !important}
+  background:linear-gradient(135deg,#1D4ED8 0%,#2563EB 52%,#4F46E5 100%) !important;color:#fff !important;border:1px solid rgba(255,255,255,.18) !important;
+  box-shadow:0 10px 22px -8px rgba(37,99,235,.6),inset 0 1px 0 rgba(255,255,255,.22) !important}
 button[kind="secondary"],button[data-testid="stBaseButton-secondary"],button[data-testid="stBaseButton-secondaryFormSubmit"]{
-  background:var(--ux-card) !important;color:var(--ux-ink) !important;border:1px solid var(--ux-line) !important;box-shadow:none !important}
+  background:var(--ux-card) !important;color:var(--ux-ink) !important;border:1.5px solid var(--ux-line) !important;box-shadow:0 2px 6px rgba(11,23,48,.05) !important}
 div[data-testid="stButton"] button p,div[data-testid="stFormSubmitButton"] button p{color:inherit !important}
-button[kind="primary"]:hover,button[data-testid="stBaseButton-primary"]:hover{background:var(--ux-btn2) !important}
-button[kind="secondary"]:hover,button[data-testid="stBaseButton-secondary"]:hover{border-color:var(--ux-accent) !important;color:var(--ux-accent) !important}
-button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--ux-accent) !important;outline-offset:2px}
-button:disabled{opacity:.5 !important}
+button[kind="primary"]:hover,button[data-testid="stBaseButton-primary"]:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:0 14px 26px -8px rgba(37,99,235,.68),inset 0 1px 0 rgba(255,255,255,.25) !important}
+button[kind="secondary"]:hover,button[data-testid="stBaseButton-secondary"]:hover{transform:translateY(-1.5px);border-color:var(--ux-accent) !important;box-shadow:0 10px 22px -10px rgba(37,99,235,.38) !important}
+button:active{transform:scale(.985) !important}
+button:disabled{opacity:.52 !important;filter:saturate(.5)}
 
-/* --- input --- */
+/* --- input & select modern --- */
 div[data-baseweb="input"],div[data-baseweb="base-input"],div[data-baseweb="textarea"],div[data-baseweb="select"] > div{
-  background:var(--ux-card) !important;border:1px solid var(--ux-line) !important;border-radius:8px !important;transition:border-color .15s ease,box-shadow .15s ease}
+  background:var(--ux-card2) !important;border:1.5px solid var(--ux-line) !important;border-radius:12px !important;transition:border-color .16s ease,box-shadow .16s ease}
 div[data-baseweb="input"]:focus-within,div[data-baseweb="base-input"]:focus-within,div[data-baseweb="textarea"]:focus-within,div[data-baseweb="select"] > div:focus-within{
-  border-color:var(--ux-accent) !important;box-shadow:0 0 0 3px var(--ux-glow) !important}
-div[data-testid="stWidgetLabel"] p,div[data-testid="stWidgetLabel"] label{font-weight:600 !important;font-size:.86rem !important;color:var(--ux-ink)}
-span[data-baseweb="tag"]{border-radius:6px !important}
+  border-color:var(--ux-accent) !important;box-shadow:0 0 0 3.5px var(--ux-glow) !important}
+div[data-testid="stWidgetLabel"] p,div[data-testid="stWidgetLabel"] label{font-weight:700 !important;font-size:.87rem !important;color:var(--ux-ink)}
+span[data-baseweb="tag"]{border-radius:8px !important;font-weight:700 !important}
 
-/* --- tab --- */
-.stTabs [data-baseweb="tab-list"]{gap:2px;border-bottom:1px solid var(--ux-line)}
-.stTabs [data-baseweb="tab"]{font-weight:600;border-radius:6px 6px 0 0;padding:10px 16px;color:var(--ux-muted)}
-.stTabs [data-baseweb="tab"][aria-selected="true"]{color:var(--ux-accent) !important}
-.stTabs [data-baseweb="tab-highlight"]{height:2px !important;background:var(--ux-accent) !important}
+/* --- segmented pill navigation untuk horizontal st.radio (menghilangkan dot radio standar yang kaku) --- */
+div[data-testid="stRadio"] > div[role="radiogroup"][aria-orientation="horizontal"]{
+  display:flex;flex-wrap:wrap;gap:6px;background:var(--ux-card2);padding:5px;border-radius:14px;border:1px solid var(--ux-line);box-shadow:inset 0 1px 2px rgba(0,0,0,.05)}
+div[data-testid="stRadio"] > div[role="radiogroup"][aria-orientation="horizontal"] label{
+  margin:0 !important;padding:8px 15px !important;border-radius:10px !important;cursor:pointer;border:1px solid transparent;transition:all .18s ease}
+div[data-testid="stRadio"] > div[role="radiogroup"][aria-orientation="horizontal"] label > div:first-child{display:none !important}
+div[data-testid="stRadio"] > div[role="radiogroup"][aria-orientation="horizontal"] label:hover{background:var(--ux-card);border-color:var(--ux-line)}
+div[data-testid="stRadio"] > div[role="radiogroup"][aria-orientation="horizontal"] label:has(input:checked){
+  background:linear-gradient(135deg,#1D4ED8,#4F46E5) !important;color:#fff !important;border-color:rgba(255,255,255,.18) !important;
+  box-shadow:0 6px 16px -6px rgba(37,99,235,.65)}
+div[data-testid="stRadio"] > div[role="radiogroup"][aria-orientation="horizontal"] label:has(input:checked) p{color:#fff !important;font-weight:800 !important}
+div[data-testid="stRadio"] > div[role="radiogroup"][aria-orientation="horizontal"] label p{font-size:.84rem !important;font-weight:700 !important;margin:0 !important}
+
+/* --- tab elegan --- */
+.stTabs [data-baseweb="tab-list"]{gap:6px;border-bottom:1.5px solid var(--ux-line);padding-bottom:2px}
+.stTabs [data-baseweb="tab"]{font-weight:700;border-radius:11px 11px 0 0;padding:10px 18px;transition:all .16s ease}
+.stTabs [data-baseweb="tab"][aria-selected="true"]{color:var(--ux-accent) !important;background:var(--ux-card);box-shadow:0 -2px 10px -4px rgba(37,99,235,.2)}
+.stTabs [data-baseweb="tab-highlight"]{height:3.5px !important;border-radius:99px;background:linear-gradient(90deg,var(--ux-cyan),var(--ux-accent),var(--ux-purple)) !important}
 
 /* --- expander, container border, alert, tabel --- */
-div[data-testid="stExpander"] details{border:1px solid var(--ux-line) !important;border-radius:10px !important;background:var(--ux-card) !important;box-shadow:none;margin-bottom:10px}
-div[data-testid="stExpander"] summary{font-weight:600 !important;padding:11px 16px}
-div[data-testid="stVerticalBlockBorderWrapper"]{border-radius:10px}
-div[data-testid="stAlert"]{border-radius:8px !important}
-div[data-testid="stDataFrame"],div[data-testid="stDataEditor"]{border-radius:8px;overflow:hidden;border:1px solid var(--ux-line)}
-section[data-testid="stFileUploaderDropzone"]{border-radius:8px !important;border:1px dashed var(--ux-line) !important;background:var(--ux-card2) !important}
+div[data-testid="stExpander"] details{border:1px solid var(--ux-line) !important;border-left:4px solid var(--ux-accent) !important;border-radius:15px !important;background:var(--ux-card) !important;box-shadow:var(--ux-shadow);margin-bottom:12px}
+div[data-testid="stExpander"] summary{font-weight:700 !important;padding:12px 16px}
+div[data-testid="stVerticalBlockBorderWrapper"]{border-radius:16px !important;border-color:var(--ux-line) !important;background:var(--ux-card);box-shadow:var(--ux-shadow)}
+div[data-testid="stAlert"]{border-radius:14px !important;border-left-width:4px !important}
+div[data-testid="stDataFrame"],div[data-testid="stDataEditor"]{border-radius:14px;overflow:hidden;border:1px solid var(--ux-line);box-shadow:var(--ux-shadow)}
+section[data-testid="stFileUploaderDropzone"]{border-radius:14px !important;border:1.5px dashed var(--ux-accent) !important;background:var(--ux-card2) !important}
 
-/* --- KPI (st.metric dibuat jadi kartu data) --- */
-div[data-testid="stMetric"]{background:var(--ux-card);border:1px solid var(--ux-line);border-radius:10px;padding:14px 16px 12px;box-shadow:var(--ux-shadow);container-type:inline-size}
-div[data-testid="stMetricLabel"] p{font-size:.78rem !important;font-weight:600 !important;color:var(--ux-muted) !important}
-div[data-testid="stMetricValue"]{font-weight:650 !important;font-size:1.3rem !important;font-size:clamp(1.05rem,7.5cqw,1.65rem) !important;letter-spacing:-.01em;line-height:1.25;color:var(--ux-ink)}
+/* --- KPI MULTI-ACCENT (st.metric — tidak lagi monoton satu warna) --- */
+div[data-testid="stMetric"]{
+  position:relative;overflow:hidden;background:linear-gradient(155deg,var(--ux-card) 0%,var(--ux-card2) 100%);
+  border:1px solid var(--ux-line);border-radius:16px;padding:15px 16px 13px 20px;box-shadow:var(--ux-shadow);
+  animation:ux-in .32s ease both;transition:transform .2s ease,box-shadow .2s ease;container-type:inline-size}
+div[data-testid="stMetric"]:hover{transform:translateY(-2px);box-shadow:0 16px 32px -14px rgba(37,99,235,.28)}
+div[data-testid="stMetric"]::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:linear-gradient(180deg,#3B82F6,#1D4ED8)}
+div[data-testid="stMetric"]::after{content:"";position:absolute;right:-18px;top:-18px;width:72px;height:72px;border-radius:50%;background:radial-gradient(circle,var(--ux-glow),transparent 70%);pointer-events:none}
+div[data-testid="stHorizontalBlock"] > div:nth-child(6n+2) div[data-testid="stMetric"]::before{background:linear-gradient(180deg,#34D399,#059669)}
+div[data-testid="stHorizontalBlock"] > div:nth-child(6n+3) div[data-testid="stMetric"]::before{background:linear-gradient(180deg,#22D3EE,#0284C7)}
+div[data-testid="stHorizontalBlock"] > div:nth-child(6n+4) div[data-testid="stMetric"]::before{background:linear-gradient(180deg,#FBBF24,#D97706)}
+div[data-testid="stHorizontalBlock"] > div:nth-child(6n+5) div[data-testid="stMetric"]::before{background:linear-gradient(180deg,#FB7185,#E11D48)}
+div[data-testid="stHorizontalBlock"] > div:nth-child(6n+6) div[data-testid="stMetric"]::before{background:linear-gradient(180deg,#A78BFA,#7C3AED)}
+div[data-testid="stMetricLabel"] p{font-size:.73rem !important;font-weight:800 !important;text-transform:uppercase;letter-spacing:.055em;color:var(--ux-muted) !important}
+div[data-testid="stMetricValue"]{font-weight:800 !important;font-size:1.32rem !important;font-size:clamp(1.05rem,7.6cqw,1.72rem) !important;letter-spacing:-.02em;line-height:1.22;font-variant-numeric:tabular-nums}
 div[data-testid="stMetricValue"] > div{white-space:normal !important;overflow:visible !important;text-overflow:clip !important;word-break:normal !important;overflow-wrap:normal !important}
 
-/* --- kartu modul / login (kelas lama dipertahankan) --- */
-.area-card,.login-box{position:relative;background:var(--ux-card);border:1px solid var(--ux-line) !important;border-radius:12px;padding:20px 20px 18px;text-align:left;box-shadow:var(--ux-shadow);margin-bottom:10px;transition:border-color .15s ease}
-.area-card:hover,.login-box:hover{border-color:var(--ux-accent) !important}
-:is(div[data-testid="stElementContainer"],div[data-testid="element-container"],div.element-container):has(.area-card):has(+ :is(div[data-testid="stElementContainer"],div[data-testid="element-container"],div.element-container) div[data-testid="stButton"]){margin-bottom:-1rem}
-:is(div[data-testid="stElementContainer"],div[data-testid="element-container"],div.element-container):has(.area-card):has(+ :is(div[data-testid="stElementContainer"],div[data-testid="element-container"],div.element-container) div[data-testid="stButton"]) .area-card{border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0}
-:is(div[data-testid="stElementContainer"],div[data-testid="element-container"],div.element-container):has(.area-card) + :is(div[data-testid="stElementContainer"],div[data-testid="element-container"],div.element-container) div[data-testid="stButton"] button{border-radius:0 0 12px 12px !important;border:1px solid var(--ux-line) !important;border-top:0 !important;background:var(--ux-card2) !important;color:var(--ux-accent) !important;font-weight:650 !important}
-:is(div[data-testid="stElementContainer"],div[data-testid="element-container"],div.element-container):has(.area-card) + :is(div[data-testid="stElementContainer"],div[data-testid="element-container"],div.element-container) div[data-testid="stButton"] button:hover{background:var(--ux-accent) !important;color:#fff !important;border-color:var(--ux-accent) !important}
-.ux-ico{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;background:var(--icbg,rgba(27,95,193,.10));color:var(--ic,var(--ux-accent))}
-.ux-ico svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.ux-ico.t-blue{--ic:#1B5FC1;--icbg:rgba(27,95,193,.10)}
-.ux-ico.t-teal{--ic:#0B8A7C;--icbg:rgba(14,159,142,.12)}
-.ux-ico.t-amber{--ic:#A06A0C;--icbg:rgba(197,139,27,.14)}
-.ux-ico.t-rust{--ic:#B0521C;--icbg:rgba(176,82,28,.12)}
-.ux-ico.t-violet{--ic:#5A4CB8;--icbg:rgba(90,76,184,.11)}
-.ux-ico.t-slate{--ic:#475569;--icbg:rgba(71,85,105,.12)}
-.login-title{color:var(--ux-ink);font-size:1.04rem;font-weight:650;margin-bottom:6px;letter-spacing:-.005em}
-.login-desc{color:var(--ux-muted);font-size:.86rem;line-height:1.55;margin-bottom:14px}
-.area-badge{display:inline-block;padding:3px 9px;border-radius:4px;font-weight:600;font-size:.74rem;margin-bottom:10px;background:var(--ux-glow);color:var(--ux-accent) !important;border:0 !important}
-.footer-okta{text-align:center;padding:24px;margin-top:48px;color:var(--ux-muted);font-size:.86rem;border-top:1px solid var(--ux-line)}
-.footer-okta span{color:var(--ux-ink);font-weight:600}
+/* --- kartu menu & portal login eksekutif --- */
+.area-card,.login-box{
+  position:relative;overflow:hidden;
+  background:linear-gradient(160deg,var(--ux-card) 0%,var(--ux-card2) 100%);
+  border:1px solid var(--ux-line);border-top:4px solid var(--ux-accent);
+  border-radius:20px;padding:24px 20px;text-align:center;box-shadow:var(--ux-shadow);margin-bottom:12px;
+  transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;animation:ux-in .38s ease both}
+.area-card::after,.login-box::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(280px 120px at 50% 0%,rgba(56,189,248,.07),transparent 70%)}
+.area-card:hover,.login-box:hover{transform:translateY(-5px);border-color:var(--ux-accent);box-shadow:0 22px 44px -14px rgba(15,23,42,.32)}
+.ux-ico-medallion{
+  width:62px;height:62px;margin:0 auto 12px;border-radius:18px;display:flex;align-items:center;justify-content:center;
+  font-size:30px;background:linear-gradient(145deg,rgba(37,99,235,.14),rgba(14,165,233,.08));
+  border:1px solid rgba(56,189,248,.28);box-shadow:0 8px 18px -10px rgba(37,99,235,.45)}
+.login-title{color:var(--ux-ink);font-size:1.2rem;font-weight:800;margin-bottom:8px;letter-spacing:-.015em}
+.login-desc{color:var(--ux-muted);font-size:.87rem;line-height:1.58;margin-bottom:12px}
+.area-badge{display:inline-block;padding:4px 13px;border-radius:99px;font-weight:800;font-size:.70rem;letter-spacing:.08em;margin-bottom:10px;
+  background:rgba(37,99,235,.12);color:#2563EB;border:1px solid rgba(37,99,235,.45)}
+.ux-cmd-bar{
+  display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 18px;border-radius:14px;
+  background:linear-gradient(135deg,#0B132B 0%,#162447 55%,#1B2A4E 100%);
+  border:1px solid rgba(56,189,248,.35);color:#F8FAFC;font-weight:800;font-size:.95rem;letter-spacing:.01em;
+  box-shadow:0 10px 24px -12px rgba(7,12,24,.6)}
+.ux-live-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#34D399;animation:ux-pulse 2s infinite;flex:0 0 auto}
+.footer-okta{text-align:center;padding:24px;margin-top:48px;color:var(--ux-muted);font-size:.9rem;border-top:1px solid var(--ux-line)}
+.footer-okta span{color:var(--ux-gold);font-weight:800;letter-spacing:1px}
 
-/* --- bilah lokasi halaman (breadcrumb) --- */
-.ux-crumb{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--ux-card);border:1px solid var(--ux-line);border-radius:8px;padding:9px 14px;font-size:.88rem;color:var(--ux-muted)}
-.ux-crumb b{color:var(--ux-ink);font-weight:650}
-.ux-crumb i{font-style:normal;opacity:.5}
-.ux-crumb .ux-sync{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:.78rem;color:var(--ux-muted)}
-.ux-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ux-signal)}
-.ux-dot.off{background:var(--ux-line)}
-
-/* --- HERO / header halaman --- */
-.ux-hero{position:relative;overflow:hidden;border-radius:12px;padding:26px 28px 22px;margin:4px 0 20px;color:#EAF0FA;text-align:left;
-  background-color:var(--ux-navy);background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:34px 34px;
-  border:1px solid var(--ux-navy2)}
+/* --- HERO COMMAND CENTER --- */
+.ux-hero{
+  position:relative;overflow:hidden;border-radius:24px;padding:28px 28px 24px;margin:6px 0 22px;color:#EAF0FF;text-align:center;
+  background:
+    radial-gradient(600px 240px at 88% -15%,rgba(56,189,248,.22),transparent 65%),
+    radial-gradient(520px 240px at 8% 115%,rgba(168,85,247,.20),transparent 65%),
+    linear-gradient(135deg,#060B18 0%,#0F2250 52%,#0B1328 100%);
+  border:1px solid rgba(96,165,250,.32);
+  box-shadow:0 24px 54px -18px rgba(4,9,22,.72),inset 0 1px 0 rgba(255,255,255,.10);animation:ux-in .42s ease both}
+.ux-hero::before{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.22;
+  background-image:radial-gradient(rgba(148,163,184,.5) 1px,transparent 1px);background-size:22px 22px}
 .ux-hero > *{position:relative}
-.ux-kicker{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:600;color:#9FE3D8}
-.ux-kicker::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ux-signal)}
-.ux-hero-title{font-size:clamp(1.4rem,2.8vw,2rem);font-weight:700;letter-spacing:-.02em;margin:10px 0 6px;color:#FFFFFF;line-height:1.2}
-.ux-hero-sub{margin:0;max-width:720px;font-size:.93rem;line-height:1.6;color:#B4C3DC}
-.ux-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-top:22px;border-top:1px solid rgba(255,255,255,.14)}
-.ux-stat{padding:14px 16px 2px 0;border-right:1px solid rgba(255,255,255,.10);margin-right:16px}
-.ux-stat:last-child{border-right:0;margin-right:0}
-.ux-stat b{display:block;font-size:1.85rem;font-weight:600;color:#FFFFFF;line-height:1.1;letter-spacing:-.02em}
-.ux-stat span{display:block;margin-top:5px;font-size:.78rem;font-weight:500;color:#9FB1CF}
-.ux-split{display:flex;height:6px;border-radius:3px;overflow:hidden;margin:18px 0 8px;max-width:560px;background:rgba(255,255,255,.12)}
+.ux-kicker{display:inline-flex;align-items:center;gap:8px;padding:5px 15px;border-radius:99px;font-size:.71rem;font-weight:800;letter-spacing:.1em;
+  color:#BAE6FD;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.42);text-transform:uppercase}
+.ux-hero-title{font-size:clamp(1.5rem,3.1vw,2.25rem);font-weight:800;letter-spacing:-.025em;margin:13px 0 6px;color:#FFFFFF}
+.ux-hero-sub{margin:0 auto;max-width:680px;font-size:.93rem;line-height:1.6;color:#C7D4EE}
+.ux-stats{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:20px}
+.ux-stat{min-width:125px;flex:1 1 125px;max-width:210px;padding:13px 15px;border-radius:16px;
+  background:rgba(255,255,255,.07);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.14);transition:transform .2s ease}
+.ux-stat:hover{transform:translateY(-2px);border-color:rgba(56,189,248,.45)}
+.ux-stat b{display:block;font-size:1.5rem;font-weight:800;color:#FFFFFF;line-height:1.12;font-variant-numeric:tabular-nums}
+.ux-stat span{display:block;margin-top:4px;font-size:.69rem;font-weight:700;letter-spacing:.065em;text-transform:uppercase;color:#A5B8DF}
+.ux-split{display:flex;height:9px;border-radius:99px;overflow:hidden;margin:18px auto 8px;max-width:580px;background:rgba(255,255,255,.12)}
 .ux-split i{display:block;height:100%}
-.ux-legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.78rem;color:#B4C3DC}
-.ux-legend em{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:baseline;font-style:normal}
+.ux-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;font-size:.75rem;color:#C7D4EE}
+.ux-legend em{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:baseline;font-style:normal}
 
 /* --- grafik --- */
-img.ux-chart{display:block;width:100%;height:auto;border-radius:8px}
+img.ux-chart{display:block;width:100%;height:auto;border-radius:12px}
 .ux-bars{display:flex;flex-direction:column;gap:12px;padding:4px 2px}
-.ux-bleg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.78rem;font-weight:500;color:var(--ux-muted);margin-bottom:2px}
-.ux-bleg em{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;font-style:normal}
+.ux-bleg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.78rem;font-weight:600;color:var(--ux-muted);margin-bottom:2px}
+.ux-bleg em{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;font-style:normal}
 .ux-brow{display:grid;grid-template-columns:minmax(80px,32%) 1fr;gap:6px 12px;align-items:center}
-.ux-blbl{font-size:.82rem;font-weight:600;color:var(--ux-ink);overflow-wrap:anywhere;line-height:1.3}
+.ux-blbl{font-size:.82rem;font-weight:700;color:var(--ux-ink);overflow-wrap:anywhere;line-height:1.3}
 .ux-bset{display:flex;flex-direction:column;gap:5px}
 .ux-bline{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
-.ux-btrack{height:8px;border-radius:4px;background:var(--ux-line);overflow:hidden}
-.ux-btrack i{display:block;height:100%;border-radius:4px;min-width:3px}
-.ux-bval{font-size:.76rem;font-weight:600;color:var(--ux-ink);font-variant-numeric:tabular-nums;min-width:48px;text-align:right}
+.ux-btrack{height:10px;border-radius:99px;background:var(--ux-line);overflow:hidden}
+.ux-btrack i{display:block;height:100%;border-radius:99px;min-width:3px}
+.ux-bval{font-size:.76rem;font-weight:800;color:var(--ux-ink);font-variant-numeric:tabular-nums;min-width:48px;text-align:right}
 .ux-note{font-size:.76rem;color:var(--ux-muted);margin-top:4px}
-.ux-prog{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--ux-line);margin:6px 0 10px}
+.ux-prog{display:flex;height:16px;border-radius:99px;overflow:hidden;background:var(--ux-line);margin:6px 0 10px}
 .ux-prog i{display:block;height:100%}
-.ux-plegend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.82rem;font-weight:500;color:var(--ux-ink)}
-.ux-plegend em{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;font-style:normal}
-
-/* --- evidence on-demand --- */
-.ux-evid{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--ux-card2);border:1px solid var(--ux-line);border-radius:8px;padding:9px 12px;font-size:.84rem;color:var(--ux-muted);margin:2px 0 8px}
-.ux-evid b{color:var(--ux-ink);font-weight:650}
-
-/* --- chip status (UP / DOWN / dll) --- */
-.ux-chip{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:99px;font-size:.74rem;font-weight:650;line-height:1.5;border:1px solid transparent;white-space:nowrap}
-.ux-chip::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
-.ux-chip.up{color:#0F7A53;background:rgba(15,138,95,.10);border-color:rgba(15,138,95,.30)}
-.ux-chip.down{color:#B3261E;background:rgba(192,57,43,.10);border-color:rgba(192,57,43,.32)}
-.ux-chip.warn{color:#8F5F0A;background:rgba(183,121,31,.12);border-color:rgba(183,121,31,.32)}
-.ux-chip.unk{color:var(--ux-muted);background:var(--ux-card2);border-color:var(--ux-line)}
-.ux-chip.info{color:#174F9E;background:rgba(27,95,193,.10);border-color:rgba(27,95,193,.28)}
-@media (prefers-color-scheme:dark){
-  .ux-chip.up{color:#5FE0AE}.ux-chip.down{color:#FF9B91}.ux-chip.warn{color:#F0C46E}.ux-chip.info{color:#8DB9F8}
-}
+.ux-plegend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.82rem;font-weight:600;color:var(--ux-ink)}
+.ux-plegend em{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;font-style:normal}
 
 /* --- saklar tampilan Web | HP --- */
-.st-key-view_switch{display:flex;justify-content:flex-end;padding:6px 0 2px}
-.st-key-view_switch div[role="radiogroup"]{display:inline-flex;gap:2px;background:var(--ux-line);padding:3px;border-radius:8px}
-.st-key-view_switch div[role="radiogroup"] label{margin:0 !important;padding:5px 16px !important;border-radius:6px;cursor:pointer}
+.st-key-view_switch{display:flex;justify-content:flex-end;padding:8px 0 2px}
+.st-key-view_switch div[role="radiogroup"]{display:inline-flex !important;gap:2px !important;background:var(--ux-card2) !important;padding:3px !important;border-radius:99px !important;border:1px solid var(--ux-line) !important}
+.st-key-view_switch div[role="radiogroup"] label{margin:0 !important;padding:5px 15px !important;border-radius:99px !important;cursor:pointer;border:0 !important}
 .st-key-view_switch div[role="radiogroup"] label > div:first-child{display:none !important}
-.st-key-view_switch div[role="radiogroup"] label:has(input:checked){background:var(--ux-card);box-shadow:0 1px 2px rgba(12,27,48,.18)}
-.st-key-view_switch div[role="radiogroup"] label p{font-size:.8rem !important;font-weight:600 !important;margin:0 !important}
+.st-key-view_switch div[role="radiogroup"] label:has(input:checked){background:linear-gradient(135deg,#1D4ED8,#4F46E5) !important;box-shadow:0 2px 8px rgba(37,99,235,.4)}
+.st-key-view_switch div[role="radiogroup"] label:has(input:checked) p{color:#fff !important}
+.st-key-view_switch div[role="radiogroup"] label p{font-size:.8rem !important;font-weight:800 !important;margin:0 !important}
 
-/* --- galeri evidence & tabel korporat --- */
-.ux-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:6px 0 14px}
-.ux-ph{margin:0;border:1px solid var(--ux-line);border-radius:8px;background:var(--ux-card2);overflow:hidden}
-.ux-ph a{display:block}
-.ux-ph img{display:block;width:100%;height:180px;object-fit:contain;background:var(--ux-card2)}
-.ux-tw{overflow-x:auto;border:1px solid var(--ux-line);border-radius:10px;background:var(--ux-card);margin:8px 0 14px}
-.ux-tbl{width:100%;border-collapse:collapse;font-size:.85rem;line-height:1.45;color:var(--ux-ink)}
-.ux-tbl thead th{background:var(--ux-navy);color:#F2F6FC;font-weight:600;font-size:.78rem;text-align:left;padding:10px 12px;white-space:nowrap}
-.ux-tbl tbody td{padding:10px 12px;border-bottom:1px solid var(--ux-line);vertical-align:top}
-.ux-tbl tbody tr:last-child td{border-bottom:0}
-.ux-tbl tbody tr:hover{background:var(--ux-card2)}
-.ux-tbl .ux-note{display:block;margin-top:2px}
-
+@media (hover:none){button:hover,.area-card:hover,.login-box:hover,div[data-testid="stMetric"]:hover{transform:none !important}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none !important;transition:none !important}}
 </style>
-
 """
 
 # ----------------------------------------------------------------------------
@@ -318,10 +326,10 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-btn_back_main) > div:nth-child(
 /* tipografi & kartu */
 h1{font-size:1.45rem !important;line-height:1.25 !important}
 h2{font-size:1.2rem !important} h3{font-size:1.05rem !important} h4{font-size:1rem !important}
-.area-card,.login-box{padding:16px 16px 14px;border-radius:12px}
+.area-card,.login-box{padding:20px 16px;border-radius:18px}
 .login-title{font-size:1.1rem} .login-desc{font-size:.84rem}
-.ux-hero{padding:20px 16px 16px;border-radius:12px}
-.ux-stats{grid-template-columns:1fr 1fr}.ux-stat{border-right:0;margin-right:0;padding:12px 8px 2px 0}
+.ux-hero{padding:22px 16px 18px;border-radius:20px}
+.ux-stat{min-width:0;flex:1 1 calc(50% - 12px);max-width:none}
 .ux-stat b{font-size:1.3rem}
 .ux-brow{grid-template-columns:1fr}
 .watermark-kut img{width:420px !important}
@@ -329,7 +337,7 @@ div[data-testid="stMetric"]{padding:12px 12px 10px 16px}
 div[data-testid="stMetricValue"]{font-size:1.1rem !important;font-size:clamp(.95rem,7.5cqw,1.25rem) !important}
 
 /* area sentuh >= 48px, input 16px agar iPhone tidak zoom sendiri */
-.stApp div.stButton > button,.stApp div[data-testid="stFormSubmitButton"] > button,.stApp div[data-testid="stDownloadButton"] > button{min-height:48px !important;padding:8px 12px !important;font-size:.9rem !important;line-height:1.25 !important}
+.stApp div.stButton > button,.stApp div[data-testid="stFormSubmitButton"] > button,.stApp div[data-testid="stDownloadButton"] > button{min-height:54px !important;padding:10px 12px !important;font-size:.9rem !important;line-height:1.25 !important}
 .stApp div.stButton > button *{white-space:normal !important}
 div[data-baseweb="input"] input,div[data-baseweb="base-input"] input,div[data-baseweb="textarea"] textarea,div[data-baseweb="select"] input,.stTextInput input,.stNumberInput input,.stDateInput input,.stTextArea textarea{font-size:16px !important}
 div[data-baseweb="input"] input,div[data-baseweb="base-input"] input{padding:12px 14px !important}
@@ -349,552 +357,11 @@ section[data-testid="stFileUploaderDropzone"] button{width:100%;min-height:48px}
 # CSS layar login (pengganti blok lama: tombol besar merah/biru sesuai label 🔴 / 🔵)
 _UX_CSS_LOGIN = """
 <style>
-.stApp div.stButton > button{min-height:46px !important;font-size:.95rem !important;font-weight:600 !important;text-transform:none;letter-spacing:0;border-radius:8px !important}
-.stApp .login-box{min-height:176px}
+.stApp div.stButton > button{min-height:68px !important;font-size:1.02rem !important;font-weight:800 !important;text-transform:uppercase;letter-spacing:.06em;border-radius:14px !important}
+.stApp button[kind="primary"],.stApp button[data-testid="stBaseButton-primary"]{background:linear-gradient(135deg,#F43F5E,#BE123C) !important;color:#fff !important;border:1px solid rgba(255,255,255,.2) !important;box-shadow:0 10px 22px -8px rgba(225,29,72,.6) !important}
+.stApp button[kind="secondary"],.stApp button[data-testid="stBaseButton-secondary"]{background:linear-gradient(135deg,#3B82F6,#1D4ED8) !important;color:#fff !important;border:1px solid rgba(255,255,255,.2) !important;box-shadow:0 10px 22px -8px rgba(37,99,235,.6) !important}
 </style>
 """
-
-# =============================================================================
-# SIDATA PRO LAYER — tampilan korporat, ikon vektor, evidence on-demand, AutoPilot
-#   Semua perilaku di bawah dapat dimatikan lewat saklar berikut tanpa mengubah modul lain.
-# =============================================================================
-UI_PRO_MODE = True              # True = lapisan tampilan profesional aktif (False = persis perilaku lama)
-UI_STRIP_EMOJI = True           # True = emoji dekoratif pada label/judul diganti tampilan bersih (nilai data TIDAK diubah)
-UI_EVIDENCE_ON_DEMAND = True    # True = foto evidence baru ditarik saat tombol "Tampilkan foto" diaktifkan
-AP_ENABLED = True               # True = AutoPilot (prewarm + auto-refresh latar belakang + stale-while-revalidate)
-AP_REFRESH_SEC = 150            # selang auto-refresh data hot (detik) selama ada pengguna aktif
-AP_IDLE_STOP_SEC = 1800         # berhenti refresh latar belakang bila tidak ada aktivitas (hemat kuota Google Sheets)
-
-import threading as _th
-import pickle as _pickle
-import copy as _copy
-import hashlib as _hashlib
-import inspect as _inspect
-import types as _types
-
-# ---------------------------------------------------------------------------
-# 1) Pembersih emoji (hanya untuk TAMPILAN label/judul; nilai pilihan & data tidak berubah)
-# ---------------------------------------------------------------------------
-_EMO_CLS = ("[\U0001F1E6-\U0001F1FF\U0001F300-\U0001FAFF\u2600-\u2793\u2795-\u2797\u27B0\u27BF\u2B00-\u2BFF"
-            "\u2300-\u23FF\u25B6\u25C0\u25FB-\u25FE\u2934\u2935\u3030\u303D\u3297\u3299\uFE0F\u200D\u20E3]")
-_EMO_RUN = re.compile(_EMO_CLS + "+[ \t\u00A0]?")
-_EMO_MD_HEAD = re.compile(r"(?m)^([ \t]*(?:#{1,6}[ \t]*|[-*>][ \t]+)?(?:\*\*|__|\*|_)?)" + _EMO_CLS + "+[ \t\u00A0]*")
-_EMO_HTML_TXT = re.compile(r"(>[ \t]*(?:<(?:b|strong|i|em|span)[^>]*>)?)" + _EMO_CLS + "+[ \t\u00A0]?")
-
-_UX_ACRONYMS = {
-    "PLK": "PLK", "PBU": "PBU", "P'BUN": "P'BUN", "RTS": "RTS", "SPMS": "SPMS", "WA": "WA", "PDF": "PDF", "PPTX": "PPTX",
-    "KML": "KML", "ID": "ID", "SIDATA": "SIDATA", "SISAVA": "SiSAVA", "SIHD": "SiHD", "SIDAVID": "SiDAVID", "NOP": "NOP",
-    "HB": "HB", "PM": "PM", "FME": "FME", "AC": "AC", "DC": "DC", "SPS": "SPS", "RAB": "RAB", "SVA": "SVA", "KUT": "KUT",
-    "BBM": "BBM", "KWH": "kWh", "ACPDB": "ACPDB", "ENVA": "ENVA", "GPS": "GPS", "HP": "HP", "MBP": "MBP", "TE": "TE",
-    "CME": "CME", "PO": "PO", "BAST": "BAST", "SWFM": "SWFM", "OK": "OK", "CSV": "CSV", "XLSX": "XLSX", "AI": "AI",
-    "UP": "UP", "NOC": "NOC", "SLA": "SLA", "ETA": "ETA", "GSHEETS": "Google Sheets", "ESC": "ESC",
-}
-_UX_SMALL_WORDS = {"dan", "di", "ke", "dari", "atau", "untuk", "yang", "vs", "dengan", "pada"}
-
-def _ux_strip(s):
-    """Hapus emoji dekoratif dari teks label. Teks ASCII murni dikembalikan apa adanya (jalur cepat)."""
-    if not isinstance(s, str) or not s or s.isascii():
-        return s
-    return _EMO_RUN.sub("", s).strip(" \t\u00A0")
-
-def _ux_pro_case(s):
-    """KAPITAL SEMUA -> Title Case profesional (akronim dijaga). Label yang memuat ID bercampur angka dibiarkan."""
-    if not isinstance(s, str) or len(s) < 4:
-        return s
-    if any(c.islower() for c in s) or sum(c.isalpha() for c in s) < 4:
-        return s
-    if re.search(r"[A-Z]+\d+[A-Z\d]*|\d+[A-Z]+", s):
-        return s
-    n_words = len(re.findall(r"[A-Za-z']{3,}", s))
-    if n_words < 2 and s.upper() not in _UX_ACRONYMS:
-        return s
-    first = [True]
-    def _w(m):
-        w = m.group(0); u = w.upper()
-        if u in _UX_ACRONYMS:
-            out = _UX_ACRONYMS[u]
-        elif w.lower() in _UX_SMALL_WORDS and not first[0]:
-            out = w.lower()
-        else:
-            out = w.capitalize()
-        first[0] = False
-        return out
-    return re.sub(r"[A-Za-z][A-Za-z']*", _w, s)
-
-def _ux_label(x, case=False):
-    """Label tampilan: tanpa emoji dekoratif (+ opsional Title Case)."""
-    if not UI_STRIP_EMOJI or not isinstance(x, str):
-        return x
-    y = _ux_strip(x)
-    return _ux_pro_case(y) if case else y
-
-def _ux_strip_md(body):
-    """Bersihkan emoji di awal baris markdown / awal teks elemen HTML. Isi tabel markdown & kode tidak disentuh."""
-    if not UI_STRIP_EMOJI or not isinstance(body, str) or not body or body.isascii():
-        return body
-    body = _EMO_MD_HEAD.sub(r"\1", body)
-    body = _EMO_HTML_TXT.sub(r"\1", body)
-    return body
-
-# ---------------------------------------------------------------------------
-# 2) Ikon vektor (pengganti emoji besar pada kartu modul) + peta warna neon -> korporat
-# ---------------------------------------------------------------------------
-_UX_ICON_SVG = {
-    "form":   '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>',
-    "camera": '<path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>',
-    "trend":  '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
-    "bars":   '<rect x="4" y="11" width="4" height="9" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="16" y="8" width="4" height="12" rx="1"/>',
-    "bolt":   '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
-    "terrain": '<path d="M3 20l6-11 4 7 3-5 5 9z"/>',
-    "list":   '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 13l2 2 4-4"/>',
-    "map":    '<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/>',
-    "exit":   '<path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5"/><path d="M15 8l4 4-4 4M19 12H9"/>',
-    "office": '<rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/><path d="M10 21v-3h4v3"/>',
-    "tower":  '<path d="M12 3l-5 18M12 3l5 18M8.5 14h7M10 9h4"/>',
-    "signal": '<path d="M12 12v9"/><circle cx="12" cy="10" r="2"/><path d="M7.5 5.5a6.4 6.4 0 0 0 0 9M16.5 5.5a6.4 6.4 0 0 1 0 9"/>',
-    "lock":   '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
-    "crew":   '<path d="M4 17v-1a8 8 0 0 1 16 0v1"/><path d="M2 17h20v2.5H2z"/><path d="M10 8V6h4v2"/>',
-    "box":    '<path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
-    "alert":  '<path d="M7 18v-6a5 5 0 0 1 10 0v6"/><path d="M5 18h14v2.5H5z"/><path d="M12 3v2M4.5 6l1.5 1.5M19.5 6L18 7.5"/>',
-    "shield": '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
-    "gem":    '<path d="M6 4h12l3 5-9 11L3 9z"/><path d="M3 9h18M9 4l-2 5 5 11M15 4l2 5-5 11"/>',
-    "layers": '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
-    "users":  '<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 5a3 3 0 0 1 0 6M18 20a6 6 0 0 0-3-5"/>',
-    "dot":    '<circle cx="12" cy="12" r="7"/>',
-}
-# emoji -> (nama ikon, rona). Rona dibatasi 6 agar rapi, bukan pelangi.
-_UX_EMOJI_ICON = {
-    "📝": ("form", "blue"), "📸": ("camera", "blue"), "📈": ("trend", "teal"), "📊": ("bars", "teal"), "⚡": ("bolt", "amber"),
-    "🚧": ("terrain", "rust"), "📋": ("list", "violet"), "🗺": ("map", "rust"), "🚪": ("exit", "slate"), "🏢": ("office", "blue"),
-    "🗼": ("tower", "blue"), "📡": ("signal", "teal"), "🔐": ("lock", "slate"), "👷": ("crew", "amber"), "📦": ("box", "amber"),
-    "🚨": ("alert", "rust"), "🛡": ("shield", "teal"), "💎": ("gem", "violet"), "💠": ("layers", "blue"), "👥": ("users", "violet"),
-}
-_UX_ICON_DIV = re.compile(r"""<div style=(["'])font-size:\s*\d+px;\s*margin-bottom:\s*\d+px;\1>([^<]{1,16})</div>""")
-
-def _ux_icon_html(emoji_txt):
-    key = "".join(ch for ch in emoji_txt if ch not in "\uFE0F\u200D\u2642\u2640")
-    pick = None
-    for ch in key:
-        if ch in _UX_EMOJI_ICON:
-            pick = _UX_EMOJI_ICON[ch]; break
-    nm, tone = pick if pick else ("dot", "slate")
-    return '<div class="ux-ico t-%s"><svg viewBox="0 0 24 24" aria-hidden="true">%s</svg></div>' % (tone, _UX_ICON_SVG[nm])
-
-def _ux_icons(body):
-    return _UX_ICON_DIV.sub(lambda m: _ux_icon_html(m.group(2)), body)
-
-# warna neon bawaan -> padanan korporat (hanya untuk HTML yang dikirim lewat st.markdown)
-_UX_COLOR_MAP = {"#00e676": "#0F8A5F", "#ffc107": "#B7791F", "#ff5252": "#C0392B", "#ff3333": "#C0392B", "#007bff": "#1B5FC1",
-                 "#9c27b0": "#5A4CB8", "#f97316": "#B0521C", "#06b6d4": "#0B8A7C", "#2563eb": "#1B5FC1"}
-_UX_HEX = re.compile(r"#[0-9A-Fa-f]{6}\b")
-
-def _ux_colors(body):
-    if "#" not in body:
-        return body
-    return _UX_HEX.sub(lambda m: _UX_COLOR_MAP.get(m.group(0).lower(), m.group(0)), body)
-
-# ---------------------------------------------------------------------------
-# 3) Pemasangan lapisan tampilan: membungkus widget Streamlit (HANYA teks tampilan; nilai & logika tidak berubah)
-# ---------------------------------------------------------------------------
-_UX_LBL = {  # nama: (parameter label, Title-Case untuk label KAPITAL?)
-    "button": ("label", True), "download_button": ("label", True), "link_button": ("label", True),
-    "form_submit_button": ("label", True), "expander": ("label", True), "popover": ("label", True),
-    "checkbox": ("label", False), "toggle": ("label", False), "radio": ("label", False), "selectbox": ("label", False),
-    "multiselect": ("label", False), "select_slider": ("label", False), "slider": ("label", False),
-    "text_input": ("label", False), "text_area": ("label", False), "number_input": ("label", False),
-    "date_input": ("label", False), "time_input": ("label", False), "file_uploader": ("label", False),
-    "camera_input": ("label", False), "color_picker": ("label", False), "segmented_control": ("label", False),
-    "pills": ("label", False), "metric": ("label", False),
-}
-_UX_FMT = ("radio", "selectbox", "multiselect", "select_slider", "segmented_control", "pills")
-_UX_BODY = ("header", "subheader", "title", "caption", "success", "info", "warning", "error", "toast")
-
-def _ux_make_handler(name):
-    if name in _UX_LBL:
-        prm, case = _UX_LBL[name]
-        fmt = name in _UX_FMT
-        def h(ba):
-            a = ba.arguments
-            v = a.get(prm)
-            if isinstance(v, str):
-                a[prm] = _ux_label(v, case)
-            if fmt:
-                f0 = a.get("format_func") or str
-                a["format_func"] = (lambda x, _f=f0: _ux_label(_f(x)))
-        return h
-    if name == "tabs":
-        def h(ba):
-            t = ba.arguments.get("tabs")
-            if isinstance(t, (list, tuple)):
-                ba.arguments["tabs"] = [_ux_label(x, True) if isinstance(x, str) else x for x in t]
-        return h
-    if name == "markdown":
-        def h(ba):
-            a = ba.arguments
-            b = a.get("body")
-            if isinstance(b, str) and b:
-                if a.get("unsafe_allow_html"):
-                    b = _ux_colors(_ux_icons(b))
-                a["body"] = _ux_strip_md(b)
-        return h
-    if name == "write":
-        def h(ba):
-            a = ba.arguments
-            t = a.get("args")
-            if isinstance(t, tuple) and len(t) == 1 and isinstance(t[0], str):
-                b = t[0]
-                if a.get("unsafe_allow_html"):
-                    b = _ux_colors(_ux_icons(b))
-                a["args"] = (_ux_strip_md(b),)
-        return h
-    if name in _UX_BODY:
-        def h(ba):
-            b = ba.arguments.get("body")
-            if isinstance(b, str):
-                ba.arguments["body"] = _ux_strip_md(b)
-        return h
-    if name == "spinner":
-        def h(ba):
-            t = ba.arguments.get("text")
-            if isinstance(t, str):
-                ba.arguments["text"] = _ux_label(t)
-        return h
-    return None
-
-def _ux_wrap(orig, name):
-    try:
-        sig = _inspect.signature(orig)
-    except (TypeError, ValueError):
-        return orig
-    handler = _ux_make_handler(name)
-    if handler is None:
-        return orig
-    if name in _UX_FMT and "format_func" not in sig.parameters:
-        return orig
-    def wrapper(*args, **kwargs):
-        try:
-            ba = sig.bind(*args, **kwargs)
-            handler(ba)
-            call_a, call_k = ba.args, ba.kwargs
-        except Exception:
-            return orig(*args, **kwargs)
-        try:
-            return orig(*call_a, **call_k)
-        except Exception as e:
-            if e.__class__.__name__ == "DuplicateWidgetID":
-                return orig(*args, **kwargs)   # dua widget identik hanya beda emoji -> pakai label asli
-            raise
-    try:
-        wrapper.__wrapped__ = orig
-        wrapper.__name__ = getattr(orig, "__name__", name)
-        wrapper.__doc__ = getattr(orig, "__doc__", None)
-    except Exception:
-        pass
-    wrapper._ux_wrapped = True
-    return wrapper
-
-def _ux_install_pro_layer():
-    """Pasang/lepas pembungkus. Aman dipanggil di setiap rerun (selalu membungkus ulang dari fungsi asli)."""
-    try:
-        from streamlit.delta_generator import DeltaGenerator as _DG
-    except Exception:
-        _DG = None
-    active = bool(UI_PRO_MODE and UI_STRIP_EMOJI)
-    names = list(_UX_LBL) + ["tabs", "markdown", "write", "spinner"] + list(_UX_BODY)
-    for name in names:
-        try:
-            if _DG is not None and hasattr(_DG, name):
-                f = getattr(_DG, name)
-                f0 = getattr(f, "__wrapped__", f) if getattr(f, "_ux_wrapped", False) else f
-                setattr(_DG, name, _ux_wrap(f0, name) if active else f0)
-                m = getattr(st, name, None)
-                if m is not None and hasattr(m, "__self__") and m.__self__ is not None:
-                    fn_new = getattr(_DG, name)
-                    setattr(st, name, _types.MethodType(fn_new, m.__self__))
-                    continue
-            m = getattr(st, name, None)
-            if m is not None and not hasattr(m, "__self__"):
-                m0 = getattr(m, "__wrapped__", m) if getattr(m, "_ux_wrapped", False) else m
-                setattr(st, name, _ux_wrap(m0, name) if active else m0)
-        except Exception:
-            continue
-
-# ---------------------------------------------------------------------------
-# 4) AutoPilot — cache "stale-while-revalidate" + prewarm + auto-refresh latar belakang
-#    Pengguna tidak pernah menunggu refresh: data lama langsung tampil, data baru ditarik di belakang layar.
-# ---------------------------------------------------------------------------
-@st.cache_resource(show_spinner=False)
-def _ux_ap_store():
-    return {"lock": _th.RLock(), "entries": {}, "gen": {}, "reg": {}, "refreshing": set(), "klocks": {},
-            "thread": None, "pause_until": 0.0, "last_seen": time.time(), "wake": _th.Event(),
-            "stat": {"hit": 0, "stale": 0, "miss": 0}}
-
-def _ux_ap_snap(v):
-    try:
-        return _pickle.loads(_pickle.dumps(v, protocol=_pickle.HIGHEST_PROTOCOL))
-    except Exception:
-        return _copy.deepcopy(v)
-
-def _ux_ap_ok(v):
-    """Hasil dianggap gagal bila fungsi mengembalikan (data, False) — tidak boleh menimpa cache lama yang sehat."""
-    return not (isinstance(v, tuple) and len(v) == 2 and v[1] is False)
-
-def _ux_ap_put(S, key, name, fn, args, kwargs, val, gen0, max_entries):
-    with S["lock"]:
-        if S["gen"].get(name, 0) != gen0:
-            return False
-        if (not _ux_ap_ok(val)) and key in S["entries"]:
-            return False
-        now = time.time()
-        old = S["entries"].get(key)
-        S["entries"][key] = {"val": val, "ts": now, "acc": (old or {}).get("acc", now), "fn": fn, "args": args,
-                             "kwargs": kwargs, "name": name}
-        mine = [k for k, e in S["entries"].items() if e["name"] == name]
-        if len(mine) > max_entries:
-            mine.sort(key=lambda k: S["entries"][k]["acc"])
-            for k in mine[:len(mine) - max_entries]:
-                S["entries"].pop(k, None)
-    return True
-
-def ux_swr(fresh=120, max_age=3600, warm=False, legacy_ttl=300, max_entries=48):
-    """Pengganti @st.cache_data untuk pembacaan Google Sheets.
-       <= fresh detik : langsung dari memori | fresh..max_age : tampil instan + refresh di latar belakang | > max_age : tarik langsung."""
-    def deco(fn):
-        name = fn.__name__
-        legacy = st.cache_data(ttl=legacy_ttl, show_spinner=False)(fn)
-        def wrapper(*args, **kwargs):
-            if not AP_ENABLED:
-                return legacy(*args, **kwargs)
-            S = _ux_ap_store()
-            key = name + "|" + repr(args) + "|" + repr(sorted(kwargs.items()))
-            now = time.time()
-            S["last_seen"] = now
-            with S["lock"]:
-                e = S["entries"].get(key)
-                gen0 = S["gen"].get(name, 0)
-                if e:
-                    e["acc"] = now
-            if e:
-                age = now - e["ts"]
-                if age <= fresh:
-                    S["stat"]["hit"] += 1
-                    return _ux_ap_snap(e["val"])
-                if age <= max_age:
-                    S["stat"]["stale"] += 1
-                    _ux_ap_bg_refresh(S, key, max_entries)
-                    return _ux_ap_snap(e["val"])
-            S["stat"]["miss"] += 1
-            with S["lock"]:
-                kl = S["klocks"].setdefault(key, _th.Lock())
-            with kl:   # satu penarikan saja bila banyak sesi memanggil bersamaan
-                with S["lock"]:
-                    e2 = S["entries"].get(key)
-                    gen0 = S["gen"].get(name, 0)
-                if e2 and (time.time() - e2["ts"]) <= fresh:
-                    return _ux_ap_snap(e2["val"])
-                val = fn(*args, **kwargs)
-                _ux_ap_put(S, key, name, fn, args, kwargs, val, gen0, max_entries)
-            return _ux_ap_snap(val)
-        def clear(*a, **k):
-            S = _ux_ap_store()
-            with S["lock"]:
-                S["gen"][name] = S["gen"].get(name, 0) + 1
-                for kk in [kk for kk, ee in S["entries"].items() if ee["name"] == name]:
-                    S["entries"].pop(kk, None)
-            try:
-                legacy.clear()
-            except Exception:
-                pass
-        wrapper.clear = clear
-        wrapper.__name__ = name
-        wrapper.__doc__ = fn.__doc__
-        try:
-            S0 = _ux_ap_store()
-            S0["reg"][name] = {"warm": bool(warm), "wrapper": wrapper, "fresh": fresh, "max_entries": max_entries}
-            S0["wake"].set()
-        except Exception:
-            pass
-        return wrapper
-    return deco
-
-def _ux_ap_bg_refresh(S, key, max_entries):
-    with S["lock"]:
-        e = S["entries"].get(key)
-        if (not e) or key in S["refreshing"] or time.time() < S["pause_until"]:
-            return
-        S["refreshing"].add(key)
-        gen0 = S["gen"].get(e["name"], 0)
-    def run():
-        try:
-            val = e["fn"](*e["args"], **e["kwargs"])
-            _ux_ap_put(S, key, e["name"], e["fn"], e["args"], e["kwargs"], val, gen0, max_entries)
-        except Exception as ex:
-            msg = str(ex)
-            if "429" in msg or "Quota" in msg or "503" in msg:
-                S["pause_until"] = time.time() + 60
-        finally:
-            with S["lock"]:
-                S["refreshing"].discard(key)
-    try:
-        _th.Thread(target=run, daemon=True, name="ux-swr-refresh").start()
-    except Exception:
-        with S["lock"]:
-            S["refreshing"].discard(key)
-
-def _ux_ap_loop(S):
-    while True:
-        try:
-            now = time.time()
-            if now - S["last_seen"] > AP_IDLE_STOP_SEC:
-                S["thread"] = None
-                return
-            if now >= S["pause_until"]:
-                # 1) prewarm fungsi tanpa argumen yang belum punya data
-                for nm, meta in list(S["reg"].items()):
-                    if meta.get("warm"):
-                        has = any(en["name"] == nm for en in list(S["entries"].values()))
-                        if not has:
-                            try:
-                                meta["wrapper"]()
-                            except Exception as ex:
-                                if "429" in str(ex) or "Quota" in str(ex):
-                                    S["pause_until"] = time.time() + 60
-                # 2) auto-refresh data "panas" (baru dipakai) yang sudah melewati AP_REFRESH_SEC
-                for key, en in list(S["entries"].items()):
-                    if time.time() >= S["pause_until"] and (now - en["acc"]) < AP_IDLE_STOP_SEC and (now - en["ts"]) >= AP_REFRESH_SEC:
-                        mx = S["reg"].get(en["name"], {}).get("max_entries", 48)
-                        with S["lock"]:
-                            if key in S["refreshing"]:
-                                continue
-                            S["refreshing"].add(key)
-                            gen0 = S["gen"].get(en["name"], 0)
-                        try:
-                            val = en["fn"](*en["args"], **en["kwargs"])
-                            _ux_ap_put(S, key, en["name"], en["fn"], en["args"], en["kwargs"], val, gen0, mx)
-                        except Exception as ex:
-                            if "429" in str(ex) or "Quota" in str(ex):
-                                S["pause_until"] = time.time() + 60
-                        finally:
-                            with S["lock"]:
-                                S["refreshing"].discard(key)
-                        time.sleep(0.8)   # jeda kecil agar kuota API aman
-        except Exception:
-            pass
-        S["wake"].wait(15)
-        S["wake"].clear()
-
-def ux_autopilot_start():
-    """Mulai (sekali per proses server) pekerja latar belakang. Aman dipanggil di setiap rerun."""
-    if not AP_ENABLED:
-        return
-    try:
-        S = _ux_ap_store()
-        S["last_seen"] = time.time()
-        th = S.get("thread")
-        if th is not None and th.is_alive():
-            return
-        th = _th.Thread(target=_ux_ap_loop, args=(S,), daemon=True, name="ux-autopilot")
-        S["thread"] = th
-        th.start()
-    except Exception:
-        pass
-
-def ux_ap_age_text():
-    """Teks umur data laporan terakhir untuk indikator Auto-sync."""
-    try:
-        S = _ux_ap_store()
-        ages = [time.time() - e["ts"] for e in list(S["entries"].values()) if e["name"] == "fetch_data_from_gsheets"]
-        if not ages:
-            return None
-        a = min(ages)
-        if a < 60: return "baru saja"
-        if a < 3600: return "%d mnt lalu" % int(a // 60)
-        return "%d j lalu" % int(a // 3600)
-    except Exception:
-        return None
-
-def ux_crumb_html(menu):
-    lbl = _ux_label(str(menu))
-    sync = ""
-    if AP_ENABLED:
-        age = ux_ap_age_text()
-        sync = '<span class="ux-sync"><span class="ux-dot%s"></span>Auto-sync aktif%s</span>' % (
-            "" if age else " off", (" · data " + _esc(age)) if age else " · menyiapkan data")
-    return '<div class="ux-crumb"><span>SIDATA</span><i>/</i><b>%s</b>%s</div>' % (_esc(lbl), sync)
-
-# ---------------------------------------------------------------------------
-# 5) Evidence on-demand — foto baru ditarik ketika pengguna memintanya
-# ---------------------------------------------------------------------------
-_UX_EVID = {"scope": None, "open": False}
-_UX_IMG_EXT = (".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".heic")
-_UX_NOT_IMG = (".pdf", ".xls", ".xlsx", ".csv", ".txt", ".doc", ".docx", ".kml", ".zip")
-
-def ux_count_evidence(obj):
-    """Hitung URL foto di dalam satu laporan (tanpa menarik apa pun dari jaringan)."""
-    n = [0]
-    def walk(o, depth=0):
-        if depth > 8:
-            return
-        if isinstance(o, str):
-            lo = o.lower().split("?")[0]
-            if o.startswith("http") and not lo.endswith(_UX_NOT_IMG) and "/raw/upload" not in lo \
-               and ("cloudinary" in lo or lo.endswith(_UX_IMG_EXT)):
-                n[0] += 1
-        elif isinstance(o, dict):
-            for k, v in o.items():
-                if not str(k).startswith("_"):
-                    walk(v, depth + 1)
-        elif isinstance(o, (list, tuple)):
-            for v in o:
-                walk(v, depth + 1)
-    walk(obj)
-    return n[0]
-
-def ux_evidence_gate(scope, data=None):
-    """Satu saklar per laporan. OFF = hanya data laporan (ringan). ON = foto evidence dimuat."""
-    if not UI_EVIDENCE_ON_DEMAND:
-        _UX_EVID["scope"], _UX_EVID["open"] = None, True
-        return True
-    n = ux_count_evidence(data) if data is not None else 0
-    if n == 0:
-        _UX_EVID["scope"], _UX_EVID["open"] = str(scope), True
-        return True
-    c1, c2 = st.columns([2.4, 3.6])
-    on = c1.toggle("Tampilkan foto evidence (%d foto)" % n, key="evid_" + str(scope),
-                   help="Foto baru ditarik dari server saat saklar ini aktif, sehingga halaman laporan tetap ringan.")
-    if on:
-        c2.caption("Foto dimuat sebagai thumbnail; klik foto untuk resolusi penuh.")
-    else:
-        c2.caption("Foto belum dimuat. Aktifkan saklar untuk menarik foto evidence.")
-    _UX_EVID["scope"], _UX_EVID["open"] = str(scope), bool(on)
-    return bool(on)
-
-def _ux_thumb(u):
-    if "cloudinary" in u and "/upload/" in u and "/upload/w_" not in u:
-        return u.replace("/upload/", "/upload/w_480,c_limit,q_auto:eco,f_auto/", 1)
-    return u
-
-def tampilkan_grid_foto(url_data, caption=""):
-    if not url_data: return
-    urls = []
-    if isinstance(url_data, str) and url_data.startswith("http"): urls = [url_data]
-    elif isinstance(url_data, list): urls = [u for u in url_data if isinstance(u, str) and u.startswith("http")]
-    if not urls: return
-    if UI_EVIDENCE_ON_DEMAND:
-        if _UX_EVID.get("scope") is None:
-            kk = "evid_g_" + _hashlib.md5((str(caption) + "|".join(urls)).encode("utf-8", "ignore")).hexdigest()[:14]
-            lbl = ("Tampilkan foto: %s (%d)" % (caption, len(urls))) if caption else ("Tampilkan %d foto" % len(urls))
-            if not st.toggle(lbl, key=kk):
-                return
-        elif not _UX_EVID.get("open"):
-            st.caption(("%s · %d foto belum dimuat" % (caption, len(urls))) if caption else ("%d foto belum dimuat" % len(urls)))
-            return
-    if caption: st.markdown(f"*{caption}*")
-    cap_alt = _esc(caption or "Foto evidence")
-    cells = "".join(
-        '<figure class="ux-ph"><a href="%s" target="_blank" rel="noopener"><img src="%s" alt="%s" loading="lazy" decoding="async"></a></figure>'
-        % (_esc(u), _esc(_ux_thumb(u)), cap_alt) for u in urls)
-    st.markdown('<div class="ux-gallery">' + cells + '</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------------------------------
 # BOOT: deteksi perangkat, pasang tema, tampilkan saklar Web | HP
@@ -919,15 +386,13 @@ UX_MODE = _theme_mode()
 
 def ux_boot():
     """Panggil sekali di awal halaman: pasang CSS tema + saklar tampilan."""
-    _ux_install_pro_layer()
-    ux_autopilot_start()
     st.markdown(_UX_CSS.replace("__ROOT__", _root_css(UX_MODE)) + (_UX_CSS_HP if IS_HP else ""), unsafe_allow_html=True)
     try:
         box = st.container(key="view_switch")
     except TypeError:
         box = st.container()
     with box:
-        st.radio("Tampilan", ["Web", "HP"], index=1 if IS_HP else 0, horizontal=True,
+        st.radio("Tampilan", ["🖥️ Web", "📱 HP"], index=1 if IS_HP else 0, horizontal=True,
                  key="_view_pick", on_change=_ganti_tampilan, label_visibility="collapsed")
 
 def ux_login_css():
@@ -956,11 +421,8 @@ def _esc(x):
 
 def ux_hero(kicker, title, subtitle="", stats=None, split=None):
     """Banner utama. stats=[(nilai,label)]  split=[(label,jumlah,warna)] untuk bar status tipis."""
-    kicker, title, subtitle = _ux_label(kicker, True), _ux_label(title), _ux_label(subtitle)
-    if stats: stats = [(v, _ux_label(l)) for v, l in stats]
-    if split: split = [(_ux_label(l), n, c) for l, n, c in split]
     h = '<div class="ux-hero">'
-    if kicker: h += '<span class="ux-kicker">%s</span>' % _esc(kicker)
+    if kicker: h += '<span class="ux-kicker"><span class="ux-live-dot"></span>%s</span>' % _esc(kicker)
     h += '<div class="ux-hero-title">%s</div>' % _esc(title)
     if subtitle: h += '<p class="ux-hero-sub">%s</p>' % _esc(subtitle)
     if stats:
@@ -995,7 +457,7 @@ def ux_progress(items):
 # ----------------------------------------------------------------------------
 # GRAFIK SVG (disajikan sebagai <img> data-URI -> nol JavaScript, nol lag)
 # ----------------------------------------------------------------------------
-_DEF_COLORS = ["#1B5FC1", "#0E9F8E", "#B7791F", "#C0392B", "#5A4CB8", "#2A8FA8"]
+_DEF_COLORS = ["#2563EB", "#E2B93B", "#10B981", "#F43F5E", "#8B5CF6", "#06B6D4"]
 
 def _as_frame(data):
     if isinstance(data, pd.Series):
@@ -1006,8 +468,8 @@ def _as_frame(data):
     return df
 
 # warna neon bawaan (dibuat untuk tema gelap) -> padanan mewah yang tetap kontras di tema terang
-_REMAP = {"#64ffda": "#0F8A5F", "#ff5252": "#C0392B", "#00e676": "#0F8A5F", "#ffc107": "#B7791F", "#2979ff": "#1B5FC1",
-          "#ffffff": "#C0392B", "#3b82f6": "#1B5FC1", "#10b981": "#0F8A5F", "#ef4444": "#C0392B", "#f59e0b": "#B7791F", "#a855f7": "#5A4CB8"}
+_REMAP = {"#64ffda": "#10B981", "#ff5252": "#F43F5E", "#00e676": "#10B981", "#ffc107": "#F59E0B", "#2979ff": "#2563EB",
+          "#ffffff": "#E11D48", "#3b82f6": "#2563EB", "#10b981": "#10B981", "#ef4444": "#F43F5E", "#f59e0b": "#F59E0B", "#a855f7": "#8B5CF6"}
 
 def _colors(color, n):
     if color is None: cols = []
@@ -1464,19 +926,22 @@ OFFICE_ALLOWED_MENUS = [
 
 if st.session_state['role'] is None and st.session_state.get('active_menu') not in OFFICE_ALLOWED_MENUS:
     ux_login_css()
-    st.markdown("<br>", unsafe_allow_html=True)
     render_header_logo(is_login=True)
-    st.markdown("<h1 style='text-align: center; font-size: 40px; margin-top: 5px;'>Sistem Operasional Terpadu (SIDATA)</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 18px; margin-bottom: 35px; letter-spacing: 1px; opacity: 0.85;'>Pilih Portal Akses Pekerjaan Anda Hari Ini</p>", unsafe_allow_html=True)
+    ux_hero(
+        "KINARYA UTAMA TEKNIK · TELECOM OPERATIONS COMMAND CENTER",
+        "Sistem Operasional Terpadu (SIDATA)",
+        "Platform kendali operasional NOP Palangkaraya & NOP Pangkalan Bun — Field Reporting, Tracking MBP (SiHD), To Do List RTS, SiSAVA & Geospatial Command."
+    )
 
     col_v, col_l, col_t, col_a = st.columns([3, 3, 3, 3])
 
     with col_v:
         st.markdown("""
-            <div class='login-box'>
-                <div style='font-size: 42px; margin-bottom: 8px;'>👷‍♂️</div>
-                <div class='login-title' style='font-size: 19px;'>Mode Lapangan</div>
-                <div class='login-desc' style='font-size: 12.5px;'>Form Pendataan PM (SPS, Reguler & Audit Tower, Pangkalan Bun) untuk Teknisi (FME).</div>
+            <div class='login-box' style='border-top-color: #2563EB;'>
+                <div class='ux-ico-medallion' style='background:linear-gradient(145deg,rgba(37,99,235,.18),rgba(59,130,246,.08));border-color:rgba(59,130,246,.4);'>👷‍♂️</div>
+                <div class='area-badge' style='color:#2563EB;border-color:rgba(37,99,235,.4);background:rgba(37,99,235,.10);'>FIELD FORCE (FME)</div>
+                <div class='login-title' style='font-size: 18px;'>Mode Lapangan</div>
+                <div class='login-desc' style='font-size: 12.5px;'>Form Pendataan PM (SPS, Reguler & Audit Tower, Pangkalan Bun) untuk Teknisi Lapangan.</div>
             </div>
         """, unsafe_allow_html=True)
         c_v1, c_v2 = st.columns(2)
@@ -1493,10 +958,11 @@ if st.session_state['role'] is None and st.session_state.get('active_menu') not 
 
     with col_l:
         st.markdown("""
-            <div class='login-box' style='border-color: #10B981;'>
-                <div style='font-size: 42px; margin-bottom: 8px;'>🏢</div>
-                <div class='login-title' style='font-size: 19px;'>Portal Office</div>
-                <div class='login-desc' style='font-size: 12.5px;'>Logistik, Mutasi Tim (SiHD), SiSAVA, Executive Project, Program NOP & SiDAVID.</div>
+            <div class='login-box' style='border-top-color: #10B981;'>
+                <div class='ux-ico-medallion' style='background:linear-gradient(145deg,rgba(16,185,129,.18),rgba(5,150,105,.08));border-color:rgba(16,185,129,.42);'>🏢</div>
+                <div class='area-badge' style='color:#059669;border-color:rgba(16,185,129,.45);background:rgba(16,185,129,.11);'>NOC &amp; BACK-OFFICE</div>
+                <div class='login-title' style='font-size: 18px;'>Portal Office</div>
+                <div class='login-desc' style='font-size: 12.5px;'>Logistik, Tracking MBP (SiHD), SiSAVA, Executive Project, Program NOP &amp; SiDAVID.</div>
             </div>
         """, unsafe_allow_html=True)
         st.write("")
@@ -1506,10 +972,11 @@ if st.session_state['role'] is None and st.session_state.get('active_menu') not 
 
     with col_t:
         st.markdown("""
-            <div class='login-box' style='border-color: #9C27B0;'>
-                <div style='font-size: 42px; margin-bottom: 8px;'>📋</div>
-                <div class='login-title' style='font-size: 19px;'>To Do List RTS</div>
-                <div class='login-desc' style='font-size: 12.5px;'>Plan Harian RTS, Carry-Over Pending otomatis & Auto-Closed sinkron SIDATA.</div>
+            <div class='login-box' style='border-top-color: #9333EA;'>
+                <div class='ux-ico-medallion' style='background:linear-gradient(145deg,rgba(147,51,234,.18),rgba(192,132,252,.08));border-color:rgba(147,51,234,.42);'>📋</div>
+                <div class='area-badge' style='color:#7C3AED;border-color:rgba(147,51,234,.45);background:rgba(147,51,234,.11);'>RTS DAILY CONTROL</div>
+                <div class='login-title' style='font-size: 18px;'>To Do List RTS</div>
+                <div class='login-desc' style='font-size: 12.5px;'>Plan Harian RTS, Bulk Auto-Save, Carry-Over Pending &amp; Auto-Closed SIDATA.</div>
             </div>
         """, unsafe_allow_html=True)
         rts_pass_home = st.text_input("Password RTS:", type="password", placeholder="Password RTS...", key="pwd_login_rts_home", label_visibility="collapsed")
@@ -1530,10 +997,11 @@ if st.session_state['role'] is None and st.session_state.get('active_menu') not 
 
     with col_a:
         st.markdown("""
-            <div class='login-box'>
-                <div style='font-size: 42px; margin-bottom: 8px;'>🔐</div>
-                <div class='login-title' style='font-size: 19px;'>Mode Admin Utama</div>
-                <div class='login-desc' style='font-size: 12.5px;'>Akses Revisi, Dapot Power, Sysinfomap, Akun SiSAVA & Seluruh Portal Office.</div>
+            <div class='login-box' style='border-top-color: #E11D48;'>
+                <div class='ux-ico-medallion' style='background:linear-gradient(145deg,rgba(225,29,72,.18),rgba(244,63,94,.08));border-color:rgba(225,29,72,.42);'>🔐</div>
+                <div class='area-badge' style='color:#E11D48;border-color:rgba(225,29,72,.45);background:rgba(225,29,72,.11);'>EXECUTIVE ADMIN</div>
+                <div class='login-title' style='font-size: 18px;'>Mode Admin Utama</div>
+                <div class='login-desc' style='font-size: 12.5px;'>Kontrol Penuh Revisi, Dapot Power, Sysinfomap, Akun SiSAVA &amp; Seluruh Portal.</div>
             </div>
         """, unsafe_allow_html=True)
         admin_pass = st.text_input("Kata Sandi Admin:", type="password", placeholder="Sandi Admin...", key="pwd_login_main", label_visibility="collapsed")
@@ -1918,6 +1386,21 @@ def upload_datalog(file_obj, folder_name="prev_datalog"):
         except Exception as e: return None
     return None
 
+def tampilkan_grid_foto(url_data, caption=""):
+    if not url_data: return
+    urls = []
+    if isinstance(url_data, str) and url_data.startswith("http"): urls = [url_data]
+    elif isinstance(url_data, list): urls = [u for u in url_data if isinstance(u, str) and u.startswith("http")]
+        
+    if urls:
+        if caption: st.markdown(f"*{caption}*")
+        img_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 15px;">'
+        for u in urls:
+            # OPTIMASI ANTI-LEMOT: Minta Cloudinary mengirim foto resolusi kecil (lebar 400px) untuk tampilan grid dashboard
+            opt_u = u.replace("upload/", "upload/w_400,q_auto:eco/") if "cloudinary" in u else u
+            img_html += f'<div style="background-color: var(--secondary-background-color); border: 1px solid var(--primary-color); border-radius: 8px; padding: 6px; text-align: center;"><a href="{u}" target="_blank"><img src="{opt_u}" loading="lazy" style="max-width: 100%; height: auto; max-height: 400px; object-fit: contain; border-radius: 6px;"></a></div>'
+        img_html += '</div>'
+        st.markdown(img_html, unsafe_allow_html=True)
 # -------------------------------------------------------------------------
 # SETUP DATABASE GOOGLE SHEETS
 # -------------------------------------------------------------------------
@@ -1965,7 +1448,7 @@ def connect_gsheets(sheet_name="Report Preventive"):
     except Exception:
         return None
 
-@ux_swr(fresh=120, max_age=3600, warm=True, legacy_ttl=600)
+@st.cache_data(ttl=600, show_spinner=False)
 def fetch_data_from_gsheets():
     """Membaca 4 sheet operasional utama dalam 1x batch request (hemat 11 read request per siklus)."""
     all_data = []
@@ -2021,10 +1504,8 @@ def get_laporan_db(force_refresh=False):
     if force_refresh:
         fetch_data_from_gsheets.clear()
         st.session_state['laporan_db'] = fetch_data_from_gsheets()
-        st.session_state['_laporan_db_ts'] = time.time()
     elif 'laporan_db' not in st.session_state:
         st.session_state['laporan_db'] = fetch_data_from_gsheets()
-        st.session_state['_laporan_db_ts'] = time.time()
     return st.session_state['laporan_db']
 
 # -------------------------------------------------------------------------
@@ -2140,7 +1621,7 @@ def gsheet_get_or_create_ws(sheet_name, default_headers):
     except Exception:
         return None
 
-@ux_swr(fresh=60, max_age=1800, legacy_ttl=300)
+@st.cache_data(ttl=300, show_spinner=False)
 def gsheet_read_df(sheet_name, default_headers):
     try:
         ws, _ = _gs_cached_ws_and_head(sheet_name, tuple(default_headers))
@@ -2954,568 +2435,6 @@ def render_hard_access_route_map_html(ha_list, map_theme="Dark NOC Command Cente
     """
 
 # =========================================================================
-# 📡 SiHD — TRACKING TIM MBP, JARAK KE SITE & STATUS SITE (UP / DOWN)
-#   Memakai data yang sudah ada: Master Tim (Home Base), Master Site (koordinat), dan tab Google Sheets 'SiHD'.
-#   Catatan tracking disimpan sebagai baris SiHD biasa (JSON memuat kunci trk_*), sehingga ikut tampil di Buku Mutasi.
-# =========================================================================
-TRK_STATUS_OPTS = ["UP", "DOWN", "DEGRADED", "UNKNOWN"]
-TRK_MOVE_OPTS = ["OTW / Berangkat", "On Site / Pengerjaan", "Done / Clear", "Pending / Butuh Follow-Up"]
-TRK_KAT = "Tracking Tim / MBP"
-TRK_ROAD_FACTOR = 1.35
-TRK_INACTIVE = ("nonaktif", "resign", "keluar", "tidak aktif", "0", "false")
-
-def trk_parse_latlon(txt):
-    """Ambil (lat, lon) dari 'lat, long', tautan Google Maps (@lat,lon / q= / ll= / !3d!4d) atau teks Share Lokasi WhatsApp."""
-    s = urllib.parse.unquote(str(txt or "")).strip()
-    if not s:
-        return None
-    pats = (r"@(-?\d{1,3}\.\d+),\s*(-?\d{1,3}\.\d+)",
-            r"!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)",
-            r"[?&](?:q|ll|query|destination|center)=(-?\d{1,3}\.\d+),\s*(-?\d{1,3}\.\d+)",
-            r"(-?\d{1,3}\.\d+)\s*[,;\s]\s*(-?\d{1,3}\.\d+)")
-    for p in pats:
-        m = re.search(p, s)
-        if not m:
-            continue
-        try:
-            a, b = float(m.group(1)), float(m.group(2))
-        except Exception:
-            continue
-        if 95 <= abs(a) <= 141 and -11.5 <= b <= 6.5:   # tertukar (lon, lat)
-            a, b = b, a
-        if -90 <= a <= 90 and -180 <= b <= 180:
-            return a, b
-    return None
-
-def trk_in_indonesia(lat, lon):
-    try:
-        return -11.5 <= float(lat) <= 6.5 and 94.0 <= float(lon) <= 141.5
-    except Exception:
-        return False
-
-def trk_site_lookup(site_text, coords_plk, coords_pbu):
-    """Cari koordinat site dari teks apa pun ('PLK001 - Nama', 'PBU12', dst). -> dict(sid, lat, lon, name) atau None."""
-    raw = str(site_text or "").strip()
-    if not raw or raw == "-":
-        return None
-    first = re.split(r"\s+[-–]\s+|,", raw)[0].strip()
-    keys = []
-    for k in (raw.upper(), first.upper(), _norm_site_id(raw), _norm_site_id(first)):
-        if k and k not in keys:
-            keys.append(k)
-    for dct in (coords_pbu or {}, coords_plk or {}):
-        for k in keys:
-            v = dct.get(k)
-            if v:
-                return {"sid": k, "lat": float(v[0]), "lon": float(v[1]), "name": (v[2] if len(v) > 2 else k)}
-    return None
-
-def trk_team_directory(df_plk, df_pbu):
-    """Direktori tim aktif + Home Base dari Master Tim (PLK & PBU). key = NAMA UPPER."""
-    out = {}
-    def _num(v):
-        try:
-            x = float(str(v).replace(",", ".").strip())
-            return x
-        except Exception:
-            return None
-    for df, nop in ((df_plk, "Palangkaraya"), (df_pbu, "Pangkalan Bun")):
-        if df is None or getattr(df, "empty", True):
-            continue
-        for _, r in df.iterrows():
-            nm = str(r.get("NAMA", "")).strip()
-            if not nm or nm.lower() in ("nan", "none"):
-                continue
-            if str(r.get("STATUS_AKTIF", "Aktif")).strip().lower() in TRK_INACTIVE:
-                continue
-            lat = lon = None
-            for c in ("LAT_HB", "Latitude Berangkat"):
-                if lat is None and c in r.index:
-                    lat = _num(r.get(c))
-            for c in ("LON_HB", "Longtitude Berangkat"):
-                if lon is None and c in r.index:
-                    lon = _num(r.get(c))
-            if lat is None or lon is None or not trk_in_indonesia(lat, lon):
-                lat = lon = None
-            out[nm.upper()] = {"nama": nm, "role": str(r.get("ROLE", "") or "").strip() or "FME / TE", "nop": nop,
-                               "lat": lat, "lon": lon, "hp": re.sub(r"\D", "", str(r.get("NO_HP", "") or ""))}
-    return out
-
-def trk_find_member(name, team_dir):
-    k = str(name or "").strip().upper()
-    if not k:
-        return None
-    if k in team_dir:
-        return team_dir[k]
-    for kk, v in team_dir.items():
-        if k in kk or kk in k:
-            return v
-    return None
-
-def trk_fmt_eta(minutes):
-    if minutes is None:
-        return "-"
-    if minutes == 0:
-        return "Di lokasi"
-    m = int(round(minutes))
-    return ("%d mnt" % m) if m < 60 else ("%d j %02d mnt" % (m // 60, m % 60))
-
-def trk_dist_pack(lat1, lon1, lat2, lon2, speed_kmh):
-    d = haversine_km(lat1, lon1, lat2, lon2)
-    if d is None:
-        return None, None, None
-    road = round(d * TRK_ROAD_FACTOR, 1)
-    eta = (road / max(float(speed_kmh), 5.0)) * 60.0
-    return d, road, eta
-
-def _trk_ts(r):
-    return str(r.get("timestamp", "") or "")
-
-def _trk_ts_age_text(ts, now=None):
-    try:
-        t = datetime.datetime.strptime(str(ts)[:19], "%Y-%m-%d %H:%M:%S")
-        s = ((now or datetime.datetime.now()) - t).total_seconds()
-    except Exception:
-        return "-"
-    if s < 90: return "baru saja"
-    if s < 3600: return "%d mnt lalu" % int(s // 60)
-    if s < 86400: return "%d j lalu" % int(s // 3600)
-    return "%d hari lalu" % int(s // 86400)
-
-def trk_latest_per_team(records, hours=None, now=None):
-    now = now or datetime.datetime.now()
-    latest = {}
-    for r in records or []:
-        ts = _trk_ts(r)
-        if hours:
-            try:
-                t = datetime.datetime.strptime(ts[:19], "%Y-%m-%d %H:%M:%S")
-                if (now - t).total_seconds() > hours * 3600:
-                    continue
-            except Exception:
-                continue
-        for nm in re.split(r"[,;]", str(r.get("trk_team") or r.get("teknisi") or "")):
-            k = nm.strip().upper()
-            if k and k not in ("-", "NAN", "NONE") and (k not in latest or ts > _trk_ts(latest[k])):
-                latest[k] = r
-    return latest
-
-def trk_site_status_map(records):
-    """Status terkini tiap site dari SiHD: input eksplisit (trk_site_status) lebih diutamakan dibanding inferensi dari tiket Down."""
-    best = {}
-    for r in records or []:
-        ts = _trk_ts(r)
-        mv = str(r.get("status", "") or "").strip().lower()
-        expl = str(r.get("trk_site_status", "") or "").strip().upper()
-        if expl in TRK_STATUS_OPTS:
-            st_v, src = expl, "Input tracking"
-        elif str(r.get("hd_kat_giat", "") or "").startswith("Troubleshoot Down"):
-            st_v, src = ("UP", "Tiket SiHD (clear)") if mv.startswith("done") else ("DOWN", "Tiket SiHD (aktif)")
-        else:
-            continue
-        parts = [r.get("trk_site")] if r.get("trk_site") else str(r.get("site_name", "") or "").split(",")
-        for p in parts:
-            sid = _norm_site_id(p)
-            if sid and (sid not in best or ts >= best[sid]["ts"]):
-                best[sid] = {"status": st_v, "src": src, "ts": ts, "team": str(r.get("trk_team") or r.get("teknisi") or "-"),
-                             "nop": str(r.get("nop", "-")), "note": str(r.get("action", "") or "")}
-    return best
-
-def trk_chip(status, src=""):
-    s = str(status or "").upper()
-    cls = {"UP": "up", "DOWN": "down", "DEGRADED": "warn"}.get(s, "unk")
-    lbl = {"UP": "UP", "DOWN": "DOWN", "DEGRADED": "Degraded"}.get(s, "Belum ada data")
-    extra = ' title="%s"' % _esc(src) if src else ""
-    return '<span class="ux-chip %s"%s>%s</span>' % (cls, extra, lbl)
-
-def trk_build_board(records, team_dir, coords_plk, coords_pbu, site_status, speed_kmh=40.0, hours=36, show_done=False, now=None):
-    """Papan tracking: 1 baris per tim (catatan terbaru) -> target site, status site, jarak, estimasi jalan, ETA."""
-    now = now or datetime.datetime.now()
-    rows = []
-    for key, r in trk_latest_per_team(records, hours, now).items():
-        mv = str(r.get("status", "-") or "-")
-        if (not show_done) and mv.lower().startswith("done"):
-            continue
-        mem = trk_find_member(key, team_dir)
-        target = None
-        cands = [r.get("trk_site")] + [x.strip() for x in str(r.get("site_name", "") or "").split(",")]
-        for c in cands:
-            t = trk_site_lookup(c, coords_plk, coords_pbu)
-            if t:
-                target = t
-                break
-        pos, src = None, "Tidak diketahui"
-        try:
-            la, lo = float(r.get("trk_lat")), float(r.get("trk_lon"))
-            if trk_in_indonesia(la, lo):
-                pos, src = (la, lo), "Posisi dilaporkan HD"
-        except Exception:
-            pass
-        if pos is None and mv.lower().startswith("on site") and target:
-            pos, src = (target["lat"], target["lon"]), "Di lokasi site"
-        if pos is None and mem and mem.get("lat") is not None:
-            pos, src = (mem["lat"], mem["lon"]), "Home Base"
-        d = road = eta = None
-        if pos and target:
-            d, road, eta = trk_dist_pack(pos[0], pos[1], target["lat"], target["lon"], speed_kmh)
-            if mv.lower().startswith("on site"):
-                d, road, eta = 0.0, 0.0, 0.0
-        sid_key = _norm_site_id(target["sid"]) if target else ""
-        ss = site_status.get(sid_key) if sid_key else None
-        rows.append({
-            "Tim": (mem or {}).get("nama") or key.title(), "Role": (mem or {}).get("role", "-"),
-            "NOP": (mem or {}).get("nop") or str(r.get("nop", "-")),
-            "Site": (target["sid"] + " · " + str(target["name"])) if target else (str(r.get("site_name", "-")) or "-"),
-            "Site_ID": sid_key, "Pergerakan": mv, "Status_Site": (ss or {}).get("status", "UNKNOWN"),
-            "Sumber_Status": (ss or {}).get("src", ""), "Posisi_Sumber": src,
-            "Pos_Lat": pos[0] if pos else None, "Pos_Lon": pos[1] if pos else None,
-            "Site_Lat": target["lat"] if target else None, "Site_Lon": target["lon"] if target else None,
-            "Jarak_km": d, "Jalan_km": road, "ETA_mnt": eta,
-            "Update": _trk_ts_age_text(_trk_ts(r), now), "Waktu": _trk_ts(r),
-            "Tiket": str(r.get("hd_tiket", "-") or "-"), "Keterangan": str(r.get("action", "") or ""),
-            "HP": (mem or {}).get("hp", ""),
-        })
-    order = {"DOWN": 0, "DEGRADED": 1, "UNKNOWN": 2, "UP": 3}
-    rows.sort(key=lambda x: (order.get(x["Status_Site"], 2), x["Jarak_km"] if x["Jarak_km"] is not None else 9e9))
-    return pd.DataFrame(rows)
-
-def trk_site_status_table(site_status, coords_plk, coords_pbu):
-    rows = []
-    for sid, v in site_status.items():
-        t = trk_site_lookup(sid, coords_plk, coords_pbu)
-        rows.append({"Site_ID": sid, "Nama": (t or {}).get("name", "-"), "Status": v["status"], "Sumber": v["src"],
-                     "Update": _trk_ts_age_text(v["ts"]), "Waktu": v["ts"], "Tim": v["team"], "NOP": v["nop"], "Catatan": v["note"]})
-    order = {"DOWN": 0, "DEGRADED": 1, "UNKNOWN": 2, "UP": 3}
-    rows.sort(key=lambda x: x["Waktu"], reverse=True)
-    rows.sort(key=lambda x: order.get(x["Status"], 2))
-    return pd.DataFrame(rows)
-
-def trk_nearest_teams(site_text, team_dir, records, coords_plk, coords_pbu, speed_kmh=40.0, roles=None, now=None):
-    """Urutkan tim dari yang paling dekat ke satu site (posisi terakhir dilaporkan, jika tidak ada pakai Home Base)."""
-    t = trk_site_lookup(site_text, coords_plk, coords_pbu)
-    if not t:
-        return pd.DataFrame(), None
-    latest = trk_latest_per_team(records, hours=36, now=now)
-    rows = []
-    for key, mem in team_dir.items():
-        if roles and not any(x in str(mem.get("role", "")).upper() for x in roles):
-            continue
-        pos, src = None, "-"
-        r = latest.get(key)
-        busy = "Standby"
-        if r is not None:
-            mv = str(r.get("status", "") or "")
-            if not mv.lower().startswith("done"):
-                busy = mv
-            try:
-                la, lo = float(r.get("trk_lat")), float(r.get("trk_lon"))
-                if trk_in_indonesia(la, lo):
-                    pos, src = (la, lo), "Posisi dilaporkan (%s)" % _trk_ts_age_text(_trk_ts(r), now)
-            except Exception:
-                pass
-        if pos is None and mem.get("lat") is not None:
-            pos, src = (mem["lat"], mem["lon"]), "Home Base"
-        if pos is None:
-            continue
-        d, road, eta = trk_dist_pack(pos[0], pos[1], t["lat"], t["lon"], speed_kmh)
-        rows.append({"Tim": mem["nama"], "Role": mem["role"], "NOP": mem["nop"], "Kondisi": busy, "Posisi": src,
-                     "Jarak_km": d, "Jalan_km": road, "ETA_mnt": eta, "HP": mem.get("hp", ""),
-                     "Pos_Lat": pos[0], "Pos_Lon": pos[1]})
-    df = pd.DataFrame(rows)
-    if not df.empty:
-        df = df.sort_values("Jarak_km").reset_index(drop=True)
-    return df, t
-
-def trk_map_html(board_df, tile="Terang", height=520):
-    """Peta Leaflet: posisi tim, site target (warna sesuai status UP/DOWN) dan garis jarak."""
-    items = []
-    if board_df is not None and not board_df.empty:
-        for _, r in board_df.iterrows():
-            items.append({
-                "tim": str(r["Tim"]), "role": str(r["Role"]), "site": str(r["Site"]), "st": str(r["Status_Site"]),
-                "mv": str(r["Pergerakan"]), "plat": None if pd.isna(r["Pos_Lat"]) else float(r["Pos_Lat"]),
-                "plon": None if pd.isna(r["Pos_Lon"]) else float(r["Pos_Lon"]),
-                "slat": None if pd.isna(r["Site_Lat"]) else float(r["Site_Lat"]),
-                "slon": None if pd.isna(r["Site_Lon"]) else float(r["Site_Lon"]),
-                "km": None if pd.isna(r["Jarak_km"]) else float(r["Jarak_km"]),
-                "eta": trk_fmt_eta(None if pd.isna(r["ETA_mnt"]) else float(r["ETA_mnt"])), "src": str(r["Posisi_Sumber"])})
-    if "Satelit" in tile:
-        tile_url, sub = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", ""
-    elif "Gelap" in tile:
-        tile_url, sub = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", "abcd"
-    else:
-        tile_url, sub = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", "abcd"
-    data = json.dumps(items, ensure_ascii=False).replace("</", "<\\/")
-    return """<!DOCTYPE html><html><head><meta charset="utf-8"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>
-body{margin:0;font-family:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;background:transparent}
-#m{width:100%;height:__H__px;border-radius:10px;border:1px solid #D5DDE8;overflow:hidden}
-.pin{width:30px;height:30px;border-radius:50%;background:#0B1F3A;color:#fff;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.35)}
-.sp{width:20px;height:20px;border-radius:5px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);transform:rotate(45deg)}
-.sp.down{animation:pl 1.6s ease-out infinite}
-@keyframes pl{0%{box-shadow:0 0 0 0 rgba(192,57,43,.7)}80%{box-shadow:0 0 0 14px rgba(192,57,43,0)}100%{box-shadow:0 0 0 0 rgba(192,57,43,0)}}
-.dl{background:#fff;color:#0B1F3A;border:1px solid #1B5FC1;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.25)}
-.pc{font-size:12px;line-height:1.55;min-width:190px}.pc b{font-size:13px}
-.lg{background:#fff;padding:8px 11px;border-radius:8px;border:1px solid #D5DDE8;font-size:11px;line-height:1.7;color:#0C1B30}
-.lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
-@media (prefers-reduced-motion:reduce){.sp.down{animation:none}}
-</style></head><body><div id="m"></div><script>
-const items=__DATA__;
-const map=L.map('m',{center:[-2.2,113.5],zoom:7});
-L.tileLayer('__TILE__',{subdomains:'__SUB__',maxZoom:19,attribution:'SIDATA SiHD Tracking'}).addTo(map);
-const col={UP:'#0F8A5F',DOWN:'#C0392B',DEGRADED:'#B7791F',UNKNOWN:'#64748B'};
-const b=[];
-items.forEach(it=>{
-  const c=col[it.st]||col.UNKNOWN;
-  if(it.slat!==null){
-    const si=L.divIcon({className:'',html:'<div class="sp '+(it.st==='DOWN'?'down':'')+'" style="background:'+c+'"></div>',iconSize:[20,20],iconAnchor:[10,10]});
-    L.marker([it.slat,it.slon],{icon:si}).addTo(map).bindPopup('<div class="pc"><b>'+it.site+'</b><br>Status site: <b style="color:'+c+'">'+it.st+'</b></div>');
-    b.push([it.slat,it.slon]);
-  }
-  if(it.plat!==null){
-    const ini=it.tim.split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase();
-    const ti=L.divIcon({className:'',html:'<div class="pin">'+ini+'</div>',iconSize:[30,30],iconAnchor:[15,15]});
-    L.marker([it.plat,it.plon],{icon:ti}).addTo(map).bindPopup('<div class="pc"><b>'+it.tim+'</b> ('+it.role+')<br>'+it.mv+'<br>Posisi: '+it.src+(it.km!==null?'<br>Jarak: <b>'+it.km.toFixed(1).replace('.',',')+' km</b> · ETA '+it.eta:'')+'</div>');
-    b.push([it.plat,it.plon]);
-    if(it.slat!==null){
-      L.polyline([[it.plat,it.plon],[it.slat,it.slon]],{color:'#1B5FC1',weight:2.5,dashArray:'6 6',opacity:.85}).addTo(map);
-      if(it.km!==null && it.km>0){
-        L.marker([(it.plat+it.slat)/2,(it.plon+it.slon)/2],{interactive:false,icon:L.divIcon({className:'',html:'<span class="dl">'+it.km.toFixed(1).replace('.',',')+' km</span>',iconSize:[70,20],iconAnchor:[35,10]})}).addTo(map);
-      }
-    }
-  }
-});
-if(b.length){map.fitBounds(b,{padding:[40,40],maxZoom:13});}
-const lg=L.control({position:'bottomright'});
-lg.onAdd=function(){const d=L.DomUtil.create('div','lg');d.innerHTML='<div><i style="background:#0B1F3A;border-radius:50%"></i>Posisi tim</div><div><i style="background:#0F8A5F"></i>Site UP</div><div><i style="background:#C0392B"></i>Site DOWN</div><div><i style="background:#B7791F"></i>Degraded</div><div><i style="background:#64748B"></i>Belum ada data</div>';return d;};
-lg.addTo(map);
-</script></body></html>""".replace("__H__", str(int(height))).replace("__DATA__", data).replace("__TILE__", tile_url).replace("__SUB__", sub)
-
-def trk_html_table(df, cols):
-    """Tabel HTML korporat (kolom: (judul, fungsi-render)). Aman dari injeksi: semua teks di-escape."""
-    if df is None or df.empty:
-        return "<div class='ux-note'>Tidak ada data untuk ditampilkan.</div>"
-    head = "".join("<th>%s</th>" % _esc(c[0]) for c in cols)
-    body = []
-    for _, r in df.iterrows():
-        body.append("<tr>" + "".join("<td>%s</td>" % c[1](r) for c in cols) + "</tr>")
-    return '<div class="ux-tw"><table class="ux-tbl"><thead><tr>%s</tr></thead><tbody>%s</tbody></table></div>' % (head, "".join(body))
-
-def trk_save_record(rec):
-    """Simpan 1 catatan ke tab 'SiHD' (pola identik dengan form Mutasi: insert di baris 2 + refresh cache). -> True bila tersimpan di Cloud."""
-    ws_hd = gsheet_get_or_create_ws("SiHD", ["Timestamp", "Site Name", "NOP", "Teknisi", "Status", "Data JSON"])
-    if ws_hd:
-        row_hd = [rec["timestamp"], rec["site_name"], rec["nop"], rec["teknisi"], rec["status"], json.dumps(rec, ensure_ascii=False)]
-        _gsheet_retry(ws_hd.insert_row, row_hd, index=2)
-        fetch_data_from_gsheets.clear()
-        st.session_state['laporan_db'] = fetch_data_from_gsheets()
-        return True
-    get_laporan_db().insert(0, rec)
-    return False
-
-def ux_sihd_tracking_ui(db_sihd, fme_plk_list, fme_pbu_list, site_plk_list, site_pbu_list):
-    """Isi tab 'Tracking Tim MBP & Status Site' pada modul SiHD."""
-    _, coords_plk = load_site_master_plk()
-    _, coords_pbu = load_site_master_pbu()
-    df_tp, _, _ = load_master_tim_df("PLK")
-    df_tb, _, _ = load_master_tim_df("PBU")
-    team_dir = trk_team_directory(df_tp, df_tb)
-    site_status = trk_site_status_map(db_sihd)
-
-    st.markdown("### Tracking Tim MBP, Jarak ke Site & Status Site")
-    st.caption("Posisi tim diambil dari laporan Helpdesk (paste lokasi) atau Home Base di Master Tim. "
-               "Jarak = garis lurus (Haversine); estimasi jalan = jarak x %.2f; ETA mengikuti kecepatan rata-rata yang Anda atur." % TRK_ROAD_FACTOR)
-
-    f1, f2, f3, f4 = st.columns([1.2, 1.2, 1.4, 1.2])
-    f_nop = f1.selectbox("Area NOP:", ["Semua NOP", "Palangkaraya", "Pangkalan Bun"], key="trk_f_nop")
-    f_role = f2.selectbox("Cakupan tim:", ["MBP saja", "Semua tim"], key="trk_f_role")
-    f_spd = f3.slider("Kecepatan rata-rata (km/jam):", 20, 80, 40, step=5, key="trk_f_spd")
-    f_done = f4.checkbox("Tampilkan yang sudah selesai", value=False, key="trk_f_done")
-    roles = ["MBP"] if f_role == "MBP saja" else None
-    if roles and not any("MBP" in str(v.get("role", "")).upper() for v in team_dir.values()):
-        roles = None
-        st.info("Belum ada tim dengan role MBP di Master Tim — sementara ditampilkan semua tim.")
-
-    def _role_ok(role):
-        return (not roles) or any(x in str(role).upper() for x in roles)
-
-    sub_board, sub_upd, sub_near, sub_stat = st.tabs(["Papan Tracking", "Update Posisi & Status Site", "Cari Tim Terdekat", "Status Site (UP / DOWN)"])
-
-    # ---------------- PAPAN TRACKING ----------------
-    with sub_board:
-        df_b = trk_build_board(db_sihd, team_dir, coords_plk, coords_pbu, site_status, speed_kmh=f_spd, show_done=f_done)
-        if not df_b.empty:
-            if f_nop != "Semua NOP":
-                df_b = df_b[df_b["NOP"] == f_nop]
-            df_b = df_b[df_b["Role"].apply(_role_ok)] if roles else df_b
-            df_b = df_b.reset_index(drop=True)
-        n_down = int((df_b["Status_Site"] == "DOWN").sum()) if not df_b.empty else 0
-        n_otw = int(df_b["Pergerakan"].astype(str).str.lower().str.startswith("otw").sum()) if not df_b.empty else 0
-        n_on = int(df_b["Pergerakan"].astype(str).str.lower().str.startswith("on site").sum()) if not df_b.empty else 0
-        eta_otw = df_b[df_b["Pergerakan"].astype(str).str.lower().str.startswith("otw") & df_b["ETA_mnt"].notna()]["ETA_mnt"] if not df_b.empty else []
-        k1, k2, k3, k4 = st.columns(4)
-        k1.metric("Site DOWN (ditangani)", "%d Site" % n_down)
-        k2.metric("Tim OTW", "%d Tim" % n_otw)
-        k3.metric("Tim On Site", "%d Tim" % n_on)
-        k4.metric("Rata-rata ETA OTW", trk_fmt_eta(float(eta_otw.mean())) if len(eta_otw) else "-")
-        if df_b.empty:
-            st.info("Belum ada catatan tracking aktif (36 jam terakhir). Isi lewat tab **Update Posisi & Status Site** atau form Mutasi.")
-        else:
-            tile = st.radio("Peta:", ["Terang", "Gelap", "Satelit"], horizontal=True, key="trk_tile", label_visibility="collapsed")
-            if df_b["Site_Lat"].notna().any() or df_b["Pos_Lat"].notna().any():
-                st.components.v1.html(trk_map_html(df_b, tile=tile, height=480), height=495)
-            else:
-                st.caption("Koordinat site/tim belum tersedia untuk ditampilkan di peta.")
-            def _dist(r):
-                if r["Jarak_km"] is None or pd.isna(r["Jarak_km"]):
-                    return "-"
-                return ("Di lokasi" if r["Jarak_km"] == 0 else ("%.1f km" % r["Jarak_km"]).replace(".", ","))
-            cols = [
-                ("Tim", lambda r: "<b>%s</b><span class='ux-note'>%s · %s</span>" % (_esc(r["Tim"]), _esc(r["Role"]), _esc(r["NOP"]))),
-                ("Site tujuan", lambda r: _esc(r["Site"])),
-                ("Status site", lambda r: trk_chip(r["Status_Site"], r["Sumber_Status"])),
-                ("Pergerakan", lambda r: _esc(r["Pergerakan"])),
-                ("Jarak", lambda r: "<b>%s</b>" % _dist(r) + ("<span class='ux-note'>jalan ±%s km</span>" % ("%.1f" % r["Jalan_km"]).replace(".", ",") if (r["Jalan_km"] is not None and not pd.isna(r["Jalan_km"]) and r["Jalan_km"] > 0) else "")),
-                ("ETA", lambda r: _esc(trk_fmt_eta(None if pd.isna(r["ETA_mnt"]) else r["ETA_mnt"]))),
-                ("Posisi / update", lambda r: "%s<span class='ux-note'>%s · %s</span>" % (_esc(r["Posisi_Sumber"]), _esc(r["Update"]), _esc(r["Tiket"]))),
-            ]
-            st.markdown(trk_html_table(df_b, cols), unsafe_allow_html=True)
-            with st.expander("Lihat sebagai tabel data (salin / urutkan)"):
-                st.dataframe(df_b.drop(columns=["Pos_Lat", "Pos_Lon", "Site_Lat", "Site_Lon", "HP", "Site_ID"]), use_container_width=True, hide_index=True)
-
-    # ---------------- UPDATE POSISI & STATUS SITE ----------------
-    with sub_upd:
-        st.markdown("#### Catat Posisi Tim & Status Site")
-        with st.container(border=True):
-            u1, u2, u3 = st.columns(3)
-            with u1:
-                t_nop = st.selectbox("Area NOP:", ["Palangkaraya", "Pangkalan Bun"], key="trk_u_nop")
-                pool_names = sorted({v["nama"] for v in team_dir.values() if v["nop"] == t_nop and _role_ok(v["role"])})
-                if pool_names:
-                    t_team = st.selectbox("Tim / FME *:", pool_names, key="trk_u_team")
-                else:
-                    t_team = st.text_input("Tim / FME *:", key="trk_u_team_txt").strip()
-                t_pic = st.text_input("Nama Helpdesk / Dispatcher *:", value=st.session_state.get("hd_pic", ""), key="trk_u_pic")
-            with u2:
-                opsi_site = site_plk_list if t_nop == "Palangkaraya" else site_pbu_list
-                t_site = st.selectbox("Site tujuan *:", opsi_site, key="trk_u_site") if opsi_site else st.text_input("Site tujuan *:", key="trk_u_site_txt").strip()
-                known = site_status.get(_norm_site_id(t_site)) if t_site else None
-                cur = known["status"] if known else "UNKNOWN"
-                t_sst = st.radio("Status site saat ini:", TRK_STATUS_OPTS, index=TRK_STATUS_OPTS.index(cur), horizontal=True, key="trk_u_sst_%s" % _norm_site_id(t_site))
-                t_mv = st.selectbox("Status pergerakan:", TRK_MOVE_OPTS, key="trk_u_mv")
-            with u3:
-                t_pos = st.text_input("Posisi tim (opsional):", placeholder="Paste: -2.2136, 113.9108 atau link Google Maps / Live Location WA", key="trk_u_pos")
-                t_shift = st.selectbox("Shift Jaga:", ["Pagi (08:00 - 16:00)", "Siang (16:00 - 00:00)", "Malam (00:00 - 08:00)"], key="trk_u_shift")
-                t_tiket = st.text_input("No. Tiket / Incident (opsional):", key="trk_u_tiket")
-            t_ket = st.text_area("Catatan (kondisi jalan, kendala, info handover):", key="trk_u_ket", height=80)
-
-            parsed = trk_parse_latlon(t_pos) if t_pos.strip() else None
-            tgt = trk_site_lookup(t_site, coords_plk, coords_pbu) if t_site else None
-            mem_u = trk_find_member(t_team, team_dir) if t_team else None
-            if t_pos.strip() and not parsed:
-                st.warning("Format posisi belum terbaca. Contoh: -2.2136, 113.9108")
-            if parsed and not trk_in_indonesia(*parsed):
-                st.warning("Koordinat tampak berada di luar wilayah Indonesia — periksa kembali.")
-            pos_use = parsed if (parsed and trk_in_indonesia(*parsed)) else ((mem_u["lat"], mem_u["lon"]) if (mem_u and mem_u.get("lat") is not None) else None)
-            if tgt and pos_use:
-                d_u, road_u, eta_u = trk_dist_pack(pos_use[0], pos_use[1], tgt["lat"], tgt["lon"], f_spd)
-                src_u = "posisi yang Anda paste" if parsed else "Home Base"
-                st.info("Jarak tim ke site (dari %s): **%s km** garis lurus · estimasi jalan **±%s km** · ETA **%s**" % (
-                    src_u, ("%.1f" % d_u).replace(".", ","), ("%.1f" % road_u).replace(".", ","), trk_fmt_eta(eta_u)))
-            elif tgt and not pos_use:
-                st.caption("Posisi tim belum diketahui (Home Base kosong). Paste lokasi tim agar jarak bisa dihitung.")
-            elif t_site and not tgt:
-                st.caption("Koordinat site ini belum ada di Master Site — jarak tidak bisa dihitung.")
-
-            if st.button("Simpan Tracking ke SiHD", type="primary", use_container_width=True, key="trk_u_save"):
-                if not t_team or not t_pic.strip() or not t_site:
-                    st.error("Tim, Nama Helpdesk, dan Site tujuan wajib diisi.")
-                else:
-                    rec = {
-                        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "site_name": str(t_site), "kategori": "SiHD", "nop": t_nop, "teknisi": t_team, "status": t_mv,
-                        "action": (t_ket.strip() or "Update tracking tim"), "hd_shift": t_shift, "hd_pic": t_pic.strip(),
-                        "hd_kat_giat": TRK_KAT, "hd_tiket": t_tiket.strip() or "-", "_sheet": "SiHD",
-                        "trk_team": t_team, "trk_role": (mem_u or {}).get("role", ""), "trk_site": str(t_site),
-                        "trk_site_status": t_sst, "trk_lat": (parsed[0] if parsed else ""), "trk_lon": (parsed[1] if parsed else ""),
-                    }
-                    with st.spinner("Menyimpan tracking ke Google Sheets tab 'SiHD'..."):
-                        ok_cloud = trk_save_record(rec)
-                    if ok_cloud:
-                        st.success("Tracking tersimpan. Papan, peta, dan status site ikut diperbarui.")
-                    else:
-                        st.warning("Tersimpan di sesi lokal (koneksi Google Sheets sedang offline).")
-                    wa_t = ("*TRACKING TIM (SiHD)*\nNOP: %s | Shift: %s\nTim: %s\nSite: %s\nStatus site: *%s*\nPergerakan: *%s*\n%s%sCatatan: %s"
-                            % (t_nop, t_shift, t_team, t_site, t_sst, t_mv,
-                               ("Jarak: %s km (±%s km jalan, ETA %s)\n" % (("%.1f" % d_u).replace(".", ","), ("%.1f" % road_u).replace(".", ","), trk_fmt_eta(eta_u))) if (tgt and pos_use) else "",
-                               ("Lokasi tim: https://www.google.com/maps?q=%s,%s\n" % parsed) if parsed else "", rec["action"]))
-                    st.link_button("Kirim Update Tracking ke WhatsApp", "https://wa.me/?text=" + urllib.parse.quote(wa_t), use_container_width=True)
-
-    # ---------------- CARI TIM TERDEKAT ----------------
-    with sub_near:
-        st.markdown("#### Tim Mana yang Paling Dekat ke Site?")
-        n1, n2 = st.columns([2.2, 1])
-        all_sites = sorted(set(list(site_plk_list or []) + list(site_pbu_list or [])))
-        down_first = [s for s in all_sites if site_status.get(_norm_site_id(s), {}).get("status") == "DOWN"]
-        opts = down_first + [s for s in all_sites if s not in down_first]
-        pick_site = n1.selectbox("Pilih site (site DOWN ditampilkan paling atas):", opts, key="trk_n_site") if opts else n1.text_input("Site:", key="trk_n_site_txt")
-        top_n = n2.number_input("Tampilkan tim terdekat:", min_value=3, max_value=30, value=8, step=1, key="trk_n_top")
-        if pick_site:
-            df_n, tgt_n = trk_nearest_teams(pick_site, team_dir, db_sihd, coords_plk, coords_pbu, speed_kmh=f_spd, roles=roles)
-            ss_n = site_status.get(_norm_site_id(pick_site))
-            if tgt_n is None:
-                st.warning("Koordinat site ini belum ada di Master Site, sehingga jarak tidak bisa dihitung.")
-            elif df_n.empty:
-                st.info("Belum ada tim dengan posisi/Home Base yang terdata untuk filter ini.")
-            else:
-                st.markdown("Site **%s** · status %s" % (_esc(tgt_n["sid"] + " · " + str(tgt_n["name"])), trk_chip((ss_n or {}).get("status", "UNKNOWN"), (ss_n or {}).get("src", ""))), unsafe_allow_html=True)
-                df_n = df_n.head(int(top_n)).reset_index(drop=True)
-                cols_n = [
-                    ("#", lambda r: str(int(r.name) + 1)),
-                    ("Tim", lambda r: "<b>%s</b><span class='ux-note'>%s · %s</span>" % (_esc(r["Tim"]), _esc(r["Role"]), _esc(r["NOP"]))),
-                    ("Kondisi", lambda r: _esc(r["Kondisi"])),
-                    ("Jarak", lambda r: "<b>%s km</b><span class='ux-note'>jalan ±%s km</span>" % (("%.1f" % r["Jarak_km"]).replace(".", ","), ("%.1f" % r["Jalan_km"]).replace(".", ","))),
-                    ("ETA", lambda r: _esc(trk_fmt_eta(r["ETA_mnt"]))),
-                    ("Sumber posisi", lambda r: _esc(r["Posisi"])),
-                ]
-                st.markdown(trk_html_table(df_n, cols_n), unsafe_allow_html=True)
-                best = df_n.iloc[0]
-                wa_n = ("*PENUGASAN TIM KE SITE*\nSite: %s\nStatus site: *%s*\nTim terdekat: *%s* (%s)\nJarak: %s km (±%s km jalan) · ETA %s\nMohon segera menuju lokasi dan update status di SiHD."
-                        % (tgt_n["sid"] + " - " + str(tgt_n["name"]), (ss_n or {}).get("status", "UNKNOWN"), best["Tim"], best["Role"],
-                           ("%.1f" % best["Jarak_km"]).replace(".", ","), ("%.1f" % best["Jalan_km"]).replace(".", ","), trk_fmt_eta(best["ETA_mnt"])))
-                hp = str(best.get("HP", "") or "")
-                if hp.startswith("0"):
-                    hp = "62" + hp[1:]
-                url_wa = ("https://wa.me/%s?text=" % hp if len(hp) >= 9 else "https://wa.me/?text=") + urllib.parse.quote(wa_n)
-                st.link_button("Tugaskan %s via WhatsApp" % best["Tim"], url_wa, type="primary", use_container_width=True)
-
-    # ---------------- STATUS SITE ----------------
-    with sub_stat:
-        st.markdown("#### Status Site Terkini (UP / DOWN)")
-        df_s = trk_site_status_table(site_status, coords_plk, coords_pbu)
-        if df_s.empty:
-            st.info("Belum ada status site tercatat. Status terisi dari tab Update Posisi & Status Site, atau otomatis dari tiket 'Troubleshoot Down / Alarm' di form Mutasi.")
-        else:
-            c_a, c_b, c_c = st.columns(3)
-            c_a.metric("DOWN", "%d Site" % int((df_s["Status"] == "DOWN").sum()))
-            c_b.metric("Degraded", "%d Site" % int((df_s["Status"] == "DEGRADED").sum()))
-            c_c.metric("UP", "%d Site" % int((df_s["Status"] == "UP").sum()))
-            flt = st.radio("Filter:", ["Semua", "DOWN", "DEGRADED", "UP"], horizontal=True, key="trk_s_flt", label_visibility="collapsed")
-            if flt != "Semua":
-                df_s = df_s[df_s["Status"] == flt]
-            cols_s = [
-                ("Site", lambda r: "<b>%s</b><span class='ux-note'>%s</span>" % (_esc(r["Site_ID"]), _esc(r["Nama"]))),
-                ("Status", lambda r: trk_chip(r["Status"], r["Sumber"])),
-                ("Sumber", lambda r: _esc(r["Sumber"])),
-                ("Update", lambda r: "%s<span class='ux-note'>%s</span>" % (_esc(r["Update"]), _esc(r["Waktu"]))),
-                ("Tim terkait", lambda r: _esc(r["Tim"])),
-                ("Catatan", lambda r: _esc(str(r["Catatan"])[:140])),
-            ]
-            st.markdown(trk_html_table(df_s.reset_index(drop=True), cols_s), unsafe_allow_html=True)
-
-# =========================================================================
 # 📋 ENGINE TO DO LIST RTS (FORMAT EXCEL RESMI + CARRY-OVER + AUTO-CLOSED SIDATA)
 # =========================================================================
 DAILY_CLUSTER_PLK_OPTS = [
@@ -3636,16 +2555,21 @@ def find_duplicate_todo_tids(df_todo):
                 excess_tids.append(it[0])
     return excess_tids, all_dup_tids
 
-def todo_is_pm_task(cat_task, cat_activity=""):
-    """True bila pekerjaan berkategori PM (Preventive Maintenance) -> report resmi di SWFM, bukan wajib SIDATA."""
+def is_todolist_pm_task(cat_task="", cat_act="", activity=""):
+    """Menentukan apakah task bertipe PM (tidak wajib upload SIDATA -> update manual penuh oleh RTS)."""
     ct = str(cat_task or "").strip().lower()
-    ca = str(cat_activity or "").strip().lower()
-    if ct in ("pm", "pms", "pm site", "preventive", "preventive maintenance", "preventive maintenance (pm)"):
+    ca = str(cat_act or "").strip().lower()
+    ac = str(activity or "").strip().lower()
+    if ct == "pm" or ct.startswith("pm ") or ct.startswith("pm/") or "preventive" in ct:
         return True
-    return ct.startswith("pm ") or ct.startswith("pm-") or "preventive maintenance (pm)" in ca or ca in ("pm", "preventive maintenance")
+    if "preventive maintenance" in ca or ca == "pm":
+        return True
+    if ac == "pm" or ac.startswith("pm ") or ac.startswith("pm/"):
+        return True
+    return False
 
 def evaluate_todolist_rts(df_todo, db_list, active_date=None):
-    """Sinkronisasi To Do List RTS dengan report SIDATA (Auto-Closing) + Deteksi Carry-Over Pending otomatis lintas hari + Penanda Double Input."""
+    """Sinkronisasi To Do List RTS dengan report SIDATA (Auto-Closing untuk Non-PM, Update Manual RTS untuk PM) + Carry-Over Pending + Double Input."""
     if active_date is None:
         active_date = datetime.date.today()
     if df_todo is None or df_todo.empty:
@@ -3679,6 +2603,8 @@ def evaluate_todolist_rts(df_todo, db_list, active_date=None):
         start_d = start_dt_obj.date() if pd.notna(start_dt_obj) else active_date
         start_iso = start_d.strftime("%Y-%m-%d")
 
+        is_pm = is_todolist_pm_task(cat_t, cat_act, act_v)
+
         matched_rep = None
         if sid_n and sid_n in sid_idx:
             reps = [rp for rp in sid_idx[sid_n] if rp["tgl"] >= start_iso]
@@ -3686,18 +2612,24 @@ def evaluate_todolist_rts(df_todo, db_list, active_date=None):
                 matched_rep = reps[-1]
 
         is_manual_done = st_manual.strip().lower() in ("done", "closed", "selesai")
-        # Pekerjaan PM: laporan resmi ada di SWFM -> TIDAK wajib upload SIDATA, status murni diupdate manual
-        is_pm_task = todo_is_pm_task(cat_t, cat_act)
-        if is_pm_task:
-            matched_rep = None
-        auto_closed_hit = matched_rep is not None
+        auto_closed_hit = (matched_rep is not None) and (not is_pm)
         needs_cloud_close = auto_closed_hit and (not is_manual_done)
 
-        if is_pm_task:
+        if is_pm:
+            # Khusus PM: tim TIDAK wajib upload SIDATA -> kendali penuh manual oleh RTS
             eff_status = "Done" if is_manual_done else st_manual
-            end_eff = (end_s if end_s else start_iso) if is_manual_done else end_s
-            sync_lbl = "Done (Update Manual · Report di SWFM)" if is_manual_done else f"{eff_status} (Update Manual · Report di SWFM)"
-            bukti_lbl = "PM: report di SWFM, SIDATA tidak wajib" if not is_manual_done else "PM ditutup manual (report di SWFM)"
+            if is_manual_done:
+                end_eff = end_s if end_s else start_iso
+                sync_lbl = "✅ Done (Manual RTS · PM)"
+                bukti_lbl = "🛠️ PM Selesai (Update Manual RTS)"
+                if matched_rep:
+                    bukti_lbl += f" · Info SIDATA: {matched_rep['tgl']} {matched_rep['jam']}"
+            else:
+                end_eff = end_s
+                sync_lbl = f"🛠️ PM — Update Manual RTS ({eff_status})"
+                bukti_lbl = "🛠️ PM: Tidak wajib SIDATA (Update Manual RTS)"
+                if matched_rep:
+                    bukti_lbl += f" · ℹ️ Ada input SIDATA {matched_rep['tgl']} {matched_rep['jam']}"
         elif auto_closed_hit:
             eff_status = "Done"
             end_eff = end_s if end_s else matched_rep["tgl"]
@@ -3748,10 +2680,10 @@ def evaluate_todolist_rts(df_todo, db_list, active_date=None):
             "Tipe_Board": tipe_board,
             "Status_Sync_SIDATA": sync_lbl,
             "Bukti_SIDATA": bukti_lbl,
+            "Is_PM": is_pm,
             "Is_Carry_Over": is_carry,
             "Is_Active_Board": (is_today or is_carry),
             "Needs_Cloud_Close": needs_cloud_close,
-            "Is_PM_Manual": is_pm_task,
             "Aging_Hari": aging_h,
             "Is_Duplicate": tid in dup_tids_set
         }
@@ -3766,9 +2698,9 @@ def render_todolist_responsive_table(df_show, is_mobile=False):
 
     css = """
     <style>
-    .td-wrap{width:100%;margin:8px 0 18px;border-radius:10px;overflow:hidden;border:1px solid var(--ux-line);background:var(--ux-card);box-shadow:var(--ux-shadow)}
+    .td-wrap{width:100%;margin:8px 0 18px;border-radius:16px;overflow:hidden;border:1px solid var(--ux-line);background:var(--ux-card);box-shadow:var(--ux-shadow)}
     .td-tbl{width:100%;border-collapse:collapse;table-layout:fixed;font-size:.82rem;line-height:1.45;color:var(--ux-ink)}
-    .td-tbl thead th{background:var(--ux-navy);color:#f2f6fc;font-weight:600;font-size:.76rem;padding:10px 9px;text-align:left;border-bottom:0}
+    .td-tbl thead th{background:linear-gradient(135deg,#0f172a,#1e3a5f);color:#f8fafc;font-weight:800;font-size:.73rem;text-transform:uppercase;letter-spacing:.04em;padding:10px 9px;text-align:left;border-bottom:2px solid rgba(226,185,59,.5)}
     .td-tbl tbody td{padding:9px 9px;vertical-align:top;border-bottom:1px solid var(--ux-line);word-wrap:break-word;overflow-wrap:anywhere;white-space:normal}
     .td-tbl tbody tr:last-child td{border-bottom:0}
     .td-tbl tbody tr:hover{background:var(--ux-card2)}
@@ -3776,18 +2708,18 @@ def render_todolist_responsive_table(df_show, is_mobile=False):
     .td-row-carry{background:rgba(239,68,68,.08)}
     .td-row-pend{background:rgba(245,158,11,.07)}
     .td-pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.70rem;font-weight:800;line-height:1.35;margin:0 4px 3px 0;white-space:nowrap}
-    .td-p1{background:#B3261E;color:#fff} .td-p2{background:#B7791F;color:#fff} .td-p3{background:#475569;color:#fff} .td-swfm{background:rgba(27,95,193,.10);color:#174F9E;border:1px solid rgba(27,95,193,.30)}
+    .td-p1{background:#dc2626;color:#fff} .td-p2{background:#d97706;color:#fff} .td-p3{background:#475569;color:#fff}
     .td-st-done{background:#059669;color:#fff} .td-st-pend{background:#dc2626;color:#fff} .td-st-wait{background:#d97706;color:#fff} .td-st-prog{background:#2563eb;color:#fff}
-    .td-bd-carry{background:#be123c;color:#fff} .td-bd-today{background:#1d4ed8;color:#fff} .td-bd-arch{background:#475569;color:#fff} .td-bd-dup{background:#f59e0b;color:#111827}
+    .td-bd-carry{background:#be123c;color:#fff} .td-bd-today{background:#1d4ed8;color:#fff} .td-bd-arch{background:#475569;color:#fff} .td-bd-dup{background:#f59e0b;color:#111827} .td-bd-pm{background:#0284c7;color:#fff}
     .td-sub{display:block;font-size:.74rem;color:var(--ux-muted);margin-top:2px}
     .td-site{font-weight:800;font-size:.85rem;color:var(--ux-accent)}
     .td-cards{display:flex;flex-direction:column;gap:10px;margin:8px 0 18px}
-    .td-card{background:var(--ux-card);border:1px solid var(--ux-line);border-left:4px solid var(--ux-accent);border-radius:10px;padding:12px 13px;box-shadow:var(--ux-shadow);font-size:.84rem;line-height:1.45}
+    .td-card{background:var(--ux-card);border:1px solid var(--ux-line);border-left:5px solid var(--ux-accent);border-radius:14px;padding:12px 13px;box-shadow:var(--ux-shadow);font-size:.84rem;line-height:1.45}
     .td-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:6px}
     @media (max-width:860px){
         .td-tbl thead{display:none}
         .td-tbl,.td-tbl tbody,.td-tbl tr,.td-tbl td{display:block;width:100% !important}
-        .td-tbl tbody tr{margin:10px 0;border:1px solid var(--ux-line);border-radius:10px;padding:6px 8px;background:var(--ux-card);box-shadow:var(--ux-shadow)}
+        .td-tbl tbody tr{margin:10px;border:1px solid var(--ux-line);border-radius:12px;padding:6px 8px;background:var(--ux-card);box-shadow:var(--ux-shadow)}
         .td-tbl tbody td{border-bottom:1px dashed var(--ux-line);padding:6px 4px}
         .td-tbl tbody td:last-child{border-bottom:0}
         .td-tbl tbody td::before{content:attr(data-lbl);display:block;font-size:.68rem;font-weight:800;text-transform:uppercase;color:var(--ux-muted);margin-bottom:2px}
@@ -3813,8 +2745,7 @@ def render_todolist_responsive_table(df_show, is_mobile=False):
             is_d = bool(r.get("Is_Duplicate", False))
             bdr = "#059669" if st_v == "Done" else ("#dc2626" if is_c else "#2563EB")
             bd_cls = "td-bd-carry" if is_c else ("td-bd-today" if "Hari Ini" in str(r.get("Tipe_Board", "")) else "td-bd-arch")
-            dup_b = '<span class="td-pill td-bd-dup">Double Input</span>' if is_d else ""
-            if bool(r.get("Is_PM_Manual", False)): dup_b += '<span class="td-pill td-swfm">PM · SWFM</span>'
+            dup_b = ('<span class="td-pill td-bd-dup">⚠️ Double Input</span>' if is_d else "") + ('<span class="td-pill td-bd-pm">🛠️ PM Manual</span>' if bool(r.get("Is_PM", False)) else "")
             act_txt = " · ".join([x for x in [str(r.get("Activity", "")).strip(), str(r.get("Detail Activity", "")).strip()] if x and x != "-"]) or "-"
             end_txt = f" ➔ {r['End Date']}" if str(r.get("End Date", "")).strip() else ""
             cards.append(
@@ -3842,8 +2773,7 @@ def render_todolist_responsive_table(df_show, is_mobile=False):
         is_d = bool(r.get("Is_Duplicate", False))
         tr_cls = "td-row-done" if st_v == "Done" else ("td-row-carry" if is_c else ("td-row-pend" if "pend" in st_v.lower() else ""))
         bd_cls = "td-bd-carry" if is_c else ("td-bd-today" if "Hari Ini" in str(r.get("Tipe_Board", "")) else "td-bd-arch")
-        dup_b = '<span class="td-pill td-bd-dup">Double Input</span>' if is_d else ""
-        if bool(r.get("Is_PM_Manual", False)): dup_b += '<span class="td-pill td-swfm">PM · SWFM</span>'
+        dup_b = ('<span class="td-pill td-bd-dup">⚠️ Double Input</span>' if is_d else "") + ('<span class="td-pill td-bd-pm">🛠️ PM Manual</span>' if bool(r.get("Is_PM", False)) else "")
         end_s = str(r.get("End Date", "")).strip()
         tgl_sub = f"Start: {r.get('Start Date', '-')}" + (f"<br>End: {end_s}" if end_s else "")
         act_main = str(r.get("Activity", "")).strip()
@@ -3941,6 +2871,298 @@ def build_todolist_rts_excel(df_eval):
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+# =========================================================================
+# 🚐 ENGINE SiHD TRACKING MBP (JARAK TIM KE SITE + STATUS SITE UP/DOWN + PETA LIVE)
+# =========================================================================
+COLS_SIHD_MBP = [
+    "Track_ID", "Timestamp", "NOP", "Shift", "Helpdesk_PIC",
+    "Tim_MBP", "Unit_Genset_MBP", "Site_ID", "Site_Name",
+    "Status_Site", "Status_Pergerakan", "Asal_Posisi_Tim",
+    "Lat_Tim", "Lon_Tim", "Lat_Site", "Lon_Site",
+    "Jarak_Lurus_km", "Est_Jalan_km", "Est_Waktu_Tempuh",
+    "Waktu_Down", "Waktu_OnSite", "Waktu_Up", "Durasi_Down",
+    "BBM_Liter", "Tiket_Incident", "Keterangan", "Updated_At"
+]
+
+MBP_SITE_STATUS_OPTS = [
+    "🔴 DOWN",
+    "🟡 ON BACKUP MBP (UP)",
+    "🟠 FLAPPING / ALARM POWER",
+    "🟢 UP (PLN NORMAL)"
+]
+
+MBP_MOVE_STATUS_OPTS = [
+    "🚗 OTW ke Site",
+    "⚡ On Site — Running Genset",
+    "⛽ Refuel / Pengisian BBM",
+    "🏠 Standby / Kembali Homebase",
+    "✅ Selesai / Clear"
+]
+
+POSKO_CLUSTER_COORDS = {
+    "PLK": {
+        "Posko Palangka Raya Kota": (-2.2136, 113.9108),
+        "Posko Kapuas (Kuala Kapuas)": (-3.0091, 114.3876),
+        "Posko Pulang Pisau": (-2.7586, 114.2530),
+        "Posko Timpah": (-1.7160, 114.4320),
+        "Posko Kayubulan": (-2.3850, 113.6800),
+        "Posko Katingan (Kasongan)": (-1.8942, 113.3947),
+        "Posko Gunung Mas (Kuala Kurun)": (-1.0972, 113.8617),
+        "Posko Barito Utara (Muara Teweh)": (-0.9553, 114.8966),
+        "Posko Barito Selatan (Buntok)": (-1.7186, 114.8390),
+        "Posko Barito Timur (Tamiang Layang)": (-2.1157, 115.1682),
+        "Posko Murung Raya (Puruk Cahu)": (-0.6258, 114.5688),
+    },
+    "PBU": {
+        "Posko Pangkalan Bun (Kobar)": (-2.6832, 111.6259),
+        "Posko Sampit (Kotim)": (-2.5390, 112.9533),
+        "Posko Ketapang (Kalbar)": (-1.8313, 109.9719),
+        "Posko Sukamara": (-2.7079, 111.2368),
+        "Posko Nanga Bulik (Lamandau)": (-2.1753, 111.4648),
+        "Posko Kuala Pembuang (Seruyan)": (-3.3917, 112.5489),
+    }
+}
+
+def _calc_eta_str(est_road_km, avg_speed_kmh=40.0):
+    if est_road_km is None or est_road_km <= 0:
+        return "-"
+    mins = int(round((float(est_road_km) / avg_speed_kmh) * 60.0))
+    if mins < 60:
+        return f"{max(mins, 5)} mnt"
+    hrs, rem_m = divmod(mins, 60)
+    return f"{hrs} jam {rem_m} mnt" if rem_m else f"{hrs} jam"
+
+def _calc_durasi_str(start_str, end_str):
+    t1 = pd.to_datetime(start_str, errors="coerce")
+    t2 = pd.to_datetime(end_str, errors="coerce") if str(end_str or "").strip() else pd.Timestamp.now()
+    if pd.isna(t1) or pd.isna(t2):
+        return "-"
+    diff_sec = max(0, int((t2 - t1).total_seconds()))
+    hrs, rem = divmod(diff_sec // 60, 60)
+    return f"{hrs}j {rem}m" if hrs > 0 else f"{rem} mnt"
+
+def build_mbp_fme_coords_map(df_tim, nop_key):
+    """Membangun dictionary koordinat homebase tim (dari Master Tim Cloud + fallback Posko Cluster)."""
+    fmap = {}
+    if df_tim is not None and not df_tim.empty:
+        c_lat = "LAT_HB" if nop_key == "PLK" else "Latitude Berangkat"
+        c_lon = "LON_HB" if nop_key == "PLK" else "Longtitude Berangkat"
+        for _, rw in df_tim.iterrows():
+            nm = str(rw.get("NAMA", "")).strip().upper()
+            if not nm:
+                continue
+            lv = pd.to_numeric(rw.get(c_lat), errors="coerce")
+            ov = pd.to_numeric(rw.get(c_lon), errors="coerce")
+            if pd.notna(lv) and pd.notna(ov):
+                fmap[nm] = (float(lv), float(ov))
+            elif nop_key == "PLK":
+                cl_str = str(rw.get("CLUSTER", "")).strip().lower()
+                for pk_lbl, pk_xy in POSKO_CLUSTER_COORDS["PLK"].items():
+                    if cl_str and (cl_str in pk_lbl.lower() or pk_lbl.lower().replace("posko ", "") in cl_str):
+                        fmap[nm] = pk_xy
+                        break
+    return fmap
+
+def render_sihd_mbp_map_html(mbp_items, map_theme="Dark NOC Command Center"):
+    """Peta Interaktif Leaflet khusus SiHD Tracking MBP: Posisi Tim MBP -> Site Tujuan + Badge Jarak km + Warna Status Site UP/DOWN."""
+    if "Satelit" in map_theme:
+        tile_url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        tile_sub = ""
+    elif "Terang" in map_theme:
+        tile_url = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        tile_sub = "abcd"
+    else:
+        tile_url = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        tile_sub = "abcd"
+
+    payload = json.dumps(mbp_items or [], ensure_ascii=False)
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8" />
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <style>
+            body {{ margin:0; padding:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:transparent; }}
+            #mbpmap {{ width:100%; height:540px; border-radius:16px; border:1.5px solid rgba(56,189,248,.5); box-shadow:0 16px 36px rgba(0,0,0,.32); overflow:hidden; }}
+            .pin-van {{ width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#2563eb,#0284c7); border:2.5px solid #fff; color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 16px rgba(37,99,235,.9); }}
+            .pin-down {{ width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#ef4444,#b91c1c); border:2.5px solid #fde047; color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 20px rgba(239,68,68,.95); animation:pulseDown 1.5s infinite; }}
+            .pin-bkp {{ width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#facc15,#d97706); border:2.5px solid #fff; color:#0f172a; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:900; box-shadow:0 0 16px rgba(245,158,11,.92); }}
+            .pin-flap {{ width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#fb923c,#ea580c); border:2.5px solid #fff; color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 16px rgba(249,115,22,.9); }}
+            .pin-up {{ width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#10b981,#047857); border:2.5px solid #ecfdf5; color:#fff; display:flex; align-items:center; justify-content:center; font-size:15px; box-shadow:0 0 14px rgba(16,185,129,.85); }}
+            @keyframes pulseDown {{ 0% {{ box-shadow:0 0 0 0 rgba(239,68,68,.85); }} 70% {{ box-shadow:0 0 0 17px rgba(239,68,68,0); }} 100% {{ box-shadow:0 0 0 0 rgba(239,68,68,0); }} }}
+            @keyframes flowDash {{ from {{ stroke-dashoffset: 36; }} to {{ stroke-dashoffset: 0; }} }}
+            .flow-mbp {{ animation: flowDash 1.4s linear infinite; }}
+            .pin-lbl {{ position:absolute; top:36px; left:50%; transform:translateX(-50%); background:rgba(15,23,42,.94); color:#f8fafc; font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:5px; white-space:nowrap; border:1.5px solid rgba(255,255,255,.28); pointer-events:none; }}
+            .dist-badge {{ background:rgba(15,23,42,.95); color:#fff; font-size:10px; font-weight:800; padding:2px 8px; border-radius:99px; white-space:nowrap; border:1.5px solid #38bdf8; box-shadow:0 2px 8px rgba(0,0,0,.5); pointer-events:none; }}
+            .leaflet-popup-content-wrapper {{ background:linear-gradient(145deg,#0f172a,#1e293b) !important; color:#f8fafc !important; border-radius:14px !important; border:1px solid rgba(56,189,248,.48); max-width:320px; }}
+            .leaflet-popup-tip {{ background:#1e293b !important; }}
+            .pc {{ min-width:240px; font-size:12px; line-height:1.55; }}
+            .pc-h {{ font-size:13.5px; font-weight:800; border-bottom:1px solid rgba(255,255,255,.15); padding-bottom:5px; margin-bottom:6px; }}
+            .pc-btn {{ display:block; text-align:center; margin-top:8px; padding:6px; border-radius:7px; background:#2563eb; color:#fff !important; text-decoration:none; font-weight:800; font-size:11px; }}
+            .map-leg {{ background:rgba(15,23,42,.93); color:#f8fafc; padding:10px 13px; border-radius:12px; border:1px solid rgba(255,255,255,.22); font-size:11px; line-height:1.75; }}
+            .ld {{ display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; border:1.5px solid #fff; vertical-align:middle; }}
+        </style>
+    </head>
+    <body>
+        <div id="mbpmap"></div>
+        <script>
+            const items = {payload};
+            const map = L.map('mbpmap', {{ center: [-2.15, 113.2], zoom: 7 }});
+            L.tileLayer('{tile_url}', {{ subdomains: '{tile_sub}', maxZoom: 19, attribution: '⚡ SiHD MBP Live Radar' }}).addTo(map);
+            const bounds = [];
+            const cnt = {{ DOWN: 0, BACKUP: 0, FLAP: 0, UP: 0 }};
+
+            function mkPin(cls, ico, lbl, bdr) {{
+                return L.divIcon({{
+                    className: '', iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -18],
+                    html: `<div style="position:relative;"><div class="${{cls}}">${{ico}}</div><div class="pin-lbl" style="border-color:${{bdr}};">${{lbl}}</div></div>`
+                }});
+            }}
+
+            function curve(p1, p2) {{
+                const dLat = p2[0] - p1[0], dLon = p2[1] - p1[1];
+                if (Math.hypot(dLat, dLon) < 0.0005) return [p1, p2];
+                const cLat = (p1[0] + p2[0]) / 2 - dLon * 0.16;
+                const cLon = (p1[1] + p2[1]) / 2 + dLat * 0.16;
+                const pts = [];
+                for (let i = 0; i <= 24; i++) {{
+                    const t = i / 24, inv = 1 - t;
+                    pts.push([inv*inv*p1[0] + 2*inv*t*cLat + t*t*p2[0], inv*inv*p1[1] + 2*inv*t*cLon + t*t*p2[1]]);
+                }}
+                return pts;
+            }}
+
+            items.forEach(it => {{
+                const hasTim = it.lat_tim !== null && it.lon_tim !== null;
+                const hasSite = it.lat_site !== null && it.lon_site !== null;
+                const st = (it.status_site || '').toUpperCase();
+                let cls = 'pin-up', ico = '✓', col = '#10b981', z = 200;
+                if (st.includes('DOWN')) {{ cls = 'pin-down'; ico = '!'; col = '#ef4444'; z = 700; cnt.DOWN++; }}
+                else if (st.includes('BACKUP')) {{ cls = 'pin-bkp'; ico = '⚡'; col = '#eab308'; z = 500; cnt.BACKUP++; }}
+                else if (st.includes('FLAP') || st.includes('ALARM')) {{ cls = 'pin-flap'; ico = '⚠'; col = '#f97316'; z = 450; cnt.FLAP++; }}
+                else {{ cnt.UP++; }}
+
+                if (hasTim) {{
+                    bounds.push([it.lat_tim, it.lon_tim]);
+                    L.marker([it.lat_tim, it.lon_tim], {{ icon: mkPin('pin-van', '🚐', 'MBP: ' + it.tim_mbp, '#38bdf8'), zIndexOffset: 300 }}).addTo(map)
+                        .bindPopup(`<div class="pc"><div class="pc-h" style="color:#38bdf8;">🚐 TIM MBP: ${{it.tim_mbp}}</div><div>🔋 <b>Unit Genset:</b> ${{it.unit_mbp}}</div><div>📍 <b>Posisi Awal:</b> ${{it.asal_posisi}}</div><div>🎯 <b>Menuju Site:</b> ${{it.site_id}}</div><div>📏 <b>Jarak:</b> ${{it.est_jalan_km}} km (Lurus ${{it.jarak_km}} km · ETA ${{it.eta}})</div><div>🚦 <b>Pergerakan:</b> ${{it.status_move}}</div></div>`);
+                }}
+
+                if (hasSite) {{
+                    bounds.push([it.lat_site, it.lon_site]);
+                    const lblS = `${{it.site_id}} · ${{st.includes('DOWN') ? 'DOWN' : (st.includes('BACKUP') ? 'MBP UP' : (st.includes('FLAP') ? 'ALARM' : 'UP'))}}`;
+                    L.marker([it.lat_site, it.lon_site], {{ icon: mkPin(cls, ico, lblS, col), zIndexOffset: z }}).addTo(map)
+                        .bindPopup(`<div class="pc"><div class="pc-h" style="color:${{col}};">🗼 ${{it.site_id}} — ${{it.site_name}}</div><div>🚦 <b>Status Site:</b> <b style="color:${{col}};">${{it.status_site}}</b></div><div>🚐 <b>Tim MBP:</b> ${{it.tim_mbp}} (${{it.unit_mbp}})</div><div>🛣️ <b>Jarak dari Tim:</b> ${{it.est_jalan_km}} km (ETA ${{it.eta}})</div><div>⏱️ <b>Down / Durasi:</b> ${{it.waktu_down}} (${{it.durasi_down}})</div><div>⛽ <b>BBM:</b> ${{it.bbm}} L | <b>Pergerakan:</b> ${{it.status_move}}</div><div>📝 <b>Catatan:</b> ${{it.ket}}</div><a class="pc-btn" style="background:${{col}};" href="https://www.google.com/maps?q=${{it.lat_site}},${{it.lon_site}}" target="_blank">🧭 Navigasi Google Maps</a></div>`);
+                }}
+
+                if (hasTim && hasSite) {{
+                    const pts = curve([it.lat_tim, it.lon_tim], [it.lat_site, it.lon_site]);
+                    L.polyline(pts, {{ color: col, weight: 8, opacity: 0.22 }}).addTo(map);
+                    L.polyline(pts, {{ color: col, weight: 3.6, opacity: 0.94 }}).addTo(map);
+                    L.polyline(pts, {{ color: '#ffffff', weight: 1.5, opacity: 0.72, dashArray: '6, 12', className: 'flow-mbp' }}).addTo(map);
+                    const mid = pts[Math.floor(pts.length / 2)];
+                    L.marker(mid, {{
+                        interactive: false,
+                        icon: L.divIcon({{
+                            className: '', iconSize: [0, 0],
+                            html: `<div class="dist-badge" style="border-color:${{col}};transform:translate(-50%,-50%);">🚐 ${{it.est_jalan_km}} km · ${{it.eta}}</div>`
+                        }})
+                    }}).addTo(map);
+                }}
+            }});
+
+            if (bounds.length > 0) map.fitBounds(bounds, {{ padding: [46, 46], maxZoom: 12 }});
+
+            const leg = L.control({{ position: 'bottomright' }});
+            leg.onAdd = function() {{
+                const d = L.DomUtil.create('div', 'map-leg');
+                d.innerHTML = `
+                    <b>⚡ SiHD Radar Tracking MBP</b><br>
+                    <span class="ld" style="background:#ef4444;"></span><b>Site DOWN:</b> ${{cnt.DOWN}}<br>
+                    <span class="ld" style="background:#eab308;"></span><b>On Backup MBP (UP):</b> ${{cnt.BACKUP}}<br>
+                    <span class="ld" style="background:#f97316;"></span><b>Flapping / Alarm:</b> ${{cnt.FLAP}}<br>
+                    <span class="ld" style="background:#10b981;"></span><b>UP (PLN Normal):</b> ${{cnt.UP}}<br>
+                    <hr style="border:0;border-top:1px solid rgba(255,255,255,.16);margin:4px 0;">
+                    🚐 Posisi Tim MBP &nbsp;|&nbsp; Garis = Rute + Jarak Est. Jalan
+                `;
+                return d;
+            }};
+            leg.addTo(map);
+        </script>
+    </body>
+    </html>
+    """
+
+def render_sihd_mbp_table_html(df_mbp, is_mobile=False):
+    """Tabel Full-View Responsif untuk Tracking MBP SiHD (Tanpa Track_ID)."""
+    if df_mbp is None or df_mbp.empty:
+        return "<div style='padding:18px;text-align:center;border-radius:14px;border:1px dashed var(--ux-line);color:var(--ux-muted);'>Belum ada data tracking MBP untuk filter ini.</div>"
+
+    css = """
+    <style>
+    .mbp-wrap{width:100%;margin:8px 0 16px;border-radius:16px;overflow:hidden;border:1px solid var(--ux-line);background:var(--ux-card);box-shadow:var(--ux-shadow)}
+    .mbp-tbl{width:100%;border-collapse:collapse;table-layout:fixed;font-size:.82rem;line-height:1.45;color:var(--ux-ink)}
+    .mbp-tbl thead th{background:linear-gradient(135deg,#091224,#1e3a5f);color:#f8fafc;font-weight:800;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;padding:10px 9px;text-align:left;border-bottom:2px solid rgba(56,189,248,.5)}
+    .mbp-tbl tbody td{padding:9px;vertical-align:top;border-bottom:1px solid var(--ux-line);word-wrap:break-word;overflow-wrap:anywhere;white-space:normal}
+    .mbp-tbl tbody tr:last-child td{border-bottom:0}
+    .mbp-r-down{background:rgba(239,68,68,.09)} .mbp-r-bkp{background:rgba(245,158,11,.08)} .mbp-r-up{background:rgba(16,185,129,.07)}
+    .mbp-pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:.71rem;font-weight:800;color:#fff;margin:0 4px 3px 0}
+    .mp-down{background:#dc2626} .mp-bkp{background:#d97706} .mp-flap{background:#ea580c} .mp-up{background:#059669} .mp-mv{background:#2563eb}
+    .mp-sub{display:block;font-size:.74rem;color:var(--ux-muted);margin-top:2px}
+    @media (max-width:860px){
+        .mbp-tbl thead{display:none}
+        .mbp-tbl,.mbp-tbl tbody,.mbp-tbl tr,.mbp-tbl td{display:block;width:100% !important}
+        .mbp-tbl tbody tr{margin:10px;border:1px solid var(--ux-line);border-radius:12px;padding:6px 8px;background:var(--ux-card)}
+        .mbp-tbl tbody td{border-bottom:1px dashed var(--ux-line);padding:6px 4px}
+        .mbp-tbl tbody td:last-child{border-bottom:0}
+        .mbp-tbl tbody td::before{content:attr(data-lbl);display:block;font-size:.68rem;font-weight:800;text-transform:uppercase;color:var(--ux-muted)}
+    }
+    </style>
+    """
+
+    rows_h = []
+    for num, (_, r) in enumerate(df_mbp.iterrows(), 1):
+        st_s = str(r.get("Status_Site", ""))
+        st_u = st_s.upper()
+        if "DOWN" in st_u: p_cls, r_cls = "mp-down", "mbp-r-down"
+        elif "BACKUP" in st_u: p_cls, r_cls = "mp-bkp", "mbp-r-bkp"
+        elif "FLAP" in st_u or "ALARM" in st_u: p_cls, r_cls = "mp-flap", "mbp-r-bkp"
+        else: p_cls, r_cls = "mp-up", "mbp-r-up"
+
+        jk_str = f"<b>{_esc(r.get('Est_Jalan_km', '-'))} km</b> (Est. Jalan)<span class='mp-sub'>Lurus: {_esc(r.get('Jarak_Lurus_km', '-'))} km · ETA: {_esc(r.get('Est_Waktu_Tempuh', '-'))}</span>"
+        dur_v = _calc_durasi_str(r.get("Waktu_Down"), r.get("Waktu_Up")) if _clean_cell_str(r.get("Waktu_Down")) else "-"
+        waktu_blk = f"Down: {_esc(r.get('Waktu_Down', '-') or '-')}<span class='mp-sub'>Up: {_esc(r.get('Waktu_Up', '-') or '-')} · Durasi: <b>{_esc(dur_v)}</b></span>"
+
+        rows_h.append(
+            f'<tr class="{r_cls}">'
+            f'<td data-lbl="No" style="text-align:center;font-weight:800;">{num}</td>'
+            f'<td data-lbl="Site &amp; NOP"><b style="color:var(--ux-accent);font-size:.86rem;">{_esc(r.get("Site_ID", "-"))}</b><span class="mp-sub">{_esc(r.get("Site_Name", "-"))} · {_esc(r.get("NOP", "-"))}</span></td>'
+            f'<td data-lbl="Status Site"><span class="mbp-pill {p_cls}">{_esc(st_s)}</span><span class="mp-sub"><span class="mbp-pill mp-mv">{_esc(r.get("Status_Pergerakan", "-"))}</span></span></td>'
+            f'<td data-lbl="Tim MBP &amp; Unit"><b>🚐 {_esc(r.get("Tim_MBP", "-"))}</b><span class="mp-sub">Unit: {_esc(r.get("Unit_Genset_MBP", "-") or "-")} · BBM: {_esc(r.get("BBM_Liter", "-") or "-")} L</span></td>'
+            f'<td data-lbl="Posisi Awal &amp; Jarak ke Site">{jk_str}<span class="mp-sub">Dari: {_esc(r.get("Asal_Posisi_Tim", "-"))}</span></td>'
+            f'<td data-lbl="Downtime &amp; MTTR">{waktu_blk}</td>'
+            f'<td data-lbl="Catatan &amp; HD">{_esc(r.get("Keterangan", "-") or "-")}<span class="mp-sub">🎧 {_esc(r.get("Helpdesk_PIC", "-"))} · {_esc(str(r.get("Timestamp", ""))[:16])}</span></td>'
+            f'</tr>'
+        )
+
+    return (
+        css
+        + '<div class="mbp-wrap"><table class="mbp-tbl">'
+        + '<thead><tr>'
+        + '<th style="width:4%;text-align:center;">No</th>'
+        + '<th style="width:15%;">Site &amp; NOP</th>'
+        + '<th style="width:16%;">Status Site &amp; Tim</th>'
+        + '<th style="width:15%;">Tim MBP &amp; Unit</th>'
+        + '<th style="width:18%;">Jarak Tim ➔ Site</th>'
+        + '<th style="width:14%;">Waktu &amp; Durasi</th>'
+        + '<th style="width:18%;">Catatan &amp; Helpdesk</th>'
+        + '</tr></thead><tbody>'
+        + "".join(rows_h)
+        + '</tbody></table></div>'
+    )
 
 def analyze_pbu_timeplan_routes(df_tp, site_coords, fme_coords, onsite_idx=None, hard_access_by_site=None, road_factor=1.35):
     """Analisa menyeluruh Timeplan Pangkalan Bun: HB Tim -> Site Target, tarikan Tier #1->#2->#3, jarak km, Hard Access & remark."""
@@ -5763,10 +4985,8 @@ def _sv_xlsx_button(rec, key):
 
 def _sv_evidence_view(rec):
     ev = _sv_jload(rec.get("evidence_rab"), []) or []
-    kr = _sv_jload(rec.get("kerja_urls"), []) or []
-    if ev or kr:
-        ux_evidence_gate("sv_%s" % (rec.get("rab_id") or rec.get("ticket_no") or "x"), {"ev": ev, "kr": kr})
     if ev: tampilkan_grid_foto(ev, "Referensi harga")
+    kr = _sv_jload(rec.get("kerja_urls"), []) or []
     if kr:
         tampilkan_grid_foto([u for u in kr if not str(u).lower().endswith(".pdf")], "Bukti pekerjaan")
         for u in kr:
@@ -6886,7 +6106,7 @@ if bg_base64:
 
 if st.session_state['active_menu'] is None:
     render_header_logo()
-    role_badge = "Mode Admin Utama" if st.session_state['role'] == 'Admin' else f"Tim Lapangan · {st.session_state.get('area_lapangan', 'Umum')}"
+    role_badge = "🟢 MODE ADMIN UTAMA" if st.session_state['role'] == 'Admin' else f"👷‍♂️ TIM LAPANGAN ({st.session_state.get('area_lapangan', 'Umum').upper()})"
     if 'laporan_db' in st.session_state:
         _ux_stats, _ux_split = ux_stats_from_db(st.session_state.get("laporan_db", []))
         ux_hero(role_badge, "Sistem Operasional Terpadu SIDATA", "Pilih modul untuk melanjutkan. Data laporan tersinkron langsung dari server.", stats=_ux_stats, split=_ux_split)
@@ -7114,7 +6334,10 @@ else:
                 st.session_state['dashboard_area'] = None
                 st.rerun()
     with c_top2:
-        st.markdown(ux_crumb_html(menu), unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='ux-cmd-bar'><span class='ux-live-dot'></span><span>SIDATA COMMAND CENTER</span><span style='opacity:.45;'>|</span><span style='color:#7DD3FC;'>{menu}</span></div>",
+            unsafe_allow_html=True
+        )
     with c_top3:
         if st.button("🚪 Keluar Akun (Log Out)", use_container_width=True, key="btn_logout_top"):
             st.session_state['role'] = None
@@ -8466,7 +7689,6 @@ elif menu == "📊 Hasil Laporan & Dashboard":
                             st.button("📄 Format Tanpa PDF", disabled=True, key=f"dl_pdf_dis_{i}", use_container_width=True)
     
                     with st.expander("📂 BUKA DETAIL & DOKUMENTASI LAPORAN"):
-                        ux_evidence_gate("rep_%s" % i, r)
                         if kategori_site == "Pangkalan Bun":
                             st.markdown("### 📋 SITE VISIT REPORT (Pangkalan Bun)")
                             st.write(f"**FME NAME:** {r.get('pb_te', '-')} | **Ticket:** {r.get('pb_ticket', '-')}")
@@ -9243,8 +8465,11 @@ elif menu == "⚡ Dapot Power Hasil PMS":
 # MENU 5: TO DO LIST RTS (AUTO-SAVE BULK + FULL RESPONSIVE VIEW + HAPUS DOUBLE INPUT + NO TASK ID)
 # =========================================================================
 elif menu == "📋 To Do List RTS":
-    st.markdown("<h1 style='text-align: center;'>📋 To Do List & Kontrol Harian Tim RTS</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; opacity: 0.85;'>Plan Harian RTS, Auto-Save Bulk tanpa klik Save, Auto-Closing sinkron SIDATA, Carry-Over Pending otomatis & Hapus Activity/Double Input.</p>", unsafe_allow_html=True)
+    ux_hero(
+        "RTS DAILY COMMAND BOARD · NOP PALANGKARAYA",
+        "To Do List & Kontrol Harian Tim RTS",
+        "Auto-Save Bulk tanpa klik Save · Auto-Closing sinkron SIDATA (Non-PM) · Khusus PM bebas update manual RTS · Carry-Over otomatis lintas hari."
+    )
 
     # Auto-unlock jika login sebagai Admin Utama
     rts_sess = st.session_state.get("rts_user")
@@ -9412,9 +8637,6 @@ elif menu == "📋 To Do List RTS":
             k4.metric("✅ Total Done", f"{cnt_done_all} / {len(df_board_today)}")
             k5.metric("🔴 Masih Open / Pending", f"{cnt_open_all} Task")
 
-            if "Is_PM_Manual" in df_board_today.columns and int(df_board_today["Is_PM_Manual"].sum()) > 0:
-                st.caption("Pekerjaan **PM** (%d task pada board ini) tidak wajib upload SIDATA karena report sudah ada di SWFM. Status PM diupdate **manual** oleh RTS." % int(df_board_today["Is_PM_Manual"].sum()))
-
             # Filter tampilan sesuai pilihan mode_view_td
             if mode_view_td == "🔥 Hari Ini + Carry-Over Pending":
                 df_show = df_board_today.copy()
@@ -9458,36 +8680,77 @@ elif menu == "📋 To Do List RTS":
                 dyn_h = min(max((len(df_show) + 1) * 38 + 16, 140), 2200)
                 st.dataframe(df_show[[c for c in cols_disp if c in df_show.columns]], use_container_width=True, hide_index=True, height=dyn_h)
 
-            # Panel Hapus Activity / Double Input Cepat langsung dari Board (Tanpa menampilkan Task_ID)
+            # Panel Aksi Cepat di Board: Update Status Manual (Khusus PM & Kontrol RTS) + Hapus Activity / Double Input
             if not df_show.empty:
-                with st.expander("🗑️ Hapus Activity yang Salah / Double Input", expanded=bool(dup_excess_tids)):
-                    st.caption("Pilih 1 atau lebih baris yang salah / double input, lalu klik **Hapus Terpilih** (langsung terhapus permanen dari Cloud).")
-                    del_label_to_tid = {}
-                    del_opts = []
-                    for i_d, r_d in df_show.iterrows():
-                        dup_tag = " [⚠️ DOUBLE]" if r_d.get("Is_Duplicate") else ""
-                        lbl_d = f"#{i_d+1} · {r_d['Start Date']} · [{r_d['Prioritas']}] {r_d['Site ID']} · {r_d['FME Name']} · {r_d['Category Task']} ({r_d['Status Task']}){dup_tag}"
-                        if lbl_d in del_label_to_tid:
-                            lbl_d = f"{lbl_d} (baris {i_d+1})"
-                        del_label_to_tid[lbl_d] = str(r_d["Task_ID"])
-                        del_opts.append(lbl_d)
-                    picked_del_lbls = st.multiselect("Pilih Activity yang akan dihapus:", del_opts, key="rts_board_del_multi")
-                    if st.button(f"🗑️ HAPUS ACTIVITY TERPILIH ({len(picked_del_lbls)})", type="primary", disabled=(not picked_del_lbls), use_container_width=True, key="btn_rts_board_del_go"):
-                        tids_del = [del_label_to_tid[lb] for lb in picked_del_lbls]
-                        if gsheet_sync_todo_diff("ToDoList_RTS", COLS_TODO_RTS, "Task_ID", delete_keys=tids_del):
-                            st.session_state.pop("rts_mass_base", None)
-                            st.session_state["rts_flash_msg"] = f"🗑️ {len(tids_del)} activity berhasil dihapus dari Cloud!"
-                            st.rerun()
-                        else:
-                            st.error("⚠️ Gagal menghapus — periksa koneksi internet lalu coba lagi.")
+                ca_b1, ca_b2 = st.columns(2)
+                with ca_b1:
+                    with st.expander("🛠️ Update Status Manual Cepat (Khusus PM / Kontrol RTS)", expanded=bool(df_show["Is_PM"].any() if "Is_PM" in df_show.columns else False)):
+                        st.caption("💡 Khusus pekerjaan **PM**, tim **tidak wajib upload SIDATA** — RTS dapat langsung update status (`Done` / `Pending` / `On Progress`) di sini.")
+                        upd_lbl_to_tid = {}
+                        upd_opts = []
+                        for i_u, r_u in df_show.iterrows():
+                            pm_tag = " [🛠️ PM]" if r_u.get("Is_PM") else ""
+                            lb_u = f"#{i_u+1} · {r_u['Site ID']} · {r_u['FME Name']} · {r_u['Category Task']} ({r_u['Status Task']}){pm_tag}"
+                            if lb_u in upd_lbl_to_tid:
+                                lb_u = f"{lb_u} (baris {i_u+1})"
+                            upd_lbl_to_tid[lb_u] = str(r_u["Task_ID"])
+                            upd_opts.append(lb_u)
+                        pick_u_lbl = st.selectbox("Pilih Pekerjaan:", upd_opts, key="rts_board_qupd_pick")
+                        pick_u_tid = upd_lbl_to_tid[pick_u_lbl]
+                        r_u_cur = df_todo_cloud[df_todo_cloud["Task_ID"].astype(str) == pick_u_tid].iloc[0]
+                        cu1, cu2 = st.columns([1.2, 1.8])
+                        cur_st_u = _clean_cell_str(r_u_cur.get("Status Task")) or "Waiting Update"
+                        new_st_u = cu1.selectbox("Status Baru:", TODO_STATUS_OPTS, index=TODO_STATUS_OPTS.index("Done") if cur_st_u != "Done" else TODO_STATUS_OPTS.index("Done"), key=f"rts_bqu_st_{pick_u_tid}")
+                        new_rm_u = cu2.text_input("Remark Update:", value=_clean_cell_str(r_u_cur.get("Remark Kerjaan")), key=f"rts_bqu_rm_{pick_u_tid}")
+                        if st.button("💾 UPDATE STATUS MANUAL SEKARANG", type="primary", use_container_width=True, key=f"btn_rts_bqu_go_{pick_u_tid}"):
+                            rec_qu = {c: _clean_cell_str(r_u_cur.get(c)) for c in COLS_TODO_RTS}
+                            rec_qu["Status Task"] = new_st_u
+                            rec_qu["End Date"] = (datetime.date.today().strftime("%Y-%m-%d") if new_st_u == "Done" else _clean_cell_str(r_u_cur.get("End Date")))
+                            rec_qu["Remark Kerjaan"] = new_rm_u.strip()
+                            rec_qu["Updated_At"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            if gsheet_sync_todo_diff("ToDoList_RTS", COLS_TODO_RTS, "Task_ID", upsert_dicts=[rec_qu]):
+                                st.session_state.pop("rts_mass_base", None)
+                                st.session_state["rts_mass_ver"] = st.session_state.get("rts_mass_ver", 0) + 1
+                                st.session_state["rts_flash_msg"] = f"✅ Status `{rec_qu['Site ID']}` ({rec_qu['Category Task']}) berhasil diperbarui menjadi **{new_st_u}**!"
+                                st.rerun()
+                            else:
+                                st.error("⚠️ Gagal update ke Cloud — cek sinyal lalu coba lagi.")
+
+                with ca_b2:
+                    with st.expander("🗑️ Hapus Activity yang Salah / Double Input", expanded=bool(dup_excess_tids)):
+                        st.caption("Pilih 1 atau lebih baris yang salah / double input, lalu klik **Hapus Terpilih** (langsung terhapus permanen dari Cloud).")
+                        del_label_to_tid = {}
+                        del_opts = []
+                        for i_d, r_d in df_show.iterrows():
+                            dup_tag = " [⚠️ DOUBLE]" if r_d.get("Is_Duplicate") else ""
+                            lbl_d = f"#{i_d+1} · {r_d['Start Date']} · [{r_d['Prioritas']}] {r_d['Site ID']} · {r_d['FME Name']} · {r_d['Category Task']} ({r_d['Status Task']}){dup_tag}"
+                            if lbl_d in del_label_to_tid:
+                                lbl_d = f"{lbl_d} (baris {i_d+1})"
+                            del_label_to_tid[lbl_d] = str(r_d["Task_ID"])
+                            del_opts.append(lbl_d)
+                        picked_del_lbls = st.multiselect("Pilih Activity yang akan dihapus:", del_opts, key="rts_board_del_multi")
+                        if st.button(f"🗑️ HAPUS ACTIVITY TERPILIH ({len(picked_del_lbls)})", type="primary", disabled=(not picked_del_lbls), use_container_width=True, key="btn_rts_board_del_go"):
+                            tids_del = [del_label_to_tid[lb] for lb in picked_del_lbls]
+                            if gsheet_sync_todo_diff("ToDoList_RTS", COLS_TODO_RTS, "Task_ID", delete_keys=tids_del):
+                                st.session_state.pop("rts_mass_base", None)
+                                st.session_state["rts_flash_msg"] = f"🗑️ {len(tids_del)} activity berhasil dihapus dari Cloud!"
+                                st.rerun()
+                            else:
+                                st.error("⚠️ Gagal menghapus — periksa koneksi internet lalu coba lagi.")
 
             # Daftar Follow Up & Reminder WA untuk task yang masih Open / Carry-Over
             df_open_cards = df_show[df_show["Status Task"] != "Done"]
             if not df_open_cards.empty:
                 st.markdown(f"#### 🚨 Kontrol & Follow Up Tim Lapangan — Belum Closed ({len(df_open_cards)} Task)")
                 for _, ro in df_open_cards.head(20).iterrows():
-                    bdr_c = "#EF4444" if ro["Is_Carry_Over"] else "#F59E0B"
-                    _is_pm_wa = bool(ro.get("Is_PM_Manual", False))
+                    is_pm_ro = bool(ro.get("Is_PM", False))
+                    bdr_c = "#0284C7" if is_pm_ro else ("#EF4444" if ro["Is_Carry_Over"] else "#F59E0B")
+                    if is_pm_ro:
+                        wa_closing_note = "Mohon segera diselesaikan pekerjaan PM ini dan laporkan progres ke RTS agar status di To Do List dapat di-update manual. Terima kasih!"
+                        wa_st_note = f"{ro['Status Task']} (PM — Update Manual RTS)"
+                    else:
+                        wa_closing_note = "Mohon segera diselesaikan dan lakukan input laporan di SIDATA agar status otomatis *Done / Closed*. Terima kasih!"
+                        wa_st_note = f"{ro['Status Task']} (Belum terdeteksi input SIDATA)"
                     wa_msg = (
                         f"*📋 TO DO LIST RTS — NOP PALANGKARAYA*\n"
                         f"👤 *RTS:* {ro['RTS Name']}\n"
@@ -9495,9 +8758,9 @@ elif menu == "📋 To Do List RTS":
                         f"📍 *Site ID:* {ro['Site ID']} ({ro['Cluster']})\n"
                         f"⚡ *Task:* [{ro['Prioritas']}] {ro['Category Task']} — {ro['Activity'] or ro['Detail Activity']}\n"
                         f"📅 *Start Date:* {ro['Start Date']} ({ro['Tipe_Board']})\n"
-                        + (f"🚦 *Status:* {ro['Status Task']} (PM — report di SWFM, update status manual)\n" if _is_pm_wa else f"🚦 *Status:* {ro['Status Task']} (Belum terdeteksi input SIDATA)\n")
-                        + f"📝 *Remark:* {ro['Remark Kerjaan'] or '-'}\n\n"
-                        + ("Mohon segera diselesaikan, buat report di SWFM, lalu update status pekerjaan PM ini di To Do List. Terima kasih!" if _is_pm_wa else "Mohon segera diselesaikan dan lakukan input laporan di SIDATA agar status otomatis *Done / Closed*. Terima kasih!")
+                        f"🚦 *Status:* {wa_st_note}\n"
+                        f"📝 *Remark:* {ro['Remark Kerjaan'] or '-'}\n\n"
+                        f"{wa_closing_note}"
                     )
                     with st.container(border=True):
                         co1, co2 = st.columns([3.3, 1.3])
@@ -10732,34 +9995,365 @@ elif menu == "💎 Executive Project Dashboard":
                 st.info("Belum ada rincian tabel rute PO untuk diekspor.")
 
 # =========================================================================
-# MENU 8: SiHD (SISTEM HELPDESK — MUTASI PERGERAKAN TIM & SERAH TERIMA SHIFT)
+# MENU 8: SiHD (SISTEM HELPDESK — TRACKING MBP JARAK & UP/DOWN + MUTASI SHIFT)
 # =========================================================================
 elif menu == "🚨 SiHD (Pergerakan Tim)":
-    st.markdown("<h1 style='text-align: center;'>🚨 SiHD — Sistem Helpdesk & Mutasi Pergerakan Tim</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; opacity: 0.85;'>Buku Mutasi Elektronik Pergerakan Tim Lapangan (Palangkaraya & Pangkalan Bun) serta Auto-WA Serah Terima Shift</p>", unsafe_allow_html=True)
-
-    fme_plk_list, fme_pbu_list, site_plk_list, site_pbu_list = load_master_lists()
+    # Muat data Master Tim, Koordinat Site (cached) & Database SiHD + SiHD_MBP_Tracking
+    df_mbp_cloud, ok_mbp_c = gsheet_read_df("SiHD_MBP_Tracking", COLS_SIHD_MBP)
     db_sihd = [r for r in get_laporan_db() if r.get('_sheet') == 'SiHD' or r.get('kategori') == 'SiHD']
 
     tot_sihd = len(db_sihd)
     today_str = datetime.date.today().strftime("%Y-%m-%d")
     today_sihd = sum(1 for r in db_sihd if str(r.get('timestamp', '')).startswith(today_str))
-    open_sihd = sum(1 for r in db_sihd if str(r.get('status', '')).lower() in ['on progress', 'open', 'pending', 'otw / berangkat'])
+
+    cnt_mbp_down = int(df_mbp_cloud["Status_Site"].astype(str).str.upper().str.contains("DOWN").sum()) if not df_mbp_cloud.empty else 0
+    cnt_mbp_bkp = int(df_mbp_cloud["Status_Site"].astype(str).str.upper().str.contains("BACKUP").sum()) if not df_mbp_cloud.empty else 0
+    cnt_mbp_up = int(df_mbp_cloud["Status_Site"].astype(str).str.upper().str.contains("PLN NORMAL").sum()) if not df_mbp_cloud.empty else 0
+    cnt_mbp_otw = int(df_mbp_cloud["Status_Pergerakan"].astype(str).str.upper().str.contains("OTW|ON SITE|REFUEL").sum()) if not df_mbp_cloud.empty else 0
 
     ux_hero(
-        "HELPDESK COMMAND CENTER",
-        "SiHD — Mutasi & Serah Terima Shift",
-        "Rekam pergerakan FME secara real-time ke Google Sheets tab 'SiHD' dan kirim ringkasan serah terima shift ke WhatsApp dalam 1 klik.",
+        "NOC HELPDESK & MBP RADAR COMMAND CENTER",
+        "SiHD — Tracking MBP, Status Site UP/DOWN & Mutasi Shift",
+        "Pantau jarak aktual Tim MBP ke site tujuan, status site real-time (🔴 DOWN / 🟡 ON BACKUP MBP / 🟢 UP), peta rute interaktif & serah terima shift WA.",
         stats=[
-            (f"{tot_sihd} Log", "Total Catatan Mutasi"),
-            (f"{today_sihd} Log", "Pergerakan Hari Ini"),
-            (f"{open_sihd} Aktif", "Masih Open / On Progress")
-        ]
+            (f"{cnt_mbp_down}", "🔴 Site DOWN"),
+            (f"{cnt_mbp_bkp}", "🟡 On Backup MBP (UP)"),
+            (f"{cnt_mbp_up}", "🟢 Site UP (PLN Normal)"),
+            (f"{cnt_mbp_otw}", "🚐 Tim MBP Aktif"),
+            (f"{today_sihd} Log", "Mutasi Hari Ini")
+        ],
+        split=[
+            ("Site DOWN", cnt_mbp_down, "#EF4444"),
+            ("On Backup MBP (UP)", cnt_mbp_bkp, "#FBBF24"),
+            ("UP (PLN Normal)", cnt_mbp_up, "#34D399")
+        ] if (cnt_mbp_down + cnt_mbp_bkp + cnt_mbp_up) > 0 else None
     )
 
-    tab_hd_in, tab_hd_log, tab_hd_trk = st.tabs(["📝 Input Mutasi & Pergerakan Tim", "📋 Buku Mutasi & WA Serah Terima Shift", "📡 Tracking Tim MBP & Status Site"])
+    _hd_flash = st.session_state.pop("sihd_flash_msg", None)
+    if _hd_flash:
+        st.success(_hd_flash)
 
-    with tab_hd_in:
+    # Sub-navigasi Radio Pill (hanya merender 1 modul aktif -> tetap cepat!)
+    sihd_nav = st.radio(
+        "Sub-Menu SiHD:",
+        [
+            "⚡ 1. Tracking MBP & Radar Jarak (UP/DOWN)",
+            "➕ 2. Dispatch Tim MBP ke Site",
+            "📝 3. Input Mutasi Shift (SiHD)",
+            "📋 4. Buku Mutasi & WA Serah Terima Shift"
+        ],
+        horizontal=True,
+        key="sihd_sub_nav",
+        label_visibility="collapsed"
+    )
+    st.markdown("<hr style='margin: 8px 0 18px 0;'>", unsafe_allow_html=True)
+
+    # ---------------------------------------------------------------------
+    # SUB-1: TRACKING MBP & PETA JARAK TIM KE SITE + STATUS SITE UP / DOWN
+    # ---------------------------------------------------------------------
+    if sihd_nav == "⚡ 1. Tracking MBP & Radar Jarak (UP/DOWN)":
+        c_mf1, c_mf2, c_mf3, c_mf4 = st.columns([1.2, 1.4, 1.3, 1.2])
+        flt_mbp_nop = c_mf1.selectbox("📍 Filter NOP:", ["Semua NOP", "Palangkaraya", "Pangkalan Bun"], key="sihd_mbp_fnop")
+        flt_mbp_st = c_mf2.selectbox("🚦 Filter Status Site:", ["Semua Status"] + MBP_SITE_STATUS_OPTS, key="sihd_mbp_fst")
+        flt_mbp_mv = c_mf3.selectbox("🚐 Filter Pergerakan:", ["Hanya Aktif (Belum Clear)", "Semua Riwayat"], key="sihd_mbp_fmv")
+        mbp_map_theme = c_mf4.selectbox("🛰️ Base Peta:", ["Dark NOC Command Center", "Citra Satelit (Esri)", "Peta Jalan Terang (Street Map)"], key="sihd_mbp_theme")
+
+        if df_mbp_cloud.empty:
+            st.info("🚐 Belum ada data Tracking MBP di sheet **`SiHD_MBP_Tracking`**. Klik tab **➕ 2. Dispatch Tim MBP ke Site** untuk mulai melacak jarak tim ke site & status UP/DOWN.")
+        else:
+            df_mv = df_mbp_cloud.copy()
+            if flt_mbp_nop != "Semua NOP":
+                df_mv = df_mv[df_mv["NOP"].astype(str).str.lower() == flt_mbp_nop.lower()]
+            if flt_mbp_st != "Semua Status":
+                df_mv = df_mv[df_mv["Status_Site"].astype(str) == flt_mbp_st]
+            if flt_mbp_mv == "Hanya Aktif (Belum Clear)":
+                df_mv = df_mv[~df_mv["Status_Pergerakan"].astype(str).str.lower().str.contains("selesai|clear")]
+
+            # Urutkan: Site DOWN paling atas, lalu terbaru
+            if not df_mv.empty:
+                df_mv["_prio"] = df_mv["Status_Site"].astype(str).str.upper().apply(
+                    lambda s: 0 if "DOWN" in s else (1 if "FLAP" in s or "ALARM" in s else (2 if "BACKUP" in s else 3))
+                )
+                df_mv = df_mv.sort_values(by=["_prio", "Timestamp"], ascending=[True, False]).drop(columns=["_prio"]).reset_index(drop=True)
+
+            # KPI Ringkas Filter Aktif
+            tot_km_mbp = float(pd.to_numeric(df_mv["Est_Jalan_km"], errors="coerce").fillna(0).sum()) if not df_mv.empty else 0.0
+            avg_km_mbp = float(pd.to_numeric(df_mv["Est_Jalan_km"], errors="coerce").dropna().mean()) if (not df_mv.empty and pd.to_numeric(df_mv["Est_Jalan_km"], errors="coerce").notna().any()) else 0.0
+            km1, km2, km3, km4 = st.columns(4)
+            km1.metric("🚐 Total Tracking Tampil", f"{len(df_mv)} Dispatch")
+            km2.metric("🔴 Site Masih DOWN", f"{int(df_mv['Status_Site'].astype(str).str.upper().str.contains('DOWN').sum()) if not df_mv.empty else 0} Site")
+            km3.metric("🛣️ Total Est. Jarak Jalan", f"{tot_km_mbp:,.1f} km")
+            km4.metric("📏 Rata-rata Jarak ke Site", f"{avg_km_mbp:,.1f} km")
+
+            # Siapkan data untuk Peta Interaktif Radar MBP
+            mbp_map_items = []
+            for _, rm in df_mv.iterrows():
+                lt_t = pd.to_numeric(rm.get("Lat_Tim"), errors="coerce")
+                ln_t = pd.to_numeric(rm.get("Lon_Tim"), errors="coerce")
+                lt_s = pd.to_numeric(rm.get("Lat_Site"), errors="coerce")
+                ln_s = pd.to_numeric(rm.get("Lon_Site"), errors="coerce")
+                if pd.isna(lt_s) and pd.isna(lt_t):
+                    continue
+                mbp_map_items.append({
+                    "tim_mbp": _clean_cell_str(rm.get("Tim_MBP")) or "-",
+                    "unit_mbp": _clean_cell_str(rm.get("Unit_Genset_MBP")) or "-",
+                    "site_id": _clean_cell_str(rm.get("Site_ID")) or "-",
+                    "site_name": _clean_cell_str(rm.get("Site_Name")) or "-",
+                    "status_site": _clean_cell_str(rm.get("Status_Site")) or "🔴 DOWN",
+                    "status_move": _clean_cell_str(rm.get("Status_Pergerakan")) or "-",
+                    "asal_posisi": _clean_cell_str(rm.get("Asal_Posisi_Tim")) or "-",
+                    "lat_tim": float(lt_t) if pd.notna(lt_t) else None,
+                    "lon_tim": float(ln_t) if pd.notna(ln_t) else None,
+                    "lat_site": float(lt_s) if pd.notna(lt_s) else None,
+                    "lon_site": float(ln_s) if pd.notna(ln_s) else None,
+                    "jarak_km": _clean_cell_str(rm.get("Jarak_Lurus_km")) or "-",
+                    "est_jalan_km": _clean_cell_str(rm.get("Est_Jalan_km")) or "-",
+                    "eta": _clean_cell_str(rm.get("Est_Waktu_Tempuh")) or "-",
+                    "waktu_down": _clean_cell_str(rm.get("Waktu_Down")) or "-",
+                    "durasi_down": _calc_durasi_str(rm.get("Waktu_Down"), rm.get("Waktu_Up")) if _clean_cell_str(rm.get("Waktu_Down")) else "-",
+                    "bbm": _clean_cell_str(rm.get("BBM_Liter")) or "-",
+                    "ket": _clean_cell_str(rm.get("Keterangan")) or "-"
+                })
+
+            if mbp_map_items:
+                st.markdown("#### 🗺️ Peta Radar Tracking MBP — Jarak Tim ke Site & Status UP/DOWN")
+                st.components.v1.html(render_sihd_mbp_map_html(mbp_map_items, map_theme=mbp_map_theme), height=555)
+
+            st.markdown(f"#### 📋 Tabel Live Tracking MBP ({len(df_mv)} Dispatch)")
+            st.markdown(render_sihd_mbp_table_html(df_mv, is_mobile=IS_HP), unsafe_allow_html=True)
+
+            # Update Cepat Status Site (DOWN -> ON BACKUP -> UP) & Hapus Log
+            if not df_mv.empty:
+                with st.expander("⚡ Update Cepat Status Site (UP / DOWN / ON BACKUP) & Pergerakan Tim MBP", expanded=True):
+                    mbp_lbl_map = {}
+                    mbp_opts = []
+                    for im_u, rm_u in df_mv.iterrows():
+                        lb_m = f"#{im_u+1} · {rm_u['Site_ID']} ({rm_u['Status_Site']}) · Tim: {rm_u['Tim_MBP']} · {rm_u['Est_Jalan_km']} km"
+                        if lb_m in mbp_lbl_map:
+                            lb_m = f"{lb_m} ({im_u+1})"
+                        mbp_lbl_map[lb_m] = str(rm_u["Track_ID"])
+                        mbp_opts.append(lb_m)
+                    pick_mbp_lb = st.selectbox("Pilih Dispatch MBP untuk Diupdate:", mbp_opts, key="sihd_mbp_upd_pick")
+                    pick_mbp_id = mbp_lbl_map[pick_mbp_lb]
+                    cur_mbp = df_mbp_cloud[df_mbp_cloud["Track_ID"].astype(str) == pick_mbp_id].iloc[0]
+
+                    um1, um2, um3 = st.columns(3)
+                    cur_ss = _clean_cell_str(cur_mbp.get("Status_Site"))
+                    new_ss = um1.selectbox("Update Status Site:", MBP_SITE_STATUS_OPTS, index=MBP_SITE_STATUS_OPTS.index(cur_ss) if cur_ss in MBP_SITE_STATUS_OPTS else 0, key=f"mbp_u_ss_{pick_mbp_id}")
+                    cur_mv = _clean_cell_str(cur_mbp.get("Status_Pergerakan"))
+                    new_mv = um2.selectbox("Update Pergerakan Tim:", MBP_MOVE_STATUS_OPTS, index=MBP_MOVE_STATUS_OPTS.index(cur_mv) if cur_mv in MBP_MOVE_STATUS_OPTS else 0, key=f"mbp_u_mv_{pick_mbp_id}")
+                    new_bbm = um3.text_input("Update BBM (Liter):", value=_clean_cell_str(cur_mbp.get("BBM_Liter")), key=f"mbp_u_bbm_{pick_mbp_id}")
+                    new_ket_m = st.text_input("Catatan Update (Jam On-Site / PLN Nyala / Kendala):", value=_clean_cell_str(cur_mbp.get("Keterangan")), key=f"mbp_u_ket_{pick_mbp_id}")
+
+                    bu1, bu2 = st.columns([2.5, 1.2])
+                    if bu1.button("💾 SIMPAN UPDATE STATUS SITE & TIM MBP", type="primary", use_container_width=True, key=f"btn_mbp_upd_{pick_mbp_id}"):
+                        now_u = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+                        rec_um = {c: _clean_cell_str(cur_mbp.get(c)) for c in COLS_SIHD_MBP}
+                        rec_um["Status_Site"] = new_ss
+                        rec_um["Status_Pergerakan"] = new_mv
+                        rec_um["BBM_Liter"] = new_bbm.strip()
+                        rec_um["Keterangan"] = new_ket_m.strip()
+                        if "ON SITE" in new_mv.upper() and not rec_um["Waktu_OnSite"]:
+                            rec_um["Waktu_OnSite"] = now_u
+                        if ("UP" in new_ss.upper() or "CLEAR" in new_mv.upper()) and not rec_um["Waktu_Up"]:
+                            rec_um["Waktu_Up"] = now_u
+                        rec_um["Durasi_Down"] = _calc_durasi_str(rec_um["Waktu_Down"], rec_um["Waktu_Up"]) if rec_um["Waktu_Down"] else "-"
+                        rec_um["Updated_At"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        if gsheet_sync_todo_diff("SiHD_MBP_Tracking", COLS_SIHD_MBP, "Track_ID", upsert_dicts=[rec_um]):
+                            st.session_state["sihd_flash_msg"] = f"✅ Status **{rec_um['Site_ID']}** diperbarui menjadi **{new_ss}** ({new_mv})!"
+                            st.rerun()
+                    if bu2.button("🗑️ Hapus Log MBP", use_container_width=True, key=f"btn_mbp_del_{pick_mbp_id}"):
+                        if gsheet_sync_todo_diff("SiHD_MBP_Tracking", COLS_SIHD_MBP, "Track_ID", delete_keys=[pick_mbp_id]):
+                            st.session_state["sihd_flash_msg"] = f"🗑️ Log Tracking MBP `{cur_mbp.get('Site_ID')}` berhasil dihapus!"
+                            st.rerun()
+
+                # Generator WA Broadcast Tracking MBP Live
+                wa_mbp_all = f"*⚡ LIVE TRACKING TIM MBP — SiHD ({flt_mbp_nop})*\n🗓️ Update: {datetime.datetime.now().strftime('%d %b %Y %H:%M WIB')}\n\n"
+                for ix_m, (_, r_wm) in enumerate(df_mv.head(20).iterrows(), 1):
+                    wa_mbp_all += (
+                        f"{ix_m}. *{r_wm['Site_ID']}* — *{r_wm['Status_Site']}*\n"
+                        f"   🚐 Tim: {r_wm['Tim_MBP']} ({r_wm['Unit_Genset_MBP'] or '-'})\n"
+                        f"   📏 Jarak: {r_wm['Est_Jalan_km']} km (ETA {r_wm['Est_Waktu_Tempuh']}) | {r_wm['Status_Pergerakan']}\n"
+                        f"   📝 {r_wm['Keterangan'] or '-'}\n"
+                    )
+                wa_mbp_all += "\n_Generated via SIDATA SiHD MBP Radar_"
+                c_wm1, c_wm2 = st.columns(2)
+                c_wm1.link_button("📱 KIRIM UPDATE TRACKING MBP KE WA", f"https://wa.me/?text={urllib.parse.quote(wa_mbp_all)}", type="primary", use_container_width=True)
+                c_wm2.download_button("📥 Download Log Tracking MBP (.csv)", data=df_mv.drop(columns=["Track_ID"], errors="ignore").to_csv(index=False).encode("utf-8"), file_name=f"SiHD_MBP_Tracking_{datetime.date.today()}.csv", mime="text/csv", use_container_width=True)
+
+    # ---------------------------------------------------------------------
+    # SUB-2: FORM DISPATCH TIM MBP (AUTO-HITUNG JARAK TIM KE SITE + ETA + STATUS UP/DOWN)
+    # ---------------------------------------------------------------------
+    elif sihd_nav == "➕ 2. Dispatch Tim MBP ke Site":
+        st.markdown("#### 🚐 Form Dispatch & Tracking Jarak Tim MBP ke Site")
+        st.info("💡 Pilih **NOP**, **Tim MBP**, **Posisi Awal Tim**, dan **Site Tujuan** — sistem otomatis menghitung **Jarak Lurus (km)**, **Estimasi Jarak Jalan (×1.35)**, dan **Estimasi Waktu Tempuh (ETA)** langsung dari Master Koordinat.")
+
+        with st.container(border=True):
+            cm1, cm2, cm3 = st.columns(3)
+            mbp_nop = cm1.selectbox("📍 Area NOP:", ["Palangkaraya", "Pangkalan Bun"], key="mbp_in_nop")
+            mbp_nop_k = "PLK" if mbp_nop == "Palangkaraya" else "PBU"
+            mbp_shift = cm2.selectbox("🕒 Shift Jaga:", ["Pagi (08:00 - 16:00)", "Siang (16:00 - 00:00)", "Malam (00:00 - 08:00)"], key="mbp_in_shift")
+            mbp_hd_pic = cm3.text_input("🎧 Nama Helpdesk / Dispatcher *:", placeholder="Nama HD jaga...", key="mbp_in_hdpic")
+
+            df_tim_m, _, _ = load_master_tim_df(mbp_nop_k)
+            fme_coords_m = build_mbp_fme_coords_map(df_tim_m, mbp_nop_k)
+            if mbp_nop_k == "PLK":
+                site_opts_m, site_coords_m = load_site_master_plk()
+            else:
+                site_opts_m, site_coords_m = load_site_master_pbu()
+
+            # Prioritaskan personel ber-role MBP di urutan paling atas dropdown
+            tim_mbp_first, tim_other = [], []
+            if not df_tim_m.empty:
+                df_act_t = df_tim_m[~df_tim_m["STATUS_AKTIF"].astype(str).str.lower().isin(["nonaktif", "resign", "keluar", "tidak aktif", "0", "false"])]
+                for _, rt_m in df_act_t.iterrows():
+                    nm_t = str(rt_m.get("NAMA", "")).strip()
+                    rl_t = str(rt_m.get("ROLE", "")).strip().upper()
+                    if not nm_t:
+                        continue
+                    if "MBP" in rl_t:
+                        tim_mbp_first.append(nm_t)
+                    else:
+                        tim_other.append(nm_t)
+            tim_sorted_opts = sorted(list(set(tim_mbp_first))) + sorted(list(set(tim_other)))
+
+            cm4, cm5, cm6 = st.columns(3)
+            mbp_tim_pick = cm4.selectbox("🚐 Pilih Tim MBP / Teknisi *:", [""] + tim_sorted_opts, key="mbp_in_tim")
+            mbp_unit = cm5.text_input("⚡ Unit Genset / Mobil MBP:", placeholder="Cth: MBP-01 (30 kVA / Hilux)", key="mbp_in_unit")
+            mbp_site_pick = cm6.selectbox("🗼 Pilih Site Tujuan *:", [""] + site_opts_m, key="mbp_in_site")
+
+            # Penentuan koordinat posisi awal tim
+            st.markdown("**📍 Titik Berangkat / Posisi Awal Tim MBP (untuk Hitung Jarak ke Site):**")
+            cp1, cp2 = st.columns([1.4, 2.2])
+            mode_asal = cp1.radio(
+                "Sumber Posisi Tim:",
+                ["🏠 Homebase Tim (Otomatis)", "🗼 Dari Site Lain (Posisi Terakhir)", "📍 Posko / Kota Cluster", "🧭 Koordinat GPS Manual"],
+                key="mbp_in_asal_mode"
+            )
+            lat_tim_v, lon_tim_v, asal_lbl = None, None, "-"
+            with cp2:
+                if mode_asal == "🏠 Homebase Tim (Otomatis)":
+                    hb_xy, hb_nm = _match_fme_coord(mbp_tim_pick, fme_coords_m)
+                    if hb_xy:
+                        lat_tim_v, lon_tim_v = hb_xy[0], hb_xy[1]
+                        asal_lbl = f"HB {mbp_tim_pick}"
+                        st.success(f"✅ Koordinat Homebase **{mbp_tim_pick}** ditemukan: `{lat_tim_v:.5f}, {lon_tim_v:.5f}`")
+                    else:
+                        st.warning("⚠️ Koordinat Homebase tim ini belum ada di Master Tim. Pilih **Posko / Kota Cluster** atau isi koordinat di menu **👥 Kelola Master Tim**.")
+                        pk_fallback = st.selectbox("Pilih Posko Fallback:", list(POSKO_CLUSTER_COORDS[mbp_nop_k].keys()), key="mbp_in_pk_fb")
+                        lat_tim_v, lon_tim_v = POSKO_CLUSTER_COORDS[mbp_nop_k][pk_fallback]
+                        asal_lbl = pk_fallback
+                elif mode_asal == "🗼 Dari Site Lain (Posisi Terakhir)":
+                    from_site_p = st.selectbox("Pilih Site Posisi Tim Saat Ini:", [""] + site_opts_m, key="mbp_in_from_site")
+                    fs_id = _norm_site_id(from_site_p)
+                    if fs_id and fs_id in site_coords_m:
+                        lat_tim_v, lon_tim_v = site_coords_m[fs_id][0], site_coords_m[fs_id][1]
+                        asal_lbl = f"Site {fs_id}"
+                        st.success(f"✅ Posisi Tim dari Site **{fs_id}**: `{lat_tim_v:.5f}, {lon_tim_v:.5f}`")
+                elif mode_asal == "📍 Posko / Kota Cluster":
+                    pk_pick = st.selectbox("Pilih Posko / Kota Berangkat:", list(POSKO_CLUSTER_COORDS[mbp_nop_k].keys()), key="mbp_in_pk_sel")
+                    lat_tim_v, lon_tim_v = POSKO_CLUSTER_COORDS[mbp_nop_k][pk_pick]
+                    asal_lbl = pk_pick
+                    st.info(f"📍 Koordinat **{pk_pick}**: `{lat_tim_v:.5f}, {lon_tim_v:.5f}`")
+                else:
+                    gm1, gm2 = st.columns(2)
+                    lat_m_in = gm1.text_input("Latitude Posisi Tim:", placeholder="-2.2136", key="mbp_in_lat_man")
+                    lon_m_in = gm2.text_input("Longitude Posisi Tim:", placeholder="113.9108", key="mbp_in_lon_man")
+                    lv_m, ov_m = pd.to_numeric(lat_m_in, errors="coerce"), pd.to_numeric(lon_m_in, errors="coerce")
+                    if pd.notna(lv_m) and pd.notna(ov_m):
+                        lat_tim_v, lon_tim_v = float(lv_m), float(ov_m)
+                        asal_lbl = f"GPS Manual ({lat_tim_v:.4f}, {lon_tim_v:.4f})"
+
+            # Lookup koordinat Site Tujuan & Hitung Jarak Live
+            tgt_sid_n = _norm_site_id(mbp_site_pick)
+            lat_site_v, lon_site_v, tgt_sname = None, None, mbp_site_pick
+            if tgt_sid_n and tgt_sid_n in site_coords_m:
+                sc_t = site_coords_m[tgt_sid_n]
+                lat_site_v, lon_site_v = sc_t[0], sc_t[1]
+                tgt_sname = sc_t[2] if len(sc_t) > 2 else tgt_sid_n
+
+            jarak_lurus = haversine_km(lat_tim_v, lon_tim_v, lat_site_v, lon_site_v) if (lat_tim_v is not None and lat_site_v is not None) else None
+            est_jalan = round(jarak_lurus * 1.35, 1) if jarak_lurus is not None else None
+            eta_txt = _calc_eta_str(est_jalan) if est_jalan is not None else "-"
+
+            # Radar Preview Jarak Live
+            if jarak_lurus is not None:
+                st.markdown(
+                    f"<div style='padding:12px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(37,99,235,.14),rgba(6,182,212,.10));border:1.5px solid rgba(56,189,248,.45);margin:8px 0 12px;display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between;'>"
+                    f"<div>🧭 <b>Rute:</b> {asal_lbl} ➔ <b>{tgt_sid_n}</b> ({tgt_sname})</div>"
+                    f"<div>📏 <b>Jarak Lurus:</b> <b>{jarak_lurus} km</b> &nbsp;|&nbsp; 🛣️ <b>Est. Jalan (×1.35):</b> <b style='color:#0284c7;font-size:1.05rem;'>{est_jalan} km</b> &nbsp;|&nbsp; ⏱️ <b>ETA:</b> <b>{eta_txt}</b></div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+            cm7, cm8, cm9 = st.columns(3)
+            mbp_st_site = cm7.selectbox("🚦 Status Site Saat Ini *:", MBP_SITE_STATUS_OPTS, index=0, key="mbp_in_st_site")
+            mbp_st_mv = cm8.selectbox("🚐 Status Pergerakan Tim *:", MBP_MOVE_STATUS_OPTS, index=0, key="mbp_in_st_mv")
+            mbp_bbm = cm9.text_input("⛽ BBM Dibawa / Tersisa (Liter):", placeholder="Cth: 60", key="mbp_in_bbm")
+
+            cm10, cm11, cm12 = st.columns(3)
+            mbp_w_down = cm10.text_input("⏱️ Waktu Site Down / Alarm:", value=datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), key="mbp_in_wdown")
+            mbp_tiket = cm11.text_input("🎫 No. Tiket / Incident:", placeholder="Cth: INC-2026-xxxx", key="mbp_in_tiket")
+            mbp_ket = cm12.text_input("📝 Keterangan / Kondisi PLN:", placeholder="Cth: PLN Padam, Batt Drop, OTW Backup", key="mbp_in_ket")
+
+            if st.button("🚀 SIMPAN DISPATCH TRACKING MBP & SIAPKAN WA", type="primary", use_container_width=True, key="btn_save_sihd_mbp"):
+                if not mbp_hd_pic.strip() or not mbp_tim_pick or not mbp_site_pick:
+                    st.error("⚠️ Nama Helpdesk, Tim MBP, dan Site Tujuan wajib diisi!")
+                else:
+                    now_ts_m = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    rec_mbp = {
+                        "Track_ID": f"MBP-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}-{_pysecrets.token_hex(2)}",
+                        "Timestamp": now_ts_m,
+                        "NOP": mbp_nop,
+                        "Shift": mbp_shift,
+                        "Helpdesk_PIC": mbp_hd_pic.strip(),
+                        "Tim_MBP": mbp_tim_pick,
+                        "Unit_Genset_MBP": mbp_unit.strip() or "-",
+                        "Site_ID": tgt_sid_n or mbp_site_pick,
+                        "Site_Name": tgt_sname or tgt_sid_n,
+                        "Status_Site": mbp_st_site,
+                        "Status_Pergerakan": mbp_st_mv,
+                        "Asal_Posisi_Tim": asal_lbl,
+                        "Lat_Tim": f"{lat_tim_v:.6f}" if lat_tim_v is not None else "",
+                        "Lon_Tim": f"{lon_tim_v:.6f}" if lon_tim_v is not None else "",
+                        "Lat_Site": f"{lat_site_v:.6f}" if lat_site_v is not None else "",
+                        "Lon_Site": f"{lon_site_v:.6f}" if lon_site_v is not None else "",
+                        "Jarak_Lurus_km": str(jarak_lurus) if jarak_lurus is not None else "-",
+                        "Est_Jalan_km": str(est_jalan) if est_jalan is not None else "-",
+                        "Est_Waktu_Tempuh": eta_txt,
+                        "Waktu_Down": mbp_w_down.strip(),
+                        "Waktu_OnSite": now_ts_m[:16] if "ON SITE" in mbp_st_mv.upper() else "",
+                        "Waktu_Up": now_ts_m[:16] if "UP" in mbp_st_site.upper() else "",
+                        "Durasi_Down": "0 mnt",
+                        "BBM_Liter": mbp_bbm.strip() or "-",
+                        "Tiket_Incident": mbp_tiket.strip() or "-",
+                        "Keterangan": mbp_ket.strip() or "-",
+                        "Updated_At": now_ts_m
+                    }
+                    if gsheet_sync_todo_diff("SiHD_MBP_Tracking", COLS_SIHD_MBP, "Track_ID", upsert_dicts=[rec_mbp], only_inserts=True):
+                        st.success(f"✅ Dispatch Tracking MBP **{mbp_tim_pick}** menuju **{rec_mbp['Site_ID']}** ({est_jalan or '-'} km) tersimpan ke Cloud!")
+                        wa_disp = (
+                            f"*🚐 DISPATCH TRACKING MBP (SiHD)*\n"
+                            f"📍 *NOP:* {mbp_nop} | *Shift:* {mbp_shift}\n"
+                            f"🗼 *Site:* {rec_mbp['Site_ID']} — {rec_mbp['Site_Name']}\n"
+                            f"🚦 *Status Site:* *{mbp_st_site}*\n"
+                            f"🚐 *Tim MBP:* {mbp_tim_pick} ({rec_mbp['Unit_Genset_MBP']})\n"
+                            f"🧭 *Rute:* {asal_lbl} ➔ {rec_mbp['Site_ID']}\n"
+                            f"📏 *Jarak Est. Jalan:* *{est_jalan or '-'} km* (Lurus: {jarak_lurus or '-'} km · ETA: *{eta_txt}*)\n"
+                            f"🚦 *Pergerakan:* {mbp_st_mv} | ⛽ BBM: {rec_mbp['BBM_Liter']} L\n"
+                            f"⏱️ *Waktu Down:* {rec_mbp['Waktu_Down']} | 🎫 Tiket: {rec_mbp['Tiket_Incident']}\n"
+                            f"📝 *Ket:* {rec_mbp['Keterangan']}\n"
+                            f"🎧 *Helpdesk:* {rec_mbp['Helpdesk_PIC']}"
+                        )
+                        st.link_button("📱 KIRIM DISPATCH MBP INI KE WHATSAPP", f"https://wa.me/?text={urllib.parse.quote(wa_disp)}", type="primary", use_container_width=True)
+                    else:
+                        st.error("⚠️ Gagal menyimpan ke Google Sheets tab `SiHD_MBP_Tracking`.")
+
+    # ---------------------------------------------------------------------
+    # SUB-3: INPUT MUTASI SHIFT (FLOW EXISTING 100% UTUH)
+    # ---------------------------------------------------------------------
+    elif sihd_nav == "📝 3. Input Mutasi Shift (SiHD)":
+        fme_plk_list, fme_pbu_list, site_plk_list, site_pbu_list = load_master_lists()
         st.markdown("### 📝 Form Pencatatan Pergerakan Tim")
         with st.container(border=True):
             ch1, ch2, ch3 = st.columns(3)
@@ -10781,7 +10375,7 @@ elif menu == "🚨 SiHD (Pergerakan Tim)":
                     hd_sites = []
                 hd_site_manual = st.text_input("Atau Ketik Site/Rute Manual:", placeholder="Cth: PLK001 -> PLK025", key="hd_site_man")
             with ch3:
-                hd_kat = st.selectbox("Kategori Kegiatan:", ["Troubleshoot Down / Alarm", "Preventive Maintenance (PM)", "Refuel / BBM Genset", "Audit Tower / Combat", "Project / Relokasi", "Pengambilan Material / Logistik", "Standby / Patroli"], key="hd_kat")
+                hd_kat = st.selectbox("Kategori Kegiatan:", ["Troubleshoot Down / Alarm", "Backup MBP / Genset", "Preventive Maintenance (PM)", "Refuel / BBM Genset", "Audit Tower / Combat", "Project / Relokasi", "Pengambilan Material / Logistik", "Standby / Patroli"], key="hd_kat")
                 hd_tiket = st.text_input("No. Tiket / Incident (Opsional):", placeholder="Cth: INC-2026-xxxx", key="hd_tiket")
                 hd_status = st.selectbox("Status Pergerakan:", ["OTW / Berangkat", "On Site / Pengerjaan", "Done / Clear", "Pending / Butuh Follow-Up"], key="hd_status")
 
@@ -10831,10 +10425,13 @@ elif menu == "🚨 SiHD (Pergerakan Tim)":
                         )
                         st.link_button("📱 KIRIM LAPORAN MUTASI INI KE WHATSAPP", f"https://wa.me/?text={urllib.parse.quote(wa_hd)}", type="primary", use_container_width=True)
 
-    with tab_hd_log:
+    # ---------------------------------------------------------------------
+    # SUB-4: BUKU MUTASI & WA SERAH TERIMA SHIFT (FLOW EXISTING + OPSIONAL RINGKASAN MBP)
+    # ---------------------------------------------------------------------
+    else:
         st.markdown("### 📋 Rekap Buku Mutasi & Generator WA Serah Terima Shift")
         if not db_sihd:
-            st.info("Belum ada catatan mutasi tim pada tab 'SiHD'. Silakan input melalui tab pertama.")
+            st.info("Belum ada catatan mutasi tim pada tab 'SiHD'. Silakan input melalui tab Input Mutasi Shift.")
         else:
             rows_hd = []
             for r in db_sihd:
@@ -10865,10 +10462,21 @@ elif menu == "🚨 SiHD (Pergerakan Tim)":
 
             st.dataframe(df_hd_v.drop(columns=["Tanggal"]), use_container_width=True, hide_index=True)
 
-            # Generate WA Serah Terima Shift Gabungan
+            inc_mbp_wa = st.checkbox("⚡ Sertakan ringkasan Tracking MBP aktif (Status DOWN / On Backup + Jarak) di WA Serah Terima Shift", value=True, key="sihd_inc_mbp_wa")
+
             wa_handover = f"*📋 SERAH TERIMA SHIFT HELPDESK (SiHD)*\n📍 Area: {flt_hd_nop} | Tanggal: {flt_hd_tgl} | Shift: {flt_hd_shf}\nTotal Pergerakan: {len(df_hd_v)} Aktivitas\n\n"
             for idx_h, (_, rh) in enumerate(df_hd_v.head(20).iterrows(), 1):
                 wa_handover += f"{idx_h}. *[{rh['Status']}]* {rh['Site / Rute']} | Tim: {rh['Tim FME']}\n   ↳ {rh['Kegiatan']}: {rh['Keterangan']}\n"
+
+            if inc_mbp_wa and not df_mbp_cloud.empty:
+                df_mbp_act_wa = df_mbp_cloud[~df_mbp_cloud["Status_Pergerakan"].astype(str).str.lower().str.contains("selesai|clear")]
+                if flt_hd_nop != "Semua NOP":
+                    df_mbp_act_wa = df_mbp_act_wa[df_mbp_act_wa["NOP"].astype(str).str.lower() == flt_hd_nop.lower()]
+                if not df_mbp_act_wa.empty:
+                    wa_handover += f"\n*⚡ STATUS TRACKING MBP AKTIF ({len(df_mbp_act_wa)} Site):*\n"
+                    for ix_w, (_, rw_m) in enumerate(df_mbp_act_wa.head(15).iterrows(), 1):
+                        wa_handover += f"{ix_w}. *{rw_m['Site_ID']}* ({rw_m['Status_Site']}) · 🚐 {rw_m['Tim_MBP']} · {rw_m['Est_Jalan_km']} km ({rw_m['Status_Pergerakan']})\n"
+
             wa_handover += "\n_Generated via SIDATA SiHD_"
 
             c_hw1, c_hw2 = st.columns(2)
@@ -10876,9 +10484,6 @@ elif menu == "🚨 SiHD (Pergerakan Tim)":
                 st.link_button("📱 KIRIM WA SERAH TERIMA SHIFT (GABUNGAN)", f"https://wa.me/?text={urllib.parse.quote(wa_handover)}", type="primary", use_container_width=True)
             with c_hw2:
                 st.download_button("📥 Download Buku Mutasi SiHD (.csv)", data=df_hd_v.to_csv(index=False).encode("utf-8"), file_name=f"Buku_Mutasi_SiHD_{datetime.date.today()}.csv", mime="text/csv", use_container_width=True)
-
-    with tab_hd_trk:
-        ux_sihd_tracking_ui(db_sihd, fme_plk_list, fme_pbu_list, site_plk_list, site_pbu_list)
 
 # =========================================================================
 # MENU 9: SYSINFOMAP (PETA GEOSPASIAL, POPULASI KABUPATEN & KOMPARASI SITE)
